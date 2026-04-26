@@ -71,6 +71,20 @@ pub enum ConnectEvent {
     },
 }
 
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectFlowState {
+    Idle,
+    ProviderPickerOpen,
+    ProviderSelected,
+    ApiKeyInputFocused,
+    ValidatingKey,
+    ValidationFailed,
+    ValidationSucceeded,
+    Cancelled,
+    RecoveredToMainInput,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum LeaderKeyState {
     Idle,
@@ -492,6 +506,7 @@ pub struct App {
     pub pending_copilot_session: Option<CopilotOAuthSession>,
     pub pending_browser_models: Vec<BrowserAuthModelInfo>,
     pub validation_in_progress: bool,
+    pub validation_cancelled: bool,
     pub pending_api_key_for_validation: Option<String>,
     pub pending_api_key_models: Vec<BrowserAuthModelInfo>,
     pub pending_api_key_for_provider: Option<String>,
@@ -722,7 +737,21 @@ pub async fn validate_api_key_and_fetch_models(
     provider_id: &str,
     api_key: &str,
 ) -> Result<Vec<BrowserAuthModelInfo>, ApiKeyValidationError> {
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let redacted_key = if api_key.len() > 8 {
+        format!("****{}", &api_key[api_key.len() - 8..])
+    } else {
+        "****".to_string()
+    };
+
     if api_key.is_empty() {
+        tracing::warn!(
+            event = "provider.validation.start",
+            request_id = %request_id,
+            provider_id = %provider_id,
+            reason = "empty_key",
+            "Provider validation skipped: empty API key"
+        );
         return Err(ApiKeyValidationError {
             message: "API key cannot be empty".to_string(),
             error_type: ApiKeyValidationErrorType::EmptyKey,
@@ -739,30 +768,34 @@ pub async fn validate_api_key_and_fetch_models(
             status_code: None,
         })?;
 
-    let (url, auth_header, is_anthropic, is_lm_studio) = match provider_id {
+    let (url, auth_header, is_anthropic, is_lm_studio, http_method) = match provider_id {
         "anthropic" => (
             "https://api.anthropic.com/v1/models".to_string(),
             format!("Bearer {}", api_key),
             true,
             false,
+            "GET".to_string(),
         ),
         "openai" => (
             "https://api.openai.com/v1/models".to_string(),
             format!("Bearer {}", api_key),
             false,
             false,
+            "GET".to_string(),
         ),
         "minimax" => (
             "https://api.minimax.io/v1/models".to_string(),
             format!("Bearer {}", api_key),
             false,
             false,
+            "GET".to_string(),
         ),
         "minimax-cn" => (
             "https://api.minimaxi.com/v1/chat/completions".to_string(),
             format!("Bearer {}", api_key),
             false,
-            true,
+            false,
+            "POST".to_string(),
         ),
         "lmstudio" | "lm_studio" | "lm-studio" => {
             let base_url = std::env::var("LMSTUDIO_BASE_URL")
@@ -774,6 +807,7 @@ pub async fn validate_api_key_and_fetch_models(
                 format!("Bearer {}", api_key),
                 false,
                 true,
+                "GET".to_string(),
             )
         }
         _ => {
@@ -791,31 +825,102 @@ pub async fn validate_api_key_and_fetch_models(
                 format!("Bearer {}", api_key),
                 false,
                 false,
+                "GET".to_string(),
             )
         }
     };
 
-    let response = client
-        .get(&url)
-        .header("Authorization", &auth_header)
-        .send()
-        .await
-        .map_err(|e| {
-            let error_type = if e.is_timeout() {
-                ApiKeyValidationErrorType::Timeout
-            } else {
-                ApiKeyValidationErrorType::NetworkError
-            };
-            ApiKeyValidationError {
-                message: format!("Network error: {}", e),
-                error_type,
-                status_code: None,
-            }
-        })?;
+    let request_builder = client
+        .request(
+            reqwest::Method::from_bytes(http_method.as_bytes()).unwrap(),
+            &url,
+        )
+        .header("Authorization", &auth_header);
 
+    let request_builder = if provider_id == "minimax-cn" {
+        let body = serde_json::json!({
+            "model": "MiniMax-M2.7",
+            "messages": [{"role": "user", "content": "test"}],
+            "max_tokens": 1
+        });
+        request_builder
+            .header("Content-Type", "application/json")
+            .json(&body)
+    } else {
+        request_builder
+    };
+
+    tracing::info!(
+        event = "provider.validation.request",
+        request_id = %request_id,
+        provider_id = %provider_id,
+        method = %http_method,
+        url = %url,
+        auth_type = "Bearer",
+        key_suffix = %redacted_key,
+        "Sending provider validation request"
+    );
+
+    let start_time = std::time::Instant::now();
+    let response = request_builder.send().await.map_err(|e| {
+        let elapsed_ms = start_time.elapsed().as_millis() as u64;
+        let error_type = if e.is_timeout() {
+            ApiKeyValidationErrorType::Timeout
+        } else {
+            ApiKeyValidationErrorType::NetworkError
+        };
+        tracing::error!(
+            event = "provider.validation.error",
+            request_id = %request_id,
+            provider_id = %provider_id,
+            error_type = ?error_type,
+            elapsed_ms = %elapsed_ms,
+            url = %url,
+            error = %e,
+            "Provider validation request failed"
+        );
+        ApiKeyValidationError {
+            message: format!("Network error: {}", e),
+            error_type,
+            status_code: None,
+        }
+    })?;
+
+    let elapsed_ms = start_time.elapsed().as_millis() as u64;
     let status = response.status();
 
+    tracing::info!(
+        event = "provider.validation.response",
+        request_id = %request_id,
+        provider_id = %provider_id,
+        status = %status,
+        elapsed_ms = %elapsed_ms,
+        "Received provider validation response"
+    );
+
     if status.is_success() {
+        if provider_id == "minimax-cn" {
+            tracing::info!(
+                event = "provider.validation.success",
+                request_id = %request_id,
+                provider_id = %provider_id,
+                elapsed_ms = %elapsed_ms,
+                "Minimax CN validation succeeded (key valid)"
+            );
+            return Ok(vec![
+                BrowserAuthModelInfo {
+                    id: "MiniMax-M2.7".to_string(),
+                    name: "MiniMax M2.7".to_string(),
+                    variants: vec![],
+                },
+                BrowserAuthModelInfo {
+                    id: "MiniMax-M2.5".to_string(),
+                    name: "MiniMax M2.5".to_string(),
+                    variants: vec![],
+                },
+            ]);
+        }
+
         let body = response.text().await.map_err(|e| ApiKeyValidationError {
             message: format!("Failed to read response body: {}", e),
             error_type: ApiKeyValidationErrorType::InvalidResponse,
@@ -829,6 +934,15 @@ pub async fn validate_api_key_and_fetch_models(
         } else {
             parse_openai_models(&body)
         };
+
+        tracing::info!(
+            event = "provider.validation.parsed_models",
+            request_id = %request_id,
+            provider_id = %provider_id,
+            model_count = %models.len(),
+            elapsed_ms = %elapsed_ms,
+            "Provider validation parsed models successfully"
+        );
 
         Ok(models)
     } else if status.as_u16() == 401 || status.as_u16() == 403 {
@@ -848,12 +962,29 @@ pub async fn validate_api_key_and_fetch_models(
                 )
             })
         };
+        tracing::error!(
+            event = "provider.validation.auth_failed",
+            request_id = %request_id,
+            provider_id = %provider_id,
+            status = %status,
+            elapsed_ms = %elapsed_ms,
+            error = %error_message,
+            "Provider validation authentication failed"
+        );
         Err(ApiKeyValidationError {
             message: error_message,
             error_type: ApiKeyValidationErrorType::AuthenticationError,
             status_code: Some(status.as_u16()),
         })
     } else if status.as_u16() >= 500 {
+        tracing::error!(
+            event = "provider.validation.server_error",
+            request_id = %request_id,
+            provider_id = %provider_id,
+            status = %status,
+            elapsed_ms = %elapsed_ms,
+            "Provider validation server error"
+        );
         Err(ApiKeyValidationError {
             message: format!(
                 "Server error (HTTP {}): please try again later",
@@ -863,6 +994,17 @@ pub async fn validate_api_key_and_fetch_models(
             status_code: Some(status.as_u16()),
         })
     } else {
+        let error_body = response.text().await.unwrap_or_default();
+        let error_excerpt = error_body.chars().take(200).collect::<String>();
+        tracing::error!(
+            event = "provider.validation.request_failed",
+            request_id = %request_id,
+            provider_id = %provider_id,
+            status = %status,
+            elapsed_ms = %elapsed_ms,
+            response_excerpt = %error_excerpt,
+            "Provider validation request failed"
+        );
         Err(ApiKeyValidationError {
             message: format!("Request failed with HTTP {}", status.as_u16()),
             error_type: ApiKeyValidationErrorType::Unknown,
@@ -1089,6 +1231,7 @@ impl App {
             pending_copilot_session: None,
             pending_browser_models: Vec::new(),
             validation_in_progress: false,
+            validation_cancelled: false,
             pending_api_key_for_validation: None,
             pending_api_key_models: Vec::new(),
             pending_api_key_for_provider: None,
@@ -1219,6 +1362,7 @@ impl App {
         let (tx, rx) = mpsc::channel();
         self.connect_rx = Some(rx);
         self.validation_in_progress = true;
+        self.validation_cancelled = false;
         self.mode = AppMode::ConnectProgress;
 
         std::thread::spawn(move || {
@@ -1838,6 +1982,39 @@ impl App {
 
     pub fn confirm_model_for_google_auth_for_test(&mut self, model_id: &str) -> Result<(), String> {
         self.handle_connect_model_confirm(model_id.to_string())
+    }
+
+    #[cfg(test)]
+    pub fn get_connect_flow_state(&self) -> ConnectFlowState {
+        match self.mode {
+            AppMode::ConnectProvider => ConnectFlowState::ProviderPickerOpen,
+            AppMode::ConnectMethod => ConnectFlowState::ProviderSelected,
+            AppMode::ConnectApiKey => ConnectFlowState::ApiKeyInputFocused,
+            AppMode::ConnectProgress if self.validation_in_progress => {
+                ConnectFlowState::ValidatingKey
+            }
+            AppMode::ConnectApiKeyError => ConnectFlowState::ValidationFailed,
+            AppMode::ConnectModel => ConnectFlowState::ValidationSucceeded,
+            _ if self.validation_in_progress => ConnectFlowState::ValidatingKey,
+            _ => ConnectFlowState::Idle,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn is_main_input_focused(&self) -> bool {
+        matches!(self.mode, AppMode::Chat | AppMode::Home)
+    }
+
+    #[cfg(test)]
+    pub fn has_active_modal(&self) -> bool {
+        self.api_key_input_dialog.is_some()
+            || self.connect_model_dialog.is_some()
+            || self.validation_error_dialog.is_some()
+    }
+
+    #[cfg(test)]
+    pub fn is_connect_rx_dropped(&self) -> bool {
+        self.connect_rx.is_none()
     }
 
     /// Initialize the LLM provider based on the provider name
@@ -2483,6 +2660,17 @@ impl App {
                         models,
                     } => {
                         self.validation_in_progress = false;
+
+                        if self.validation_cancelled {
+                            tracing::info!(
+                                event = "tui.connect.late_result_ignored",
+                                success = %success,
+                                error_message = ?error_message,
+                                "Ignoring late validation result after cancellation"
+                            );
+                            continue;
+                        }
+
                         if success {
                             let provider_id =
                                 self.pending_connect_provider.clone().unwrap_or_default();
@@ -5690,12 +5878,19 @@ OpenCode Agent Configuration
                     }
                 }
                 if key.code == KeyCode::Esc {
+                    self.connect_rx = None;
                     self.validation_in_progress = false;
+                    self.validation_cancelled = true;
                     self.pending_api_key_for_validation = None;
                     self.pending_connect_provider = None;
                     self.api_key_input_dialog = None;
                     self.connect_method_dialog = None;
                     self.mode = AppMode::ConnectProvider;
+                    tracing::info!(
+                        event = "tui.connect.cancelled",
+                        reason = "user_pressed_esc",
+                        "Connect validation cancelled by user"
+                    );
                 }
             }
         }
