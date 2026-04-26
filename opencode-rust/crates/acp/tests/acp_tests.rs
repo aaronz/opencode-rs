@@ -2,6 +2,7 @@ use opencode_acp::{
     AcpClient, AcpConnectionState, AcpError, AcpMessage, AcpState, AcpStatus, HandshakeRequest,
 };
 use std::sync::Arc;
+use std::time::Duration;
 
 fn create_test_client() -> AcpClient {
     let http = reqwest::Client::new();
@@ -257,6 +258,7 @@ fn test_acp_state_instantiation() {
         server_url: None,
         base_url: None,
         connection_timeout: None,
+        retry_config: None,
     };
     assert!(matches!(
         state.connection_state,
@@ -278,6 +280,7 @@ fn test_acp_state_fields_accessible() {
         server_url: Some("http://localhost:8080".to_string()),
         base_url: Some("http://localhost:8080".to_string()),
         connection_timeout: Some(Duration::from_secs(30)),
+        retry_config: None,
     };
 
     assert_eq!(state.client_id, "client-123");
@@ -1365,6 +1368,7 @@ fn test_acp_state_includes_base_url_field() {
         server_url: Some("http://localhost:8080".to_string()),
         base_url: Some("http://custom-host:9000".to_string()),
         connection_timeout: Some(Duration::from_secs(30)),
+        retry_config: None,
     };
 
     assert_eq!(state.base_url, Some("http://custom-host:9000".to_string()));
@@ -1382,6 +1386,7 @@ fn test_acp_state_base_url_defaults_to_none() {
         server_url: None,
         base_url: None,
         connection_timeout: None,
+        retry_config: None,
     };
 
     assert_eq!(state.base_url, None);
@@ -1463,6 +1468,7 @@ fn test_acp_state_includes_connection_timeout_field() {
         server_url: Some("http://localhost:8080".to_string()),
         base_url: Some("http://custom-host:9000".to_string()),
         connection_timeout: Some(Duration::from_secs(30)),
+        retry_config: None,
     };
 
     assert_eq!(state.connection_timeout, Some(Duration::from_secs(30)));
@@ -1479,6 +1485,7 @@ fn test_acp_state_connection_timeout_defaults_to_none() {
         server_url: None,
         base_url: None,
         connection_timeout: None,
+        retry_config: None,
     };
 
     assert_eq!(state.connection_timeout, None);
@@ -1539,4 +1546,290 @@ async fn test_connection_timeout_error_display() {
 async fn test_connection_timeout_error_display_zero() {
     let err = AcpError::ConnectionTimeout { timeout: 0 };
     assert_eq!(err.to_string(), "Connection timeout after 0s");
+}
+
+#[test]
+fn test_retry_config_set_and_get() {
+    use opencode_util::retry::RetryConfig;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    assert!(client.get_retry_config().is_none());
+
+    let config = RetryConfig::new(5, Duration::from_millis(100));
+    client.set_retry_config(config.clone());
+
+    let retrieved = client.get_retry_config();
+    assert!(retrieved.is_some());
+    assert_eq!(retrieved.unwrap().max_attempts, 5);
+}
+
+#[test]
+fn test_retry_config_clear() {
+    use opencode_util::retry::RetryConfig;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    let config = RetryConfig::new(3, Duration::from_millis(50));
+    client.set_retry_config(config);
+
+    assert!(client.get_retry_config().is_some());
+
+    client.clear_retry_config();
+
+    assert!(client.get_retry_config().is_none());
+}
+
+#[test]
+fn test_retry_config_default() {
+    use opencode_util::retry::RetryConfig;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    let default_config = RetryConfig::default();
+    client.set_retry_config(default_config);
+
+    let retrieved = client.get_retry_config().unwrap();
+    assert_eq!(retrieved.max_attempts, 3);
+    assert_eq!(retrieved.base_delay, Duration::from_millis(100));
+    assert_eq!(retrieved.max_delay, Duration::from_secs(10));
+    assert!(retrieved.jitter);
+}
+
+#[test]
+fn test_retry_config_with_max_delay() {
+    use opencode_util::retry::RetryConfig;
+    use std::time::Duration;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    let config = RetryConfig::new(3, Duration::from_millis(100))
+        .with_max_delay(Duration::from_secs(5));
+
+    client.set_retry_config(config);
+
+    let retrieved = client.get_retry_config().unwrap();
+    assert_eq!(retrieved.max_delay, Duration::from_secs(5));
+}
+
+#[tokio::test]
+async fn test_connect_with_retry_succeeds_on_first_attempt() {
+    use opencode_util::retry::RetryConfig;
+    use std::time::Duration;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-retry-success",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-retry-success"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    client.set_retry_config(RetryConfig::new(3, Duration::from_millis(10)));
+
+    let result = client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await;
+
+    assert!(result.is_ok());
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+}
+
+#[tokio::test]
+async fn test_connect_with_retry_retries_on_failure_then_succeeds() {
+    use opencode_util::retry::RetryConfig;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    let mock_server_uri = mock_server.uri();
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "server_id": "srv-retry-eventual",
+                "accepted_capabilities": ["chat"],
+                "session_token": "tok-retry-eventual"
+            }))
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    client.set_retry_config(
+        RetryConfig::new(5, Duration::from_millis(20))
+            .with_no_jitter()
+    );
+
+    let result = client
+        .connect(&mock_server_uri, Some("my-client".to_string()))
+        .await;
+
+    assert!(result.is_ok());
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+}
+
+#[tokio::test]
+async fn test_connect_with_retry_exhausted_after_max_attempts() {
+    use opencode_util::retry::RetryConfig;
+    use std::time::Duration;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+        .expect(3)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    client.set_retry_config(
+        RetryConfig::new(3, Duration::from_millis(10))
+            .with_no_jitter()
+    );
+
+    let start = std::time::Instant::now();
+    let result = client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await;
+    let elapsed = start.elapsed();
+
+    assert!(result.is_err());
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    assert!(
+        elapsed >= Duration::from_millis(20),
+        "Expected at least 20ms delay for 2 retries with 10ms base delay, got {}ms",
+        elapsed.as_millis()
+    );
+}
+
+#[tokio::test]
+async fn test_connect_without_retry_config_no_retries() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    assert!(client.get_retry_config().is_none());
+
+    let start = std::time::Instant::now();
+    let result = client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await;
+    let elapsed = start.elapsed();
+
+    assert!(result.is_err());
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    assert!(
+        elapsed < Duration::from_millis(50),
+        "Expected no significant delay without retry config, got {}ms",
+        elapsed.as_millis()
+    );
+}
+
+#[tokio::test]
+async fn test_connect_with_retry_network_error_retries() {
+    use opencode_util::retry::RetryConfig;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    client.set_retry_config(
+        RetryConfig::new(3, Duration::from_millis(10))
+            .with_no_jitter()
+    );
+
+    let start = std::time::Instant::now();
+    let result = client
+        .connect("http://localhost:1", Some("my-client".to_string()))
+        .await;
+    let elapsed = start.elapsed();
+
+    assert!(result.is_err());
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    assert!(
+        elapsed >= Duration::from_millis(10),
+        "Expected some delay from retries, got {}ms",
+        elapsed.as_millis()
+    );
+}
+
+#[test]
+fn test_acp_state_includes_retry_config_field() {
+    use opencode_util::retry::RetryConfig;
+    use std::time::Duration;
+
+    let state = AcpState {
+        connection_state: AcpConnectionState::Connected,
+        client_id: "test-client".to_string(),
+        server_id: Some("server-123".to_string()),
+        session_token: Some("token-456".to_string()),
+        capabilities: vec!["chat".to_string()],
+        server_url: Some("http://localhost:8080".to_string()),
+        base_url: Some("http://custom-host:9000".to_string()),
+        connection_timeout: Some(Duration::from_secs(30)),
+        retry_config: Some(RetryConfig::new(5, Duration::from_millis(100))),
+    };
+
+    assert!(state.retry_config.is_some());
+    assert_eq!(state.retry_config.unwrap().max_attempts, 5);
+}
+
+#[test]
+fn test_acp_state_retry_config_defaults_to_none() {
+    let state = AcpState {
+        connection_state: AcpConnectionState::Disconnected,
+        client_id: "test-client".to_string(),
+        server_id: None,
+        session_token: None,
+        capabilities: Vec::new(),
+        server_url: None,
+        base_url: None,
+        connection_timeout: None,
+        retry_config: None,
+    };
+
+    assert!(state.retry_config.is_none());
 }

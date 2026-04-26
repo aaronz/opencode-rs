@@ -1722,6 +1722,7 @@ mod tests {
             cors: None,
             desktop: None,
             acp: None,
+            password: None,
         });
         let resp = crate::routes::config::update_config(
             web::Data::new(create_test_state()),

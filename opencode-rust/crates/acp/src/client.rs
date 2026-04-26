@@ -32,6 +32,7 @@ pub struct AcpState {
     pub server_url: Option<String>,
     pub base_url: Option<String>,
     pub connection_timeout: Option<Duration>,
+    pub retry_config: Option<opencode_util::retry::RetryConfig>,
 }
 
 impl AcpState {
@@ -45,6 +46,7 @@ impl AcpState {
             server_url: None,
             base_url: None,
             connection_timeout: None,
+            retry_config: None,
         }
     }
 }
@@ -100,6 +102,20 @@ impl AcpClient {
 
     pub fn get_connection_timeout(&self) -> Option<Duration> {
         self.state.lock().unwrap().connection_timeout
+    }
+
+    pub fn set_retry_config(&self, config: opencode_util::retry::RetryConfig) {
+        let mut state = self.state.lock().unwrap();
+        state.retry_config = Some(config);
+    }
+
+    pub fn get_retry_config(&self) -> Option<opencode_util::retry::RetryConfig> {
+        self.state.lock().unwrap().retry_config.clone()
+    }
+
+    pub fn clear_retry_config(&self) {
+        let mut state = self.state.lock().unwrap();
+        state.retry_config = None;
     }
 
     pub fn connection_state(&self) -> AcpConnectionState {
@@ -180,51 +196,82 @@ impl AcpClient {
         server_url: &str,
         client_id: Option<String>,
     ) -> Result<(), error::AcpError> {
-        {
-            let mut state = self.state.lock().unwrap();
-            state.connection_state = AcpConnectionState::Handshaking;
-            state.server_url = Some(server_url.to_string());
-            if state.base_url.is_none() {
-                state.base_url = Some(server_url.to_string());
-            }
-        }
+        let retry_config = self.state.lock().unwrap().retry_config.clone();
 
-        let cid = client_id.unwrap_or_else(|| {
-            std::env::var("OPENCODE_CLIENT_ID").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
-        });
+        let connect_attempt = |attempt: u32| {
+            let server_url = server_url.to_string();
+            let client_id = client_id.clone();
+            let state = self.state.clone();
+            let this = self.clone();
 
-        let response = match self
-            .handshake(server_url, cid, vec!["chat".to_string()])
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => {
+            async move {
                 {
-                    let mut state = self.state.lock().unwrap();
-                    state.connection_state = AcpConnectionState::Disconnected;
-                    state.server_url = None;
+                    let mut state_guard = state.lock().unwrap();
+                    state_guard.connection_state = AcpConnectionState::Handshaking;
+                    state_guard.server_url = Some(server_url.clone());
+                    if state_guard.base_url.is_none() {
+                        state_guard.base_url = Some(server_url.clone());
+                    }
                 }
-                return Err(e);
+
+                let cid = client_id.unwrap_or_else(|| {
+                    std::env::var("OPENCODE_CLIENT_ID")
+                        .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
+                });
+
+                tracing::debug!("Connect attempt {} to {}", attempt, server_url);
+
+                let result = this.handshake(&server_url, cid, vec!["chat".to_string()]).await;
+
+                match result {
+                    Ok(response) => {
+                        {
+                            let mut state_guard = state.lock().unwrap();
+                            state_guard.connection_state =
+                                AcpConnectionState::Connected;
+                            state_guard.server_id = Some(response.server_id.clone());
+                            state_guard.session_token = response.session_token;
+                            state_guard.capabilities =
+                                response.accepted_capabilities.clone();
+                        }
+
+                        let server_id = state.lock().unwrap().server_id.clone().unwrap();
+                        let capabilities = state.lock().unwrap().capabilities.clone();
+                        this.bus
+                            .publish(opencode_core::bus::InternalEvent::AcpConnected {
+                                server_id,
+                                capabilities,
+                            });
+
+                        Ok(())
+                    }
+                    Err(e) => {
+                        {
+                            let mut state_guard = state.lock().unwrap();
+                            state_guard.connection_state =
+                                AcpConnectionState::Disconnected;
+                            state_guard.server_url = None;
+                        }
+                        tracing::debug!("Connect attempt {} failed: {}", attempt, e);
+                        Err(e)
+                    }
+                }
             }
         };
 
-        {
-            let mut state = self.state.lock().unwrap();
-            state.connection_state = AcpConnectionState::Connected;
-            state.server_id = Some(response.server_id.clone());
-            state.session_token = response.session_token;
-            state.capabilities = response.accepted_capabilities.clone();
+        if let Some(config) = retry_config {
+            let result = opencode_util::retry::retry(config, connect_attempt).await;
+
+            match result {
+                Ok(()) => Ok(()),
+                Err((e, attempts)) => {
+                    tracing::debug!("All connect attempts exhausted after {} tries", attempts);
+                    Err(e)
+                }
+            }
+        } else {
+            connect_attempt(0).await
         }
-
-        let server_id = self.state.lock().unwrap().server_id.clone().unwrap();
-        let capabilities = self.state.lock().unwrap().capabilities.clone();
-        self.bus
-            .publish(opencode_core::bus::InternalEvent::AcpConnected {
-                server_id,
-                capabilities,
-            });
-
-        Ok(())
     }
 
     pub async fn ack(&self, handshake_id: &str, accepted: bool) -> Result<(), error::AcpError> {

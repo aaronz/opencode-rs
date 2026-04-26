@@ -1009,7 +1009,7 @@
       "priority": "P1",
       "title": "Add retry logic with backoff",
       "description": "Add retry logic with backoff for failed connections",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify retry logic works correctly",
         "AddErrorHandlingTest: verify backoff is applied correctly"

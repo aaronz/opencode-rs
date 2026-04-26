@@ -4707,6 +4707,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "opencode-core",
+ "opencode-util",
  "reqwest",
  "serde",
  "serde_json",

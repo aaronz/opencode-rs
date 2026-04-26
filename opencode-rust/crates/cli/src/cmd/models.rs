@@ -218,8 +218,9 @@ mod tests {
 
     #[test]
     fn test_save_and_load_hidden_models() {
-        let temp_dir = std::env::temp_dir();
+        let temp_dir = std::env::temp_dir().join("opencode-test-save-load");
         std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
+        std::fs::create_dir_all(&temp_dir).ok();
         let hidden_file = temp_dir.join("opencode-hidden-models.json");
         let _ = std::fs::remove_file(&hidden_file);
 
@@ -238,8 +239,9 @@ mod tests {
 
     #[test]
     fn test_model_visibility_is_configurable() {
-        let temp_dir = std::env::temp_dir();
+        let temp_dir = std::env::temp_dir().join("opencode-test-visibility");
         std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
+        std::fs::create_dir_all(&temp_dir).ok();
         let hidden_file = temp_dir.join("opencode-hidden-models.json");
         let _ = std::fs::remove_file(&hidden_file);
 
@@ -259,8 +261,9 @@ mod tests {
 
     #[test]
     fn test_hidden_models_filtered_from_list() {
-        let temp_dir = std::env::temp_dir();
+        let temp_dir = std::env::temp_dir().join("opencode-test-hidden");
         std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
+        std::fs::create_dir_all(&temp_dir).ok();
         let hidden_file = temp_dir.join("opencode-hidden-models.json");
         let _ = std::fs::remove_file(&hidden_file);
 
