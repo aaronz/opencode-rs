@@ -18,7 +18,7 @@
       "dependencies": []
     },
     {
-      "id": "FR-100",
+      "id": "FR-101",
       "priority": "P0",
       "title": "Create ACP Cargo.toml with dependencies",
       "description": "Create `crates/acp/Cargo.toml` with required dependencies for ACP module",
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "id": "FR-100",
+      "id": "FR-102",
       "priority": "P0",
       "title": "Create ACP lib.rs with module exports",
       "description": "Create `crates/acp/src/lib.rs` with module exports for the ACP crate",
@@ -52,11 +52,11 @@
       ],
       "impl_notes": "Follow existing crate patterns for lib.rs structure",
       "dependencies": [
-        "FR-100"
+        "FR-101"
       ]
     },
     {
-      "id": "FR-100",
+      "id": "FR-103",
       "priority": "P0",
       "title": "Create ACP client.rs empty stub",
       "description": "Create `crates/acp/src/client.rs` with empty stub for AcpClient",
@@ -71,7 +71,7 @@
       ],
       "impl_notes": "Create stub structure to be filled in subsequent tasks",
       "dependencies": [
-        "FR-100"
+        "FR-102"
       ]
     },
     {
@@ -113,11 +113,11 @@
       ]
     },
     {
-      "id": "FR-103",
+      "id": "FR-104",
       "priority": "P0",
       "title": "Implement AcpClient struct",
       "description": "Implement `AcpClient` struct with `http`, `state`, `bus` fields",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify AcpClient can be instantiated with all fields",
         "AddUnitTest: verify field access works correctly"
@@ -128,7 +128,7 @@
       ],
       "impl_notes": "Client should wrap HTTP client, state, and event bus",
       "dependencies": [
-        "FR-102"
+        "FR-103"
       ]
     },
     {
@@ -151,7 +151,7 @@
       ]
     },
     {
-      "id": "FR-105",
+      "id": "FR-109",
       "priority": "P0",
       "title": "Implement AcpStatus struct",
       "description": "Implement `AcpStatus` struct to represent ACP status information",
@@ -166,11 +166,11 @@
       ],
       "impl_notes": "Status should include connection state and metadata",
       "dependencies": [
-        "FR-100"
+        "FR-107"
       ]
     },
     {
-      "id": "FR-105",
+      "id": "FR-110",
       "priority": "P0",
       "title": "Implement HandshakeRequest type",
       "description": "Implement `HandshakeRequest` type for ACP handshake",
@@ -185,11 +185,11 @@
       ],
       "impl_notes": "Request should contain client_id and capabilities",
       "dependencies": [
-        "FR-100"
+        "FR-108"
       ]
     },
     {
-      "id": "FR-105",
+      "id": "FR-111",
       "priority": "P0",
       "title": "Implement HandshakeResponse type",
       "description": "Implement `HandshakeResponse` type for ACP handshake response",
@@ -204,11 +204,11 @@
       ],
       "impl_notes": "Response should contain server acknowledgement",
       "dependencies": [
-        "FR-100"
+        "FR-110"
       ]
     },
     {
-      "id": "FR-105",
+      "id": "FR-112",
       "priority": "P0",
       "title": "Implement ConnectRequest type",
       "description": "Implement `ConnectRequest` type for ACP connection",
@@ -223,11 +223,11 @@
       ],
       "impl_notes": "Request should contain URL and connection parameters",
       "dependencies": [
-        "FR-100"
+        "FR-108"
       ]
     },
     {
-      "id": "FR-105",
+      "id": "FR-113",
       "priority": "P0",
       "title": "Implement AckRequest type",
       "description": "Implement `AckRequest` type for ACP acknowledgement",
@@ -242,11 +242,11 @@
       ],
       "impl_notes": "Request should contain session and message info",
       "dependencies": [
-        "FR-100"
+        "FR-108"
       ]
     },
     {
-      "id": "FR-105",
+      "id": "FR-114",
       "priority": "P0",
       "title": "Implement AcpMessage type",
       "description": "Implement `AcpMessage` type for ACP message envelope",
@@ -261,11 +261,11 @@
       ],
       "impl_notes": "Message should be an enum supporting different ACP message types",
       "dependencies": [
-        "FR-100"
+        "FR-107"
       ]
     },
     {
-      "id": "FR-103",
+      "id": "FR-115",
       "priority": "P0",
       "title": "Implement AcpClient::status() method",
       "description": "Implement `AcpClient::status()` method to get current ACP status",
@@ -280,11 +280,11 @@
       ],
       "impl_notes": "Method should return AcpStatus based on current state",
       "dependencies": [
-        "FR-103"
+        "FR-104"
       ]
     },
     {
-      "id": "FR-103",
+      "id": "FR-116",
       "priority": "P0",
       "title": "Implement AcpClient::connect() with state transitions",
       "description": "Implement `AcpClient::connect()` method with proper state transitions",
@@ -300,12 +300,12 @@
       ],
       "impl_notes": "Must handle state transitions correctly and return errors on failure",
       "dependencies": [
-        "FR-103",
-        "FR-104"
+        "FR-104",
+        "FR-107"
       ]
     },
     {
-      "id": "FR-103",
+      "id": "FR-117",
       "priority": "P0",
       "title": "Implement AcpClient::handshake() method",
       "description": "Implement `AcpClient::handshake()` method for ACP handshake",
@@ -321,12 +321,12 @@
       ],
       "impl_notes": "Handshake should be called after successful connect",
       "dependencies": [
-        "FR-103",
-        "FR-104"
+        "FR-104",
+        "FR-107"
       ]
     },
     {
-      "id": "FR-103",
+      "id": "FR-118",
       "priority": "P0",
       "title": "Implement AcpClient::ack() method",
       "description": "Implement `AcpClient::ack()` method for ACP acknowledgement",
@@ -342,12 +342,12 @@
       ],
       "impl_notes": "Ack should confirm message receipt",
       "dependencies": [
-        "FR-103",
-        "FR-104"
+        "FR-104",
+        "FR-107"
       ]
     },
     {
-      "id": "FR-103",
+      "id": "FR-119",
       "priority": "P0",
       "title": "Implement AcpClient::send_message() method",
       "description": "Implement `AcpClient::send_message()` method to send ACP messages",
@@ -363,12 +363,12 @@
       ],
       "impl_notes": "Must return error if not in Connected state",
       "dependencies": [
-        "FR-103",
-        "FR-104"
+        "FR-104",
+        "FR-107"
       ]
     },
     {
-      "id": "FR-103",
+      "id": "FR-120",
       "priority": "P0",
       "title": "Implement AcpClient::disconnect() method",
       "description": "Implement `AcpClient::disconnect()` method to close ACP connection",
@@ -384,7 +384,7 @@
       ],
       "impl_notes": "Disconnect should be safe to call from any state",
       "dependencies": [
-        "FR-103"
+        "FR-104"
       ]
     },
     {
