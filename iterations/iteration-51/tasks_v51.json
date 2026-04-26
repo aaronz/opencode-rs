@@ -621,7 +621,7 @@
       "priority": "P1",
       "title": "Write integration test: full connect-message-disconnect cycle",
       "description": "Write integration test: verify full connect-message-disconnect cycle works",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify full lifecycle: connect -> send_message -> disconnect",
         "AddErrorHandlingTest: verify errors at each stage are handled correctly",
@@ -641,7 +641,7 @@
       "priority": "P0",
       "title": "Implement agent run with AgentRegistry and LLM provider",
       "description": "Implement `agent run` with AgentRegistry and LLM provider integration at cmd/agent.rs:48",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify agent run command initializes correctly",
         "AddIntegrationTest: verify agent runs with LLM provider",
