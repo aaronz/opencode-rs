@@ -134,6 +134,7 @@ impl AcpClient {
             client_id: Some(state.client_id.clone()),
             capabilities: state.capabilities.clone(),
             server_url: state.server_url.clone(),
+            version: Some("1.0".to_string()),
         })
     }
 

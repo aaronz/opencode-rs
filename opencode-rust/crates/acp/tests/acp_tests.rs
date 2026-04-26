@@ -364,11 +364,13 @@ fn test_acp_status_instantiation() {
         client_id: Some("client-abc".to_string()),
         capabilities: vec!["chat".to_string(), "tasks".to_string()],
         server_url: Some("http://localhost:8080".to_string()),
+        version: Some("1.0".to_string()),
     };
     assert!(status.connected);
     assert_eq!(status.client_id, Some("client-abc".to_string()));
     assert_eq!(status.capabilities.len(), 2);
     assert_eq!(status.server_url, Some("http://localhost:8080".to_string()));
+    assert_eq!(status.version, Some("1.0".to_string()));
 }
 
 #[test]
@@ -378,6 +380,7 @@ fn test_acp_status_serialize_deserialize() {
         client_id: Some("client-xyz".to_string()),
         capabilities: vec!["files".to_string(), "search".to_string()],
         server_url: Some("https://acp.example.com".to_string()),
+        version: Some("2.0".to_string()),
     };
 
     let json = serde_json::to_string(&status).unwrap();
@@ -385,6 +388,8 @@ fn test_acp_status_serialize_deserialize() {
     assert!(json.contains("\"client_id\":\"client-xyz\""));
     assert!(json.contains("\"capabilities\""));
     assert!(json.contains("\"server_url\""));
+    assert!(json.contains("\"version\""));
+    assert!(json.contains("\"2.0\""));
 
     let deserialized: AcpStatus = serde_json::from_str(&json).unwrap();
     assert!(deserialized.connected);
@@ -397,6 +402,7 @@ fn test_acp_status_serialize_deserialize() {
         deserialized.server_url,
         Some("https://acp.example.com".to_string())
     );
+    assert_eq!(deserialized.version, Some("2.0".to_string()));
 }
 
 #[test]
@@ -406,17 +412,20 @@ fn test_acp_status_disconnected_state() {
         client_id: None,
         capabilities: Vec::new(),
         server_url: None,
+        version: None,
     };
     assert!(!status.connected);
     assert!(status.client_id.is_none());
     assert!(status.capabilities.is_empty());
     assert!(status.server_url.is_none());
+    assert!(status.version.is_none());
 
     let json = serde_json::to_string(&status).unwrap();
     assert!(json.contains("\"connected\":false"));
     assert!(json.contains("\"client_id\":null"));
     assert!(json.contains("\"capabilities\":[]"));
     assert!(json.contains("\"server_url\":null"));
+    assert!(json.contains("\"version\":null"));
 }
 
 #[tokio::test]
@@ -511,6 +520,7 @@ fn test_acp_status_roundtrip() {
         client_id: Some("test-client".to_string()),
         capabilities: vec!["chat".to_string()],
         server_url: Some("http://127.0.0.1:3000".to_string()),
+        version: Some("1.0".to_string()),
     };
 
     let json = serde_json::to_string(&status).unwrap();
@@ -520,6 +530,7 @@ fn test_acp_status_roundtrip() {
     assert_eq!(roundtrip.client_id, status.client_id);
     assert_eq!(roundtrip.capabilities, status.capabilities);
     assert_eq!(roundtrip.server_url, status.server_url);
+    assert_eq!(roundtrip.version, status.version);
 }
 
 #[tokio::test]

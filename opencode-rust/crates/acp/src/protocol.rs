@@ -7,6 +7,7 @@ pub struct AcpStatus {
     pub client_id: Option<String>,
     pub capabilities: Vec<String>,
     pub server_url: Option<String>,
+    pub version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

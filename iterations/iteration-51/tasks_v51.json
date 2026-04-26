@@ -1009,7 +1009,7 @@
       "priority": "P1",
       "title": "Add retry logic with backoff",
       "description": "Add retry logic with backoff for failed connections",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify retry logic works correctly",
         "AddErrorHandlingTest: verify backoff is applied correctly"
@@ -1026,7 +1026,7 @@
       "priority": "P2",
       "title": "Add version field to AcpStatus",
       "description": "Add version field to `AcpStatus` for monitoring",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify version field is present in status",
         "AddRegressionTest: ensure status serialization works"
