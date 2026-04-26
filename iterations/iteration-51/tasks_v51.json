@@ -817,7 +817,7 @@
       "priority": "P1",
       "title": "Implement acp handshake session persistence",
       "description": "Implement `acp handshake` session persistence at cmd/acp.rs:250-292",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify handshake result is persisted",
         "AddUnitTest: verify persisted session can be restored"
@@ -834,7 +834,7 @@
       "priority": "P1",
       "title": "Implement config migrate command",
       "description": "Implement `config migrate` command at cmd/config.rs:204-208",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify migrate command runs without error",
         "AddIntegrationTest: verify config is migrated correctly"
