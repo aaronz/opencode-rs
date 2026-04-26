@@ -119,6 +119,11 @@ pub enum InternalEvent {
         agent_id: String,
         event_type: String,
     },
+    AcpConnected {
+        server_id: String,
+        capabilities: Vec<String>,
+    },
+    AcpDisconnected,
     ServerStarted {
         port: u16,
     },

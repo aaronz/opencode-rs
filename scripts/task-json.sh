@@ -160,6 +160,35 @@ except:
     echo "${count:-0}"
 }
 
+check_duplicate_task_ids() {
+    local json_file="$1"
+    if [ ! -f "$json_file" ]; then
+        echo ""
+        return 1
+    fi
+
+    local duplicates=$(python3 -c "
+import sys, json
+try:
+    data = json.load(open('$json_file'))
+    tasks = data if isinstance(data, list) else data.get('tasks', [])
+    ids = [t.get('id', '') for t in tasks if t.get('id')]
+    dupes = [i for i in set(ids) if ids.count(i) > 1]
+    if dupes:
+        print(','.join(dupes))
+    else:
+        print('')
+except Exception as e:
+    print('')
+" 2>/dev/null || echo "")
+
+    if [ -n "$duplicates" ]; then
+        echo "$duplicates"
+        return 1
+    fi
+    return 0
+}
+
 generate_tasks_json_fallback() {
     local task_file="$1"
     local json_file="$2"

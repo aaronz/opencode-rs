@@ -693,3 +693,152 @@ async fn test_send_message_handles_network_errors() {
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), AcpError::Http(_)));
 }
+
+#[tokio::test]
+async fn test_acp_connected_event_published_on_successful_connect() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use opencode_core::bus::InternalEvent;
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv1",
+            "accepted_capabilities": ["chat", "tasks"],
+            "session_token": "tok1"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus = opencode_core::bus::EventBus::new();
+    let shared_bus = std::sync::Arc::new(bus);
+    let client = AcpClient::new(http, "test-client".to_string(), shared_bus.clone());
+
+    let mut subscriber = shared_bus.subscribe();
+
+    client.connect(&mock_server.uri(), Some("my-client".to_string())).await.unwrap();
+
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+
+    let event = subscriber.recv().await.unwrap();
+    match event {
+        InternalEvent::AcpConnected { server_id, capabilities } => {
+            assert_eq!(server_id, "srv1");
+            assert_eq!(capabilities, vec!["chat", "tasks"]);
+        }
+        other => panic!("Expected AcpConnected event, got {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn test_acp_connected_event_contains_correct_connection_info() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use opencode_core::bus::InternalEvent;
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "server-abc-123",
+            "accepted_capabilities": ["chat", "files", "search"],
+            "session_token": "secret-token"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus = opencode_core::bus::EventBus::new();
+    let shared_bus = std::sync::Arc::new(bus);
+    let client = AcpClient::new(http, "my-client-id".to_string(), shared_bus.clone());
+
+    let mut subscriber = shared_bus.subscribe();
+
+    client.connect(&mock_server.uri(), Some("my-client-id".to_string())).await.unwrap();
+
+    let event = subscriber.recv().await.unwrap();
+    match event {
+        InternalEvent::AcpConnected { server_id, capabilities } => {
+            assert_eq!(server_id, "server-abc-123");
+            assert_eq!(capabilities, vec!["chat", "files", "search"]);
+        }
+        other => panic!("Expected AcpConnected event, got {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn test_acp_disconnected_event_published_on_disconnect() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use opencode_core::bus::InternalEvent;
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv1",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok1"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus = opencode_core::bus::EventBus::new();
+    let shared_bus = std::sync::Arc::new(bus);
+    let client = AcpClient::new(http, "test-client".to_string(), shared_bus.clone());
+
+    let mut subscriber = shared_bus.subscribe();
+
+    client.connect(&mock_server.uri(), Some("my-client".to_string())).await.unwrap();
+
+    let connected_event = subscriber.recv().await.unwrap();
+    assert!(matches!(connected_event, InternalEvent::AcpConnected { .. }));
+
+    client.disconnect().await.unwrap();
+
+    let event = subscriber.recv().await.unwrap();
+    match event {
+        InternalEvent::AcpDisconnected => {}
+        other => panic!("Expected AcpDisconnected event, got {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn test_acp_connected_and_disconnected_events_both_fired_in_cycle() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use opencode_core::bus::InternalEvent;
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-cycle",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-cycle"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus = opencode_core::bus::EventBus::new();
+    let shared_bus = std::sync::Arc::new(bus);
+    let client = AcpClient::new(http, "test-client".to_string(), shared_bus.clone());
+
+    let mut subscriber = shared_bus.subscribe();
+
+    client.connect(&mock_server.uri(), Some("my-client".to_string())).await.unwrap();
+    let connect_event = subscriber.recv().await.unwrap();
+    assert!(matches!(connect_event, InternalEvent::AcpConnected { .. }));
+
+    client.disconnect().await.unwrap();
+    let disconnect_event = subscriber.recv().await.unwrap();
+    assert!(matches!(disconnect_event, InternalEvent::AcpDisconnected));
+}

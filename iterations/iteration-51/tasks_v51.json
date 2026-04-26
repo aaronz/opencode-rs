@@ -411,7 +411,7 @@
       "priority": "P0",
       "title": "Implement bus event publishing for acp.connected",
       "description": "Implement bus event publishing for `acp.connected` event when connection succeeds",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify acp.connected event is published on successful connect",
         "AddRegressionTest: ensure event contains correct connection info"

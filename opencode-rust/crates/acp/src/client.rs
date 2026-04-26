@@ -143,14 +143,16 @@ impl AcpClient {
         {
             let mut state = self.state.lock().unwrap();
             state.connection_state = AcpConnectionState::Connected;
-            state.server_id = Some(response.server_id);
+            state.server_id = Some(response.server_id.clone());
             state.session_token = response.session_token;
-            state.capabilities = response.accepted_capabilities;
+            state.capabilities = response.accepted_capabilities.clone();
         }
 
-        self.bus.publish(opencode_core::bus::InternalEvent::AcpEventReceived {
-            agent_id: "self".to_string(),
-            event_type: "acp.connected".to_string(),
+        let server_id = self.state.lock().unwrap().server_id.clone().unwrap();
+        let capabilities = self.state.lock().unwrap().capabilities.clone();
+        self.bus.publish(opencode_core::bus::InternalEvent::AcpConnected {
+            server_id,
+            capabilities,
         });
 
         Ok(())
@@ -250,10 +252,7 @@ impl AcpClient {
             state.server_url = None;
         }
 
-        self.bus.publish(opencode_core::bus::InternalEvent::AcpEventReceived {
-            agent_id: "self".to_string(),
-            event_type: "acp.disconnected".to_string(),
-        });
+        self.bus.publish(opencode_core::bus::InternalEvent::AcpDisconnected);
 
         Ok(())
     }
