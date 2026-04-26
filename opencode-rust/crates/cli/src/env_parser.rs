@@ -222,4 +222,164 @@ mod tests {
             },
         );
     }
+
+    #[test]
+    fn test_env_config_overrides_take_precedence() {
+        use opencode_config::{AutoUpdate, Config};
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let config_content = r#"{
+            "autoshare": false,
+            "autoupdate": true,
+            "model": "gpt-4o"
+        }"#;
+        std::fs::write(&config_path, config_content).unwrap();
+
+        temp_env::with_vars(
+            vec![
+                ("OPENCODE_AUTO_SHARE", Some("true")),
+                ("OPENCODE_DISABLE_AUTOUPDATE", Some("true")),
+                ("OPENCODE_ENABLE_EXA", Some("true")),
+                ("OPENCODE_SERVER_PASSWORD", Some("env_password")),
+                ("OPENCODE_MODEL", None::<&str>),
+            ],
+            || {
+                let config = Config::load(&config_path).unwrap();
+                assert_eq!(
+                    config.autoshare,
+                    Some(true),
+                    "OPENCODE_AUTO_SHARE should override config"
+                );
+                assert_eq!(
+                    config.autoupdate,
+                    Some(AutoUpdate::Bool(false)),
+                    "OPENCODE_DISABLE_AUTOUPDATE should override config"
+                );
+                assert!(
+                    config.experimental.as_ref().and_then(|e| e.enable_exa) == Some(true),
+                    "OPENCODE_ENABLE_EXA should override config"
+                );
+                assert_eq!(
+                    config.server.as_ref().and_then(|s| s.password.as_ref()),
+                    Some(&"env_password".to_string()),
+                    "OPENCODE_SERVER_PASSWORD should override config"
+                );
+                assert_eq!(
+                    config.model,
+                    Some("gpt-4o".to_string()),
+                    "model from config should be preserved when no env var set"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn test_env_config_no_override_preserves_config_values() {
+        use opencode_config::{AutoUpdate, Config};
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let config_content = r#"{
+            "autoshare": true,
+            "autoupdate": true,
+            "model": "claude-3-5-sonnet"
+        }"#;
+        std::fs::write(&config_path, config_content).unwrap();
+
+        temp_env::with_vars(
+            vec![
+                ("OPENCODE_AUTO_SHARE", None::<&str>),
+                ("OPENCODE_DISABLE_AUTOUPDATE", None::<&str>),
+                ("OPENCODE_ENABLE_EXA", None::<&str>),
+                ("OPENCODE_SERVER_PASSWORD", None::<&str>),
+                ("OPENCODE_MODEL", Some("gpt-4o")),
+            ],
+            || {
+                let config = Config::load(&config_path).unwrap();
+                assert_eq!(
+                    config.autoshare,
+                    Some(true),
+                    "config value should be preserved when no env var set"
+                );
+                assert_eq!(
+                    config.autoupdate,
+                    Some(AutoUpdate::Bool(true)),
+                    "config value should be preserved when no env var set"
+                );
+                assert_eq!(
+                    config.model,
+                    Some("gpt-4o".to_string()),
+                    "OPENCODE_MODEL should override config"
+                );
+            },
+        );
+    }
+
+    #[test]
+    fn test_existing_config_loading_still_works() {
+        use opencode_config::Config;
+
+        std::env::remove_var("OPENCODE_AUTO_SHARE");
+        std::env::remove_var("OPENCODE_DISABLE_AUTOUPDATE");
+        std::env::remove_var("OPENCODE_ENABLE_EXA");
+        std::env::remove_var("OPENCODE_SERVER_PASSWORD");
+        std::env::remove_var("OPENCODE_MODEL");
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        let config_content = r#"{
+            "logLevel": "debug",
+            "server": {
+                "port": 3000,
+                "hostname": "localhost"
+            },
+            "model": "gpt-4o",
+            "temperature": 0.7
+        }"#;
+        std::fs::write(&config_path, config_content).unwrap();
+
+        let config = Config::load(&config_path).unwrap();
+        assert_eq!(config.log_level, Some(opencode_config::LogLevel::Debug));
+        assert!(config.server.is_some());
+        assert_eq!(config.server.as_ref().unwrap().port, Some(3000));
+        assert_eq!(
+            config.server.as_ref().unwrap().hostname,
+            Some("localhost".to_string())
+        );
+        assert_eq!(config.model, Some("gpt-4o".to_string()));
+        assert_eq!(config.temperature, Some(0.7));
+    }
+
+    #[test]
+    fn test_env_vars_with_empty_config_file() {
+        use opencode_config::{AutoUpdate, Config};
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+
+        std::fs::write(&config_path, "{}").unwrap();
+
+        temp_env::with_vars(
+            vec![
+                ("OPENCODE_AUTO_SHARE", Some("true")),
+                ("OPENCODE_DISABLE_AUTOUPDATE", Some("false")),
+                ("OPENCODE_ENABLE_EXA", Some("true")),
+                ("OPENCODE_SERVER_PASSWORD", Some("secret")),
+            ],
+            || {
+                let config = Config::load(&config_path).unwrap();
+                assert_eq!(config.autoshare, Some(true));
+                assert_eq!(config.autoupdate, Some(AutoUpdate::Bool(true)));
+                assert!(config.experimental.as_ref().and_then(|e| e.enable_exa) == Some(true));
+                assert_eq!(
+                    config.server.as_ref().and_then(|s| s.password.as_ref()),
+                    Some(&"secret".to_string())
+                );
+            },
+        );
+    }
 }

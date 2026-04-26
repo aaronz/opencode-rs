@@ -716,9 +716,12 @@ fn test_acp_ack_command_parses_correctly() {
     let harness = TestHarness::setup();
 
     let output = harness.run_cli(&[
-        "acp", "ack",
-        "--handshake-id", "test-handshake-123",
-        "--accepted", "true",
+        "acp",
+        "ack",
+        "--handshake-id",
+        "test-handshake-123",
+        "--accepted",
+        "true",
     ]);
 
     assert!(
@@ -733,9 +736,12 @@ fn test_acp_ack_command_with_accepted_false() {
     let harness = TestHarness::setup();
 
     let output = harness.run_cli(&[
-        "acp", "ack",
-        "--handshake-id", "test-session-456",
-        "--accepted", "false",
+        "acp",
+        "ack",
+        "--handshake-id",
+        "test-session-456",
+        "--accepted",
+        "false",
     ]);
 
     assert!(

@@ -109,6 +109,7 @@ pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::
             cors: server_cfg.cors.clone(),
             desktop: None,
             acp: None,
+            password: None,
         })?)
     } else {
         None
@@ -188,6 +189,7 @@ pub async fn run_server_with_shutdown(
             cors: server_cfg.cors.clone(),
             desktop: None,
             acp: None,
+            password: None,
         })?)
     } else {
         None

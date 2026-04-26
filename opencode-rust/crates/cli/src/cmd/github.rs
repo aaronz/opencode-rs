@@ -530,7 +530,13 @@ fn run_install(token: Option<String>, owner: &str, repo: &str, branch: &str) {
             println!("\nTo add secrets, go to:");
             println!("  https://github.com/{}/settings/secrets", owner);
 
-            if let Err(e) = save_install_to_config(owner, repo, branch, &result.workflow_path, &result.commit_sha) {
+            if let Err(e) = save_install_to_config(
+                owner,
+                repo,
+                branch,
+                &result.workflow_path,
+                &result.commit_sha,
+            ) {
                 eprintln!("  Warning: Failed to save install to config: {}", e);
             } else {
                 println!("  Install persisted to config.");

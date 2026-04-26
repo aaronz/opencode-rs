@@ -226,7 +226,8 @@ fn run_browser_auth_login(provider: &str) {
     let oauth_flow = OAuthFlow::new();
     let redirect_port = DEFAULT_CALLBACK_PORT;
 
-    let (state, verifier) = match oauth_flow.start_browser_login(provider, client_id, redirect_port) {
+    let (state, verifier) = match oauth_flow.start_browser_login(provider, client_id, redirect_port)
+    {
         Ok(result) => result,
         Err(e) => {
             eprintln!("Failed to start OAuth login: {}", e);
@@ -251,7 +252,8 @@ fn run_browser_auth_login(provider: &str) {
         std::process::exit(1);
     }
 
-    let token = match oauth_flow.complete_login(&code, &state, &verifier, client_id, "", token_url) {
+    let token = match oauth_flow.complete_login(&code, &state, &verifier, client_id, "", token_url)
+    {
         Ok(token) => token,
         Err(e) => {
             eprintln!("Failed to exchange code for token: {}", e);
@@ -842,10 +844,18 @@ mod tests {
 
     #[test]
     fn test_supported_browser_auth_providers() {
-        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS.iter().any(|(p, _)| *p == "github"));
-        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS.iter().any(|(p, _)| *p == "openai"));
-        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS.iter().any(|(p, _)| *p == "anthropic"));
-        assert!(!SUPPORTED_BROWSER_AUTH_PROVIDERS.iter().any(|(p, _)| *p == "ollama"));
+        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS
+            .iter()
+            .any(|(p, _)| *p == "github"));
+        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS
+            .iter()
+            .any(|(p, _)| *p == "openai"));
+        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS
+            .iter()
+            .any(|(p, _)| *p == "anthropic"));
+        assert!(!SUPPORTED_BROWSER_AUTH_PROVIDERS
+            .iter()
+            .any(|(p, _)| *p == "ollama"));
     }
 
     #[test]

@@ -450,14 +450,20 @@ mod tests {
         .expect("First handshake should be stored");
 
         let restored = get_stored_session(&config);
-        assert!(restored.is_some(), "Should be able to retrieve stored session");
+        assert!(
+            restored.is_some(),
+            "Should be able to retrieve stored session"
+        );
         let session = restored.expect("Session should exist");
 
         assert_eq!(session.session_id, "session-restore-456");
         assert_eq!(session.server_id, "server-restore");
         assert_eq!(session.server_url, "http://localhost:7070");
         assert_eq!(session.client_id, "client-restore");
-        assert!(!is_session_expired(&session), "Restored session should not be expired");
+        assert!(
+            !is_session_expired(&session),
+            "Restored session should not be expired"
+        );
     }
 }
 

@@ -49,13 +49,7 @@ fn test_run_prompt_mode_returns_structured_output() {
 fn test_run_format_cli_accepts_json_flag() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&[
-        "run",
-        "--prompt",
-        "test",
-        "--model",
-        "gpt-4o",
-        "--format",
-        "json",
+        "run", "--prompt", "test", "--model", "gpt-4o", "--format", "json",
     ]);
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -73,13 +67,7 @@ fn test_run_format_cli_accepts_json_flag() {
 fn test_run_format_cli_accepts_ndjson_flag() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&[
-        "run",
-        "--prompt",
-        "test",
-        "--model",
-        "gpt-4o",
-        "--format",
-        "ndjson",
+        "run", "--prompt", "test", "--model", "gpt-4o", "--format", "ndjson",
     ]);
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -97,13 +85,7 @@ fn test_run_format_cli_accepts_ndjson_flag() {
 fn test_run_format_ndjson_output_structure() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&[
-        "run",
-        "--prompt",
-        "hi",
-        "--model",
-        "gpt-4o",
-        "--format",
-        "ndjson",
+        "run", "--prompt", "hi", "--model", "gpt-4o", "--format", "ndjson",
     ]);
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -125,13 +107,7 @@ fn test_run_format_ndjson_output_structure() {
 fn test_run_format_json_output_structure() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&[
-        "run",
-        "--prompt",
-        "hi",
-        "--model",
-        "gpt-4o",
-        "--format",
-        "json",
+        "run", "--prompt", "hi", "--model", "gpt-4o", "--format", "json",
     ]);
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -151,7 +127,10 @@ fn test_run_format_default_output_regression() {
     let harness = TestHarness::setup();
     let output = harness.run_cli(&["run", "--prompt", "hello", "--model", "gpt-4o"]);
 
-    assert!(output.status.success(), "run should succeed with default format");
+    assert!(
+        output.status.success(),
+        "run should succeed with default format"
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(

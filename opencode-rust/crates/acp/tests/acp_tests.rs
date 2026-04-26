@@ -892,8 +892,11 @@ async fn test_acp_disconnected_event_published_on_disconnect() {
 
 #[tokio::test]
 async fn test_full_connect_message_disconnect_cycle() {
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
     use opencode_core::bus::InternalEvent;
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -924,14 +927,23 @@ async fn test_full_connect_message_disconnect_cycle() {
 
     assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
 
-    client.connect(&mock_server.uri(), Some("client-full-cycle".to_string())).await.unwrap();
+    client
+        .connect(&mock_server.uri(), Some("client-full-cycle".to_string()))
+        .await
+        .unwrap();
     assert_eq!(client.connection_state(), AcpConnectionState::Connected);
 
     let connect_event = subscriber.recv().await.unwrap();
-    assert!(matches!(connect_event, InternalEvent::AcpConnected { server_id, .. } if server_id == "srv-full-cycle"));
+    assert!(
+        matches!(connect_event, InternalEvent::AcpConnected { server_id, .. } if server_id == "srv-full-cycle")
+    );
 
     let msg_result = client
-        .send_message("srv-full-cycle", "chat", serde_json::json!({"text": "hello world"}))
+        .send_message(
+            "srv-full-cycle",
+            "chat",
+            serde_json::json!({"text": "hello world"}),
+        )
         .await;
     assert!(msg_result.is_ok());
 

@@ -868,7 +868,7 @@
       "priority": "P2",
       "title": "Parse environment variables before config load",
       "description": "Parse environment variables before config load in main.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify env vars take precedence over config",
         "AddRegressionTest: ensure existing config loading still works"

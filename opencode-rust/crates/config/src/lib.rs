@@ -186,6 +186,9 @@ pub struct ServerConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acp: Option<AcpConfig>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -840,6 +843,9 @@ pub struct ExperimentalConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_timeout: Option<u64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_exa: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -2420,6 +2426,32 @@ impl Config {
             let mut github_config = self.github.clone().unwrap_or_default();
             github_config.api_url = Some(github_api_url);
             self.github = Some(github_config);
+        }
+
+        if let Ok(auto_share) = std::env::var("OPENCODE_AUTO_SHARE") {
+            if let Ok(v) = auto_share.parse() {
+                self.autoshare = Some(v);
+            }
+        }
+
+        if let Ok(disable_autoupdate) = std::env::var("OPENCODE_DISABLE_AUTOUPDATE") {
+            let v = disable_autoupdate.to_lowercase();
+            let bool_val = v == "true" || v == "1" || v == "yes" || v == "on";
+            self.autoupdate = Some(AutoUpdate::Bool(!bool_val));
+        }
+
+        if let Ok(enable_exa) = std::env::var("OPENCODE_ENABLE_EXA") {
+            if let Ok(v) = enable_exa.parse() {
+                let mut exp = self.experimental.clone().unwrap_or_default();
+                exp.enable_exa = Some(v);
+                self.experimental = Some(exp);
+            }
+        }
+
+        if let Ok(password) = std::env::var("OPENCODE_SERVER_PASSWORD") {
+            let mut server = self.server.clone().unwrap_or_default();
+            server.password = Some(password);
+            self.server = Some(server);
         }
 
         let provider_api_keys = [

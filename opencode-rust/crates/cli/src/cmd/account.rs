@@ -411,9 +411,9 @@ mod tests {
 
     #[test]
     fn test_login_stores_credentials() {
+        use chrono::Utc;
         use opencode_auth::oauth::{OAuthFlow, OAuthToken};
         use tempfile::TempDir;
-        use chrono::Utc;
 
         let tmp = TempDir::new().unwrap();
         let store = opencode_auth::credential_store::CredentialStore::with_paths(
@@ -446,9 +446,9 @@ mod tests {
 
     #[test]
     fn test_logout_clears_credentials() {
+        use chrono::Utc;
         use opencode_auth::oauth::{OAuthFlow, OAuthToken};
         use tempfile::TempDir;
-        use chrono::Utc;
 
         let tmp = TempDir::new().unwrap();
         let store_path = tmp.path().join("credentials.enc.json");
@@ -485,14 +485,17 @@ mod tests {
         store2.delete("github").unwrap();
         drop(store2);
         let after = flow.load_token_for_provider("github").unwrap();
-        assert!(after.is_none(), "Expected credential to be deleted after logout");
+        assert!(
+            after.is_none(),
+            "Expected credential to be deleted after logout"
+        );
     }
 
     #[test]
     fn test_status_shows_auth_state() {
+        use chrono::Utc;
         use opencode_auth::oauth::{OAuthFlow, OAuthToken};
         use tempfile::TempDir;
-        use chrono::Utc;
 
         let tmp = TempDir::new().unwrap();
         let store = opencode_auth::credential_store::CredentialStore::with_paths(
