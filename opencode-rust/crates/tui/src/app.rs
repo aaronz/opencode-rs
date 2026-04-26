@@ -862,7 +862,7 @@ pub async fn validate_api_key_and_fetch_models(
             error_type: ApiKeyValidationErrorType::ServerError,
             status_code: Some(status.as_u16()),
         })
-    } else {
+} else {
         Err(ApiKeyValidationError {
             message: format!("Request failed with HTTP {}", status.as_u16()),
             error_type: ApiKeyValidationErrorType::Unknown,

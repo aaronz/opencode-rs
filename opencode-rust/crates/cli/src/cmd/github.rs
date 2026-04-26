@@ -1,6 +1,7 @@
 use crate::cmd::load_config;
 use clap::{Args, Subcommand};
 use opencode_auth::oauth::OAuthFlow;
+use opencode_config::Config;
 use opencode_git::{setup_github_workflow, GitHubAppClient, GitHubClient, WorkflowTemplate};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -10,6 +11,19 @@ const GITHUB_API_BASE: &str = "https://api.github.com";
 const GITHUB_CLIENT_ID: &str = "Iv1.8a1f8c05dfd1c06e";
 const GITHUB_DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
 const GITHUB_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
+
+fn get_config_path() -> std::path::PathBuf {
+    opencode_config::Config::config_path()
+}
+
+fn save_config(config: &Config) -> Result<(), String> {
+    let path = get_config_path();
+    let content = serde_json::to_string_pretty(config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    std::fs::write(&path, content)
+        .map_err(|e| format!("Failed to write config to {}: {}", path.display(), e))?;
+    Ok(())
+}
 
 fn get_api_base() -> String {
     if let Ok(url) = std::env::var("OPENCODE_GITHUB_API_BASE") {
@@ -331,6 +345,78 @@ mod tests {
         let result = get_api_base();
         assert_eq!(result, expected);
     }
+
+    #[test]
+    fn test_github_install_persists_to_config() {
+        use opencode_config::GitHubInstall;
+
+        let install = GitHubInstall {
+            owner: "testowner".to_string(),
+            repo: "testrepo".to_string(),
+            branch: "main".to_string(),
+            workflow_path: ".github/workflows/opencode.yml".to_string(),
+            commit_sha: "abc123".to_string(),
+            installed_at: "1234567890".to_string(),
+        };
+
+        let json = serde_json::to_string_pretty(&install).unwrap();
+        assert!(json.contains("testowner"));
+        assert!(json.contains("testrepo"));
+        assert!(json.contains("abc123"));
+        assert!(json.contains("1234567890"));
+
+        let deserialized: GitHubInstall = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.owner, "testowner");
+        assert_eq!(deserialized.repo, "testrepo");
+        assert_eq!(deserialized.branch, "main");
+        assert_eq!(deserialized.workflow_path, ".github/workflows/opencode.yml");
+        assert_eq!(deserialized.commit_sha, "abc123");
+    }
+
+    #[test]
+    fn test_github_config_installs_field() {
+        use opencode_config::{Config, GitHubConfig, GitHubInstall};
+
+        let install1 = GitHubInstall {
+            owner: "owner1".to_string(),
+            repo: "repo1".to_string(),
+            branch: "main".to_string(),
+            workflow_path: ".github/workflows/opencode.yml".to_string(),
+            commit_sha: "sha1".to_string(),
+            installed_at: "111".to_string(),
+        };
+
+        let install2 = GitHubInstall {
+            owner: "owner2".to_string(),
+            repo: "repo2".to_string(),
+            branch: "develop".to_string(),
+            workflow_path: ".github/workflows/opencode.yml".to_string(),
+            commit_sha: "sha2".to_string(),
+            installed_at: "222".to_string(),
+        };
+
+        let github_config = GitHubConfig {
+            api_url: Some("https://api.github.com".to_string()),
+            installs: Some(vec![install1, install2]),
+        };
+
+        let config = Config {
+            github: Some(github_config),
+            ..Default::default()
+        };
+
+        let json = serde_json::to_string_pretty(&config).unwrap();
+        assert!(json.contains("owner1"));
+        assert!(json.contains("owner2"));
+        assert!(json.contains("repo1"));
+        assert!(json.contains("repo2"));
+
+        let deserialized: Config = serde_json::from_str(&json).unwrap();
+        let installs = deserialized.github.unwrap().installs.unwrap();
+        assert_eq!(installs.len(), 2);
+        assert_eq!(installs[0].owner, "owner1");
+        assert_eq!(installs[1].owner, "owner2");
+    }
 }
 
 pub(crate) fn run(args: GitHubArgs) {
@@ -382,6 +468,38 @@ fn check_existing_workflow(owner: &str, repo: &str) -> Option<GithubWorkflowReco
     serde_json::from_str(&content).ok()
 }
 
+fn save_install_to_config(
+    owner: &str,
+    repo: &str,
+    branch: &str,
+    workflow_path: &str,
+    commit_sha: &str,
+) -> Result<(), String> {
+    let mut config = load_config();
+
+    let install = opencode_config::GitHubInstall {
+        owner: owner.to_string(),
+        repo: repo.to_string(),
+        branch: branch.to_string(),
+        workflow_path: workflow_path.to_string(),
+        commit_sha: commit_sha.to_string(),
+        installed_at: SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            .to_string(),
+    };
+
+    let github_config = config.github.get_or_insert_with(Default::default);
+    let installs = github_config.installs.get_or_insert_with(Vec::new);
+
+    if !installs.iter().any(|i| i.owner == owner && i.repo == repo) {
+        installs.push(install);
+    }
+
+    save_config(&config)
+}
+
 fn run_install(token: Option<String>, owner: &str, repo: &str, branch: &str) {
     let token = get_token(token);
     let client = GitHubAppClient::new(&token);
@@ -411,6 +529,12 @@ fn run_install(token: Option<String>, owner: &str, repo: &str, branch: &str) {
             }
             println!("\nTo add secrets, go to:");
             println!("  https://github.com/{}/settings/secrets", owner);
+
+            if let Err(e) = save_install_to_config(owner, repo, branch, &result.workflow_path, &result.commit_sha) {
+                eprintln!("  Warning: Failed to save install to config: {}", e);
+            } else {
+                println!("  Install persisted to config.");
+            }
 
             if let Err(e) = save_workflow_to_local(result, owner, repo, branch) {
                 eprintln!("  Warning: Failed to save local workflow record: {}", e);

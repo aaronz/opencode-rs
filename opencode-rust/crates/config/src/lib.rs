@@ -776,6 +776,19 @@ pub struct EnterpriseConfig {
 pub struct GitHubConfig {
     #[serde(skip_serializing_if = "Option::is_none", rename = "apiUrl")]
     pub api_url: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub installs: Option<Vec<GitHubInstall>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct GitHubInstall {
+    pub owner: String,
+    pub repo: String,
+    pub branch: String,
+    pub workflow_path: String,
+    pub commit_sha: String,
+    pub installed_at: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]

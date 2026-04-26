@@ -95,7 +95,7 @@
 | 3.3 | Add `mcp add` subcommand | FR-009 | ✅ Done | `cmd/mcp.rs` |
 | 3.4 | Implement `agent list` | FR-011 | ✅ Done | `cmd/agent.rs:48` |
 | 3.5 | Implement `session fork` with TUI integration | FR-014 | TODO | `cmd/session.rs:673-698` |
-| 3.6 | Implement `github install` persistence | FR-015 | TODO | `cmd/github.rs:189-211` |
+| 3.6 | Implement `github install` persistence | FR-015 | ✅ Done | `cmd/github.rs:189-211` |
 | 3.7 | Extend `providers login` for multi-provider (Anthropic, etc.) | FR-016 | TODO | `cmd/providers.rs:142-145` |
 | 3.8 | Implement `acp handshake` session persistence | FR-017 | TODO | `cmd/acp.rs:250-292` |
 | 3.9 | Implement `config migrate` | FR-018 | TODO | `cmd/config.rs:204-208` |

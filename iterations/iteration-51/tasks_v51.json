@@ -782,7 +782,7 @@
       "priority": "P1",
       "title": "Implement github install persistence",
       "description": "Implement `github install` persistence at cmd/github.rs:189-211",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify github install persists to config",
         "AddRegressionTest: ensure github commands still work"
