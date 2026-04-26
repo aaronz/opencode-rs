@@ -59,6 +59,8 @@ WORKSPACE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 parse_args "$@"
 
+export SHARE_SESSION
+
 # Logging setup
 SESSION_LOG_DIR="$WORKSPACE_DIR/sessions"
 
@@ -93,6 +95,7 @@ log "SpecKit 迭代开发 v3.0 (重构版)"
 log "=============================================="
 log "工作目录: $WORKSPACE_DIR"
 log "日志文件: $LOG_FILE"
+log "共享会话: $SHARE_SESSION"
 if [ -n "$PRD_INPUT" ]; then
     if [ -d "$PRD_INPUT" ]; then
         mapfile -t prd_files < <(find "$PRD_INPUT" -maxdepth 1 -name "*.md" | sort)

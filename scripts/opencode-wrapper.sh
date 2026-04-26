@@ -185,7 +185,13 @@ run_opencode_with_session_export() {
     local opencode_exit_code=0
     local opencode_output
 
-    opencode_output=$("$opencode_cmd" run -m "$model" --dangerously-skip-permissions "$prompt" --format json 2>&1) || opencode_exit_code=$?
+    local opencode_args=("run" "-m" "$model" "--dangerously-skip-permissions" "$prompt" "--format" "json")
+    if [ "$SHARE_SESSION" = "true" ]; then
+        opencode_args+=("--share")
+        ts_echo "[DEBUG] 启用会话共享"
+    fi
+
+    opencode_output=$("$opencode_cmd" "${opencode_args[@]}" 2>&1) || opencode_exit_code=$?
 
     local elapsed=$(( $(date +%s) - start_time ))
     ts_echo "[DEBUG] opencode 完成 | elapsed=${elapsed}s | exit_code=$opencode_exit_code"
