@@ -583,7 +583,7 @@
       "priority": "P1",
       "title": "Implement acp ack CLI command",
       "description": "Implement `acp ack` CLI command to acknowledge messages",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CLI command parses correctly",
         "AddIntegrationTest: verify ack sends acknowledgement"
@@ -602,7 +602,7 @@
       "priority": "P1",
       "title": "Create ACP CLI module",
       "description": "Create `crates/acp/src/cli.rs` for ACP CLI commands",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CLI module compiles",
         "AddIntegrationTest: verify all ACP CLI commands work"
