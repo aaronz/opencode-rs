@@ -20,10 +20,10 @@
 
 | # | Task | FR | Status | Dependencies |
 |---|------|-----|--------|--------------|
-| 1.1 | Create `crates/acp/` directory structure | FR-100 | TODO | None |
-| 1.2 | Create `crates/acp/Cargo.toml` with dependencies | FR-100 | TODO | 1.1 |
-| 1.3 | Create `crates/acp/src/lib.rs` with module exports | FR-100 | TODO | 1.2 |
-| 1.4 | Create `crates/acp/src/client.rs` (empty stub) | FR-100 | TODO | 1.1 |
+| 1.1 | Create `crates/acp/` directory structure | FR-100 | ✅ Done | None |
+| 1.2 | Create `crates/acp/Cargo.toml` with dependencies | FR-100 | ✅ Done | 1.1 |
+| 1.3 | Create `crates/acp/src/lib.rs` with module exports | FR-100 | ✅ Done | 1.2 |
+| 1.4 | Create `crates/acp/src/client.rs` (empty stub) | FR-100 | ✅ Done | 1.1 |
 
 ### P0 Tasks - ACP Core Types
 

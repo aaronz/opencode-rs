@@ -5,7 +5,7 @@
       "priority": "P0",
       "title": "Create ACP crate directory structure",
       "description": "Create `crates/acp/` directory structure for the new ACP module",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify crates/acp/ directory exists with proper structure",
         "AddRegressionTest: ensure workspace Cargo.toml includes the new acp crate"
@@ -22,7 +22,7 @@
       "priority": "P0",
       "title": "Create ACP Cargo.toml with dependencies",
       "description": "Create `crates/acp/Cargo.toml` with required dependencies for ACP module",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify Cargo.toml parses correctly",
         "AddRegressionTest: ensure all dependencies can be resolved"
@@ -41,7 +41,7 @@
       "priority": "P0",
       "title": "Create ACP lib.rs with module exports",
       "description": "Create `crates/acp/src/lib.rs` with module exports for the ACP crate",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify lib.rs compiles and exports modules",
         "AddRegressionTest: ensure public API is properly exposed"
@@ -60,7 +60,7 @@
       "priority": "P0",
       "title": "Create ACP client.rs empty stub",
       "description": "Create `crates/acp/src/client.rs` with empty stub for AcpClient",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify client.rs compiles to stub",
         "AddRegressionTest: ensure module structure is correct"
