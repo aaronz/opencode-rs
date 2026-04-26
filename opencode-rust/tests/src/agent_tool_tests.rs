@@ -205,7 +205,7 @@ async fn test_write_tool_creates_nested_directories() {
 async fn test_custom_tool_discovery_registration_execution() {
     let project = TempProject::new();
 
-    let tools_dir = project.path().join(".opencode/tools");
+    let tools_dir = project.path().join(".opencode-rs/tools");
     std::fs::create_dir_all(&tools_dir).expect("Failed to create tools dir");
 
     let tool_content = r#"
@@ -259,7 +259,7 @@ export default echoTool;
 async fn test_custom_tool_discovery_multiple_tools() {
     let project = TempProject::new();
 
-    let tools_dir = project.path().join(".opencode/tools");
+    let tools_dir = project.path().join(".opencode-rs/tools");
     std::fs::create_dir_all(&tools_dir).expect("Failed to create tools dir");
 
     std::fs::write(

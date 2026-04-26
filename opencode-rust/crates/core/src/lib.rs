@@ -34,6 +34,7 @@ pub mod instructions;
 pub mod mcp;
 pub mod message;
 pub mod part;
+pub mod paths;
 pub mod permission;
 pub mod plugin;
 pub mod processor;

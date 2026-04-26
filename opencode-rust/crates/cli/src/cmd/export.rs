@@ -1,3 +1,4 @@
+use crate::cmd::session::get_session_sharing_for_quick as get_session_sharing;
 use clap::Args;
 
 #[derive(Args, Debug)]
@@ -54,5 +55,25 @@ mod tests {
 }
 
 pub(crate) fn run(args: ExportArgs) {
-    println!("Exporting to {:?}, format: {:?}", args.output, args.format);
+    let sharing = get_session_sharing();
+    let sessions = sharing.list_sessions().unwrap_or_default();
+
+    let export_data = serde_json::json!({
+        "sessions": sessions,
+        "count": sessions.len(),
+        "exported_at": chrono::Utc::now().to_rfc3339(),
+    });
+
+    let output =
+        serde_json::to_string_pretty(&export_data).expect("failed to serialize JSON output");
+
+    if let Some(path) = &args.output {
+        if let Err(e) = std::fs::write(path, &output) {
+            eprintln!("Error writing to file '{}': {}", path, e);
+            std::process::exit(1);
+        }
+        println!("Exported {} sessions to '{}'", sessions.len(), path);
+    } else {
+        println!("{}", output);
+    }
 }

@@ -68,9 +68,9 @@ pub enum ToolSource {
     Builtin,
     /// Tools from plugins
     Plugin,
-    /// Custom tools from project directory (.opencode/tools/)
+    /// Custom tools from project directory (.opencode-rs/tools/)
     CustomProject,
-    /// Custom tools from global config directory (~/.config/opencode/tools/)
+    /// Custom tools from global config directory (~/.config/opencode-rs/tools/)
     CustomGlobal,
 }
 

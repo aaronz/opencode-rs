@@ -1640,10 +1640,10 @@ impl Config {
 
     fn warn_legacy_config_dir_if_exists() {
         if let Some(home) = Self::get_home_dir() {
-            let legacy_dir = home.join(".config").join("opencode-rs");
+            let legacy_dir = home.join(".config").join("opencode");
             if legacy_dir.exists() {
                 tracing::warn!(
-                    "Legacy config directory detected at {}. Please migrate to ~/.config/opencode/",
+                    "Legacy opencode config directory detected at {}. This is the original opencode, not opencode-rs. opencode-rs uses ~/.config/opencode-rs/",
                     legacy_dir.display()
                 );
             }
@@ -1652,16 +1652,36 @@ impl Config {
 
     pub fn config_path() -> PathBuf {
         if let Ok(config_dir) = std::env::var("OPENCODE_CONFIG_DIR") {
+            if !config_dir.contains("opencode-rs") {
+                tracing::warn!(
+                    "OPENCODE_CONFIG_DIR is set to '{}' - consider using OPENCODE_RS_CONFIG_DIR instead",
+                    config_dir
+                );
+            }
             return Self::preferred_config_path(Path::new(&config_dir));
         }
 
-        directories::ProjectDirs::from("ai", "opencode", "opencode")
+        if let Ok(env_dir) = std::env::var("OPENCODE_RS_CONFIG_DIR") {
+            return Self::preferred_config_path(Path::new(&env_dir));
+        }
+
+        directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
             .map(|dirs| Self::preferred_config_path(dirs.config_dir()))
-            .unwrap_or_else(|| PathBuf::from("~/.config/opencode/config.json"))
+            .unwrap_or_else(|| {
+                Self::get_home_dir()
+                    .unwrap_or_else(|| PathBuf::from("~/.config/opencode-rs"))
+                    .join("config.json")
+            })
     }
 
     fn default_tui_config_path() -> Option<PathBuf> {
-        Self::get_home_dir().map(|home| home.join(".config/opencode/tui.json"))
+        if let Ok(env_dir) = std::env::var("OPENCODE_RS_CONFIG_DIR") {
+            return Some(PathBuf::from(env_dir).join("tui.json"));
+        }
+
+        directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+            .map(|dirs| dirs.config_dir().join("tui.json"))
+            .or_else(|| Self::get_home_dir().map(|h| h.join(".config/opencode-rs/tui.json")))
     }
 
     fn expand_tilde_path(path: &str) -> PathBuf {
@@ -1702,7 +1722,9 @@ impl Config {
                     return project_config.parent().map(PathBuf::from);
                 }
 
-                let opencode_dir = ancestor.join(".opencode").join(format!("config.{}", ext));
+                let opencode_dir = ancestor
+                    .join(".opencode-rs")
+                    .join(format!("config.{}", ext));
                 if opencode_dir.exists() {
                     return opencode_dir.parent().map(PathBuf::from);
                 }
@@ -1988,7 +2010,9 @@ impl Config {
                     }
                 }
                 for ext in &["json", "json5", "jsonc"] {
-                    let opencode_dir = ancestor.join(".opencode").join(format!("config.{}", ext));
+                    let opencode_dir = ancestor
+                        .join(".opencode-rs")
+                        .join(format!("config.{}", ext));
                     if opencode_dir.exists() {
                         if let Err(tui_fields) = Self::validate_runtime_tui_fields(&opencode_dir) {
                             return Err(ConfigError::Config(format!(
@@ -1999,7 +2023,7 @@ impl Config {
                             )));
                         }
                         let config = Self::load(&opencode_dir)?;
-                        configs.push((".opencode".to_string(), config));
+                        configs.push((".opencode-rs".to_string(), config));
                         break;
                     }
                 }
@@ -2175,7 +2199,7 @@ impl Config {
         config_path
             .parent()
             .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from(".opencode"))
+            .unwrap_or_else(|| PathBuf::from(".opencode-rs"))
     }
 
     fn parse_cache_expiration(
@@ -2254,7 +2278,7 @@ impl Config {
 
         let mut found_opencode_dir = None;
         for ancestor in cwd.ancestors() {
-            let project_opencode = ancestor.join(".opencode");
+            let project_opencode = ancestor.join(".opencode-rs");
             if project_opencode.exists() && project_opencode.is_dir() {
                 found_opencode_dir = Some(project_opencode);
                 break;
@@ -2298,7 +2322,7 @@ impl Config {
                     cmd_info.path.display(),
                     cmd_info.content
                 );
-                let description = format!("Loaded from .opencode/commands/{name}");
+                let description = format!("Loaded from .opencode-rs/commands/{name}");
                 commands.entry(name).or_insert_with(|| CommandConfig {
                     template,
                     description: Some(description),
@@ -2334,7 +2358,7 @@ impl Config {
 
         if agent_count > 0 || mode_count > 0 {
             tracing::info!(
-                "Loaded .opencode/ directory: {agent_count} agents, {command_count} commands, {mode_count} modes, {skill_count} skills, {tool_count} tools, {theme_count} themes, {plugin_count} plugins"
+                "Loaded .opencode-rs/ directory: {agent_count} agents, {command_count} commands, {mode_count} modes, {skill_count} skills, {tool_count} tools, {theme_count} themes, {plugin_count} plugins"
             );
         }
     }

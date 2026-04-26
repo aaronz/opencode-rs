@@ -930,7 +930,7 @@ impl PluginStateRegistry {
     pub fn with_default_dir() -> Self {
         let state_dir = dirs::data_local_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join(".opencode")
+            .join(".opencode-rs")
             .join("plugin_states");
         Self::new(state_dir)
     }

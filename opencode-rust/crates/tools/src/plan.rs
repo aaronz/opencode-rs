@@ -44,9 +44,9 @@ impl Tool for PlanTool {
         // Plan tool allows creating/editing plan files for the plan agent
         let content = args.content.unwrap_or_else(|| "".to_string());
 
-        let plan_path = worktree.join(".opencode").join("plan.md");
+        let plan_path = worktree.join(".opencode-rs").join("plan.md");
 
-        // Create .opencode directory if it doesn't exist
+        // Create .opencode-rs directory if it doesn't exist
         if let Some(parent) = plan_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| OpenCodeError::Tool(e.to_string()))?;
         }

@@ -9,8 +9,8 @@ use crate::sealed;
 use crate::{Tool, ToolContext, ToolResult};
 use opencode_core::OpenCodeError;
 
-const PROJECT_TOOLS_DIR: &str = ".opencode/tools";
-const GLOBAL_TOOLS_DIR: &str = "opencode/tools";
+const PROJECT_TOOLS_DIR: &str = ".opencode-rs/tools";
+const GLOBAL_TOOLS_DIR: &str = "opencode-rs/tools";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ToolDefinition {
@@ -316,7 +316,7 @@ mod tests {
     #[test]
     fn test_parse_tool_definition() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(
@@ -348,7 +348,7 @@ export default myTool;
     #[test]
     fn test_parse_multiple_tools() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(
@@ -390,7 +390,7 @@ const toolTwo = {
     #[tokio::test]
     async fn test_discovery_and_registration_integration() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(
@@ -431,7 +431,7 @@ export default echoTool;
     #[tokio::test]
     async fn test_discovery_multiple_tools_registration() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(
@@ -481,7 +481,7 @@ export default echoTool;
     #[tokio::test]
     async fn test_registry_contains_discovered_tools() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(
@@ -532,7 +532,7 @@ export default echoTool;
         registry.register(ExistingTool).await;
 
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(
@@ -563,7 +563,7 @@ export default echoTool;
     #[tokio::test]
     async fn test_tool_registration_error_handling_invalid_json() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         std::fs::write(
@@ -602,7 +602,7 @@ export default echoTool;
     #[tokio::test]
     async fn test_tool_execution_after_registration() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(
@@ -645,7 +645,7 @@ export default execTool;
     #[tokio::test]
     async fn test_custom_tool_discovery_and_execution_full_flow() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(
@@ -695,7 +695,7 @@ export default fullFlowTool;
     #[test]
     fn test_discovery_respects_file_extensions() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         std::fs::write(
@@ -749,7 +749,7 @@ export default fullFlowTool;
     #[test]
     fn test_discovery_nested_directories() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools/nested/deep");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools/nested/deep");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         std::fs::write(
@@ -771,7 +771,7 @@ export default fullFlowTool;
     #[tokio::test]
     async fn custom_tool_registration() {
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode/tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs/tools");
         std::fs::create_dir_all(&tools_dir).unwrap();
 
         create_test_tool_file(

@@ -122,13 +122,18 @@ impl OAuthSessionManager {
     }
 
     pub fn default_path() -> PathBuf {
-        std::env::var("OPENCODE_DATA_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::home_dir()
-                    .map(|h| h.join(".config/opencode-rs"))
-                    .unwrap_or_else(|| PathBuf::from(".opencode-rs"))
-            })
+        use opencode_core::paths::Paths;
+
+        if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
+            if !data_dir.contains("opencode-rs") {
+                tracing::warn!(
+                    "OPENCODE_DATA_DIR is set - consider using OPENCODE_RS_DATA_DIR instead"
+                );
+            }
+            return PathBuf::from(data_dir);
+        }
+
+        Paths::data_dir()
     }
 
     pub fn from_default_location() -> Self {
@@ -1022,7 +1027,7 @@ mod tests {
     #[test]
     fn test_session_manager_default_path() {
         let path = OAuthSessionManager::default_path();
-        assert!(path.to_string_lossy().contains(".config"));
+        assert!(path.to_string_lossy().contains("opencode-rs"));
     }
 
     #[test]

@@ -351,7 +351,7 @@ fn save_hidden_models(hidden_models: &HashSet<String>) {
 fn default_cache_path() -> PathBuf {
     dirs::cache_dir()
         .unwrap_or_else(std::env::temp_dir)
-        .join("opencode")
+        .join("opencode-rs")
         .join("models.json")
 }
 

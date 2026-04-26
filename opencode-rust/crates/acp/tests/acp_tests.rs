@@ -1457,7 +1457,10 @@ async fn test_set_connection_timeout_mutates_client() {
 
     client.set_connection_timeout(Duration::from_secs(30));
 
-    assert_eq!(client.get_connection_timeout(), Some(Duration::from_secs(30)));
+    assert_eq!(
+        client.get_connection_timeout(),
+        Some(Duration::from_secs(30))
+    );
 }
 
 #[tokio::test]
@@ -1542,9 +1545,10 @@ async fn test_handshake_with_custom_timeout() {
         .await;
 
     assert!(result.is_err());
-    assert!(
-        matches!(result.unwrap_err(), AcpError::ConnectionTimeout { timeout: _ })
-    );
+    assert!(matches!(
+        result.unwrap_err(),
+        AcpError::ConnectionTimeout { timeout: _ }
+    ));
 }
 
 #[tokio::test]
@@ -1622,8 +1626,8 @@ fn test_retry_config_with_max_delay() {
     let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
     let client = AcpClient::new(http, "test-client".to_string(), bus);
 
-    let config = RetryConfig::new(3, Duration::from_millis(100))
-        .with_max_delay(Duration::from_secs(5));
+    let config =
+        RetryConfig::new(3, Duration::from_millis(100)).with_max_delay(Duration::from_secs(5));
 
     client.set_retry_config(config);
 
@@ -1675,13 +1679,11 @@ async fn test_connect_with_retry_retries_on_failure_then_succeeds() {
 
     Mock::given(wiremock::matchers::method("POST"))
         .and(wiremock::matchers::path("/api/acp/handshake"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "server_id": "srv-retry-eventual",
-                "accepted_capabilities": ["chat"],
-                "session_token": "tok-retry-eventual"
-            }))
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-retry-eventual",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-retry-eventual"
+        })))
         .expect(1)
         .mount(&mock_server)
         .await;
@@ -1690,10 +1692,7 @@ async fn test_connect_with_retry_retries_on_failure_then_succeeds() {
     let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
     let client = AcpClient::new(http, "test-client".to_string(), bus);
 
-    client.set_retry_config(
-        RetryConfig::new(5, Duration::from_millis(20))
-            .with_no_jitter()
-    );
+    client.set_retry_config(RetryConfig::new(5, Duration::from_millis(20)).with_no_jitter());
 
     let result = client
         .connect(&mock_server_uri, Some("my-client".to_string()))
@@ -1722,10 +1721,7 @@ async fn test_connect_with_retry_exhausted_after_max_attempts() {
     let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
     let client = AcpClient::new(http, "test-client".to_string(), bus);
 
-    client.set_retry_config(
-        RetryConfig::new(3, Duration::from_millis(10))
-            .with_no_jitter()
-    );
+    client.set_retry_config(RetryConfig::new(3, Duration::from_millis(10)).with_no_jitter());
 
     let start = std::time::Instant::now();
     let result = client
@@ -1786,10 +1782,7 @@ async fn test_connect_with_retry_network_error_retries() {
     let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
     let client = AcpClient::new(http, "test-client".to_string(), bus);
 
-    client.set_retry_config(
-        RetryConfig::new(3, Duration::from_millis(10))
-            .with_no_jitter()
-    );
+    client.set_retry_config(RetryConfig::new(3, Duration::from_millis(10)).with_no_jitter());
 
     let start = std::time::Instant::now();
     let result = client

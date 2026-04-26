@@ -151,7 +151,7 @@ impl ProjectService {
             }
 
             let git_path = current.join(".git");
-            let opencode_path = current.join(".opencode");
+            let opencode_rs_path = current.join(".opencode-rs");
 
             if let Ok(metadata) = tokio::fs::symlink_metadata(&git_path).await {
                 if metadata.is_dir() || metadata.is_file() {
@@ -159,7 +159,7 @@ impl ProjectService {
                 }
             }
 
-            if tokio::fs::symlink_metadata(&opencode_path).await.is_ok() {
+            if tokio::fs::symlink_metadata(&opencode_rs_path).await.is_ok() {
                 return Ok(current);
             }
 
@@ -1641,11 +1641,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_find_root_walks_up_opencode_directory() {
+    async fn test_find_root_walks_up_opencode_rs_directory() {
         let tmp = TempDir::new().unwrap();
         let sub = tmp.path().join("src").join("deep");
         tokio::fs::create_dir_all(&sub).await.unwrap();
-        tokio::fs::create_dir(tmp.path().join(".opencode"))
+        tokio::fs::create_dir(tmp.path().join(".opencode-rs"))
             .await
             .unwrap();
 
@@ -1675,7 +1675,7 @@ mod tests {
     #[tokio::test]
     async fn test_find_root_terminates_without_infinite_loop() {
         let tmp = TempDir::new().unwrap();
-        tokio::fs::create_dir(tmp.path().join(".opencode"))
+        tokio::fs::create_dir(tmp.path().join(".opencode-rs"))
             .await
             .unwrap();
 

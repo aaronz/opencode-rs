@@ -91,13 +91,11 @@ impl Default for CrashRecovery {
 
 impl CrashRecovery {
     pub fn new() -> Self {
+        use crate::paths::Paths;
+
         let dump_dir = std::env::var("OPENCODE_CRASH_DUMP_DIR")
             .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::home_dir()
-                    .map(|h| h.join(".config/opencode-rs/crashes"))
-                    .unwrap_or_else(|| PathBuf::from(".opencode-rs/crashes"))
-            });
+            .unwrap_or_else(|_| Paths::crash_dump_dir());
 
         Self {
             dump_dir,

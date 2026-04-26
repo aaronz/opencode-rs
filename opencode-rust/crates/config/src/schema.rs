@@ -457,11 +457,19 @@ fn schema_cache_dir() -> PathBuf {
         return PathBuf::from(override_dir);
     }
 
-    if let Some(home) = std::env::var("HOME").ok().map(PathBuf::from) {
-        return home.join(".config").join("opencode").join("schemas");
+    if let Ok(env_dir) = std::env::var("OPENCODE_RS_CONFIG_DIR") {
+        return PathBuf::from(env_dir).join("schemas");
     }
 
-    PathBuf::from(".opencode/schemas")
+    directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+        .map(|dirs| dirs.config_dir().join("schemas"))
+        .unwrap_or_else(|| {
+            std::env::var("HOME")
+                .ok()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from("~/.config/opencode-rs"))
+                .join("schemas")
+        })
 }
 
 fn schema_cache_path(url: &str) -> PathBuf {

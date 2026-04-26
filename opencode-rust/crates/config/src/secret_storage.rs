@@ -25,13 +25,27 @@ impl SecretStorage {
 
     fn default_secrets_path() -> PathBuf {
         if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
+            if !data_dir.contains("opencode-rs") {
+                tracing::warn!(
+                    "OPENCODE_DATA_DIR is set - consider using OPENCODE_RS_DATA_DIR instead"
+                );
+            }
             return PathBuf::from(data_dir).join(SECRET_FILE_NAME);
         }
-        std::env::var("HOME")
-            .ok()
-            .map(|h| PathBuf::from(h).join(".local/share/opencode"))
-            .unwrap_or_else(|| PathBuf::from(".opencode"))
-            .join(SECRET_FILE_NAME)
+
+        if let Ok(env_dir) = std::env::var("OPENCODE_RS_DATA_DIR") {
+            return PathBuf::from(env_dir).join(SECRET_FILE_NAME);
+        }
+
+        directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+            .map(|dirs| dirs.data_dir().join(SECRET_FILE_NAME))
+            .unwrap_or_else(|| {
+                std::env::var("HOME")
+                    .ok()
+                    .map(|h| PathBuf::from(h).join(".local/share/opencode-rs"))
+                    .unwrap_or_else(|| PathBuf::from(".opencode-rs"))
+                    .join(SECRET_FILE_NAME)
+            })
     }
 
     pub fn with_path(path: PathBuf) -> Self {

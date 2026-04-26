@@ -160,23 +160,22 @@ impl AcpClient {
             req_builder = req_builder.timeout(timeout);
         }
 
-        let response = req_builder
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_timeout() {
-                    let timeout_secs = self
-                        .state
-                        .lock()
-                        .unwrap()
-                        .connection_timeout
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
-                    error::AcpError::ConnectionTimeout { timeout: timeout_secs }
-                } else {
-                    error::AcpError::Http(e)
+        let response = req_builder.send().await.map_err(|e| {
+            if e.is_timeout() {
+                let timeout_secs = self
+                    .state
+                    .lock()
+                    .unwrap()
+                    .connection_timeout
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                error::AcpError::ConnectionTimeout {
+                    timeout: timeout_secs,
                 }
-            })?;
+            } else {
+                error::AcpError::Http(e)
+            }
+        })?;
 
         if !response.status().is_success() {
             let error = response
@@ -222,18 +221,18 @@ impl AcpClient {
 
                 tracing::debug!("Connect attempt {} to {}", attempt, server_url);
 
-                let result = this.handshake(&server_url, cid, vec!["chat".to_string()]).await;
+                let result = this
+                    .handshake(&server_url, cid, vec!["chat".to_string()])
+                    .await;
 
                 match result {
                     Ok(response) => {
                         {
                             let mut state_guard = state.lock().unwrap();
-                            state_guard.connection_state =
-                                AcpConnectionState::Connected;
+                            state_guard.connection_state = AcpConnectionState::Connected;
                             state_guard.server_id = Some(response.server_id.clone());
                             state_guard.session_token = response.session_token;
-                            state_guard.capabilities =
-                                response.accepted_capabilities.clone();
+                            state_guard.capabilities = response.accepted_capabilities.clone();
                         }
 
                         let server_id = state.lock().unwrap().server_id.clone().unwrap();
@@ -249,8 +248,7 @@ impl AcpClient {
                     Err(e) => {
                         {
                             let mut state_guard = state.lock().unwrap();
-                            state_guard.connection_state =
-                                AcpConnectionState::Disconnected;
+                            state_guard.connection_state = AcpConnectionState::Disconnected;
                             state_guard.server_url = None;
                         }
                         tracing::debug!("Connect attempt {} failed: {}", attempt, e);
@@ -310,7 +308,9 @@ impl AcpClient {
                     .connection_timeout
                     .map(|d| d.as_secs())
                     .unwrap_or(0);
-                error::AcpError::ConnectionTimeout { timeout: timeout_secs }
+                error::AcpError::ConnectionTimeout {
+                    timeout: timeout_secs,
+                }
             } else {
                 error::AcpError::Http(e)
             }
@@ -364,7 +364,9 @@ impl AcpClient {
                     .connection_timeout
                     .map(|d| d.as_secs())
                     .unwrap_or(0);
-                error::AcpError::ConnectionTimeout { timeout: timeout_secs }
+                error::AcpError::ConnectionTimeout {
+                    timeout: timeout_secs,
+                }
             } else {
                 error::AcpError::Http(e)
             }

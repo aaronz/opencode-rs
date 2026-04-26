@@ -48,13 +48,18 @@ impl Default for CredentialStore {
 
 impl CredentialStore {
     pub fn new() -> Self {
-        let base_dir = std::env::var("OPENCODE_DATA_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::home_dir()
-                    .map(|h| h.join(".config/opencode-rs"))
-                    .unwrap_or_else(|| PathBuf::from(".opencode-rs"))
-            });
+        use opencode_core::paths::Paths;
+
+        let base_dir = if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
+            if !data_dir.contains("opencode-rs") {
+                tracing::warn!(
+                    "OPENCODE_DATA_DIR is set - consider using OPENCODE_RS_DATA_DIR instead"
+                );
+            }
+            PathBuf::from(data_dir)
+        } else {
+            Paths::data_dir()
+        };
 
         Self {
             store_path: base_dir.join("credentials.enc.json"),
@@ -64,13 +69,18 @@ impl CredentialStore {
     }
 
     pub fn with_password(password: String) -> Self {
-        let base_dir = std::env::var("OPENCODE_DATA_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::home_dir()
-                    .map(|h| h.join(".config/opencode-rs"))
-                    .unwrap_or_else(|| PathBuf::from(".opencode-rs"))
-            });
+        use opencode_core::paths::Paths;
+
+        let base_dir = if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
+            if !data_dir.contains("opencode-rs") {
+                tracing::warn!(
+                    "OPENCODE_DATA_DIR is set - consider using OPENCODE_RS_DATA_DIR instead"
+                );
+            }
+            PathBuf::from(data_dir)
+        } else {
+            Paths::data_dir()
+        };
 
         Self {
             store_path: base_dir.join("credentials.enc.json"),

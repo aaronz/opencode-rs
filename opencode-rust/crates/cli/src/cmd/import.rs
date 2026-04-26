@@ -1,4 +1,6 @@
+use crate::cmd::session::get_session_sharing_for_quick as get_session_sharing;
 use clap::Args;
+use opencode_core::Session;
 
 #[derive(Args, Debug)]
 pub(crate) struct ImportArgs {
@@ -46,5 +48,54 @@ mod tests {
 }
 
 pub(crate) fn run(args: ImportArgs) {
-    println!("Importing from {}, format: {:?}", args.input, args.format);
+    let content = match std::fs::read_to_string(&args.input) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error reading file '{}': {}", args.input, e);
+            std::process::exit(1);
+        }
+    };
+
+    let sharing = get_session_sharing();
+
+    let imported: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("Error parsing JSON from '{}': {}", args.input, e);
+            std::process::exit(1);
+        }
+    };
+
+    let mut imported_count = 0;
+
+    if let Some(sessions) = imported.get("sessions").and_then(|s| s.as_array()) {
+        for session_value in sessions {
+            if let Ok(session) = serde_json::from_value::<Session>(session_value.clone()) {
+                match sharing.save_session(&session) {
+                    Ok(_) => imported_count += 1,
+                    Err(e) => {
+                        eprintln!("Warning: Failed to import session {}: {}", session.id, e);
+                    }
+                }
+            }
+        }
+    } else if let Ok(_session) = serde_json::from_value::<Session>(imported.clone()) {
+        if let Ok(session) = serde_json::from_value::<Session>(imported) {
+            match sharing.save_session(&session) {
+                Ok(_) => imported_count = 1,
+                Err(e) => {
+                    eprintln!("Error importing session: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    } else {
+        eprintln!(
+            "Error: File '{}' does not contain valid session data",
+            args.input
+        );
+        std::process::exit(1);
+    }
+
+    println!("Imported {} sessions from '{}'", imported_count, args.input);
 }

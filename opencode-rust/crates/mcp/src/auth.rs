@@ -81,8 +81,8 @@ impl McpAuthTokenStore {
             .map(PathBuf::from)
             .unwrap_or_else(|_| {
                 dirs::home_dir()
-                    .map(|h| h.join(".local/share/opencode"))
-                    .unwrap_or_else(|| PathBuf::from(".opencode"))
+                    .map(|h| h.join(".local/share/opencode-rs"))
+                    .unwrap_or_else(|| PathBuf::from(".opencode-rs"))
             })
     }
 

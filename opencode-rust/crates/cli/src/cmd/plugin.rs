@@ -1,7 +1,6 @@
 use clap::{Args, Subcommand};
 use opencode_core::Config;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 use crate::cmd::load_config;
 
@@ -48,13 +47,12 @@ fn get_installed_plugins(config: &Config) -> Vec<String> {
 }
 
 fn discover_plugins() -> Vec<PluginDiscoveryInfo> {
+    use opencode_core::paths::Paths;
+
     let mut plugins = Vec::new();
 
-    let global_dir = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .map(|home| home.join(".config/opencode/plugins"));
-
-    let project_dir = Some(PathBuf::from(".opencode/plugins"));
+    let global_dir = Paths::project_plugins_dir();
+    let project_dir = Paths::project_plugins_dir();
 
     for dir in [global_dir, project_dir].into_iter().flatten() {
         if dir.exists() {
@@ -164,7 +162,7 @@ pub(crate) fn run(args: PluginArgs) {
                 if let Some(ref q) = query {
                     println!("No plugins found matching '{}'", q);
                 } else {
-                    println!("No plugins discovered. Install plugins to ~/.config/opencode/plugins or .opencode/plugins/");
+                    println!("No plugins discovered. Install plugins to ~/.config/opencode-rs/plugins or .opencode-rs/plugins/");
                 }
                 return;
             }

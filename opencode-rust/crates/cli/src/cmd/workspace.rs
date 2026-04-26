@@ -206,11 +206,10 @@ pub(crate) fn run(args: WorkspaceArgs) {
     match args.action {
         Some(WorkspaceAction::Init) => {
             println!("Initializing workspace...");
-            // Initialize workspace (create .opencode dir, config, etc.)
             if let Ok(current_dir) = std::env::current_dir() {
-                let opencode_dir = current_dir.join(".opencode");
-                if std::fs::create_dir_all(&opencode_dir).is_ok() {
-                    println!("Workspace initialized at: {}", opencode_dir.display());
+                let opencode_rs_dir = current_dir.join(".opencode-rs");
+                if std::fs::create_dir_all(&opencode_rs_dir).is_ok() {
+                    println!("Workspace initialized at: {}", opencode_rs_dir.display());
                 } else {
                     eprintln!("Failed to create workspace directory");
                     std::process::exit(1);

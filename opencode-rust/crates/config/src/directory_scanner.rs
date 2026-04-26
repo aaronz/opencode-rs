@@ -294,7 +294,7 @@ impl DirectoryScanner {
         Some((name, result.to_string()))
     }
 
-    /// Scan tools from .opencode/tools/ directory
+    /// Scan tools from .opencode-rs/tools/ directory
     /// Each tool is a .ts or .js file with export default tool({...}) pattern
     pub fn scan_tools(&self, base_path: &Path) -> Vec<ToolInfo> {
         let tools_dir = base_path.join("tools");
@@ -482,18 +482,17 @@ impl Default for DirectoryScanner {
     }
 }
 
-/// Load .opencode directory from both project and global locations
-/// Project .opencode/ takes precedence over global .opencode/
+/// Load .opencode-rs directory from both project and global locations
+/// Project .opencode-rs/ takes precedence over global .opencode-rs/
 pub fn load_opencode_directory() -> OpencodeDirectoryScan {
     let scanner = DirectoryScanner::new();
     let mut result = OpencodeDirectoryScan::default();
 
-    // First, scan global .opencode/ (lower priority)
-    if let Some(dirs) = directories::ProjectDirs::from("com", "opencode", "rs") {
-        let global_opencode = dirs.config_dir().join(".opencode");
-        if global_opencode.exists() {
-            let global_scan = scanner.scan_all(&global_opencode);
-            // Prepend global items (project items will take precedence when we merge)
+    // First, scan global .opencode-rs/ (lower priority)
+    if let Some(dirs) = directories::ProjectDirs::from("ai", "opencode", "opencode-rs") {
+        let global_opencode_rs = dirs.config_dir().join(".opencode-rs");
+        if global_opencode_rs.exists() {
+            let global_scan = scanner.scan_all(&global_opencode_rs);
             result.agents.extend(global_scan.agents);
             result.commands.extend(global_scan.commands);
             result.plugins.extend(global_scan.plugins);
@@ -504,16 +503,15 @@ pub fn load_opencode_directory() -> OpencodeDirectoryScan {
         }
     }
 
-    // Then, scan project .opencode/ (higher priority - will override)
+    // Then, scan project .opencode-rs/ (higher priority - will override)
     if let Ok(cwd) = std::env::current_dir() {
         for ancestor in cwd.ancestors() {
-            let project_opencode = ancestor.join(".opencode");
-            if project_opencode.exists() {
-                let project_scan = scanner.scan_all(&project_opencode);
+            let project_opencode_rs = ancestor.join(".opencode-rs");
+            if project_opencode_rs.exists() {
+                let project_scan = scanner.scan_all(&project_opencode_rs);
 
-                // Merge project items (they override global ones with same name)
                 merge_scan_results(&mut result, project_scan);
-                break; // Only use the closest .opencode directory
+                break; // Only use the closest .opencode-rs directory
             }
         }
     }
@@ -633,14 +631,14 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let opencode_dir = temp
             .path()
-            .join(".opencode")
+            .join(".opencode-rs")
             .join("agents")
             .join("test-agent");
         fs::create_dir_all(&opencode_dir).unwrap();
         fs::write(opencode_dir.join("AGENT.md"), "# Test Agent").unwrap();
 
         let scanner = DirectoryScanner::new();
-        let agents = scanner.scan_agents(&temp.path().join(".opencode"));
+        let agents = scanner.scan_agents(&temp.path().join(".opencode-rs"));
 
         assert_eq!(agents.len(), 1);
         assert_eq!(agents[0].name, "test-agent");
@@ -650,12 +648,12 @@ mod tests {
     #[test]
     fn test_scan_commands() {
         let temp = TempDir::new().unwrap();
-        let commands_dir = temp.path().join(".opencode").join("commands");
+        let commands_dir = temp.path().join(".opencode-rs").join("commands");
         fs::create_dir_all(&commands_dir).unwrap();
         fs::write(commands_dir.join("test-cmd.md"), "# Test Command").unwrap();
 
         let scanner = DirectoryScanner::new();
-        let commands = scanner.scan_commands(&temp.path().join(".opencode"), None);
+        let commands = scanner.scan_commands(&temp.path().join(".opencode-rs"), None);
 
         assert_eq!(commands.len(), 1);
         assert_eq!(commands[0].name, "test-cmd");
@@ -665,12 +663,12 @@ mod tests {
     #[test]
     fn test_scan_plugins() {
         let temp = TempDir::new().unwrap();
-        let plugins_dir = temp.path().join(".opencode").join("plugins");
+        let plugins_dir = temp.path().join(".opencode-rs").join("plugins");
         fs::create_dir_all(&plugins_dir).unwrap();
         fs::write(plugins_dir.join("test-plugin.wasm"), b"wasm-content").unwrap();
 
         let scanner = DirectoryScanner::new();
-        let plugins = scanner.scan_plugins(&temp.path().join(".opencode"));
+        let plugins = scanner.scan_plugins(&temp.path().join(".opencode-rs"));
 
         assert_eq!(plugins.len(), 1);
         assert_eq!(plugins[0].name, "test-plugin");
@@ -679,12 +677,12 @@ mod tests {
     #[test]
     fn test_scan_themes() {
         let temp = TempDir::new().unwrap();
-        let themes_dir = temp.path().join(".opencode").join("themes");
+        let themes_dir = temp.path().join(".opencode-rs").join("themes");
         fs::create_dir_all(&themes_dir).unwrap();
         fs::write(themes_dir.join("test-theme.json"), r#"{"name": "test"}"#).unwrap();
 
         let scanner = DirectoryScanner::new();
-        let themes = scanner.scan_themes(&temp.path().join(".opencode"));
+        let themes = scanner.scan_themes(&temp.path().join(".opencode-rs"));
 
         assert_eq!(themes.len(), 1);
         assert_eq!(themes[0].name, "test-theme");
@@ -693,7 +691,7 @@ mod tests {
     #[test]
     fn test_scan_tools_typescript() {
         let temp = TempDir::new().unwrap();
-        let tools_dir = temp.path().join(".opencode").join("tools");
+        let tools_dir = temp.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
         fs::write(
             tools_dir.join("my_tool.ts"),
@@ -712,7 +710,7 @@ mod tests {
         .unwrap();
 
         let scanner = DirectoryScanner::new();
-        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+        let tools = scanner.scan_tools(&temp.path().join(".opencode-rs"));
 
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name, "my_tool");
@@ -726,7 +724,7 @@ mod tests {
     #[test]
     fn test_scan_tools_javascript() {
         let temp = TempDir::new().unwrap();
-        let tools_dir = temp.path().join(".opencode").join("tools");
+        let tools_dir = temp.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
         fs::write(
             tools_dir.join("another_tool.js"),
@@ -740,7 +738,7 @@ mod tests {
         .unwrap();
 
         let scanner = DirectoryScanner::new();
-        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+        let tools = scanner.scan_tools(&temp.path().join(".opencode-rs"));
 
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name, "another_tool");
@@ -749,7 +747,7 @@ mod tests {
     #[test]
     fn test_scan_tools_multiple() {
         let temp = TempDir::new().unwrap();
-        let tools_dir = temp.path().join(".opencode").join("tools");
+        let tools_dir = temp.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
         fs::write(
             tools_dir.join("tool1.ts"),
@@ -773,7 +771,7 @@ mod tests {
         .unwrap();
 
         let scanner = DirectoryScanner::new();
-        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+        let tools = scanner.scan_tools(&temp.path().join(".opencode-rs"));
 
         assert_eq!(tools.len(), 2);
     }
@@ -781,7 +779,7 @@ mod tests {
     #[test]
     fn test_scan_all() {
         let temp = TempDir::new().unwrap();
-        let opencode_dir = temp.path().join(".opencode");
+        let opencode_dir = temp.path().join(".opencode-rs");
 
         // Create agents
         let agent_dir = opencode_dir.join("agents").join("my-agent");
@@ -818,7 +816,7 @@ mod tests {
     #[test]
     fn test_scan_modes_with_frontmatter() {
         let temp = TempDir::new().unwrap();
-        let modes_dir = temp.path().join(".opencode").join("modes");
+        let modes_dir = temp.path().join(".opencode-rs").join("modes");
         fs::create_dir_all(&modes_dir).unwrap();
         fs::write(
             modes_dir.join("code-review.md"),
@@ -827,7 +825,7 @@ mod tests {
         .unwrap();
 
         let scanner = DirectoryScanner::new();
-        let modes = scanner.scan_modes(&temp.path().join(".opencode"));
+        let modes = scanner.scan_modes(&temp.path().join(".opencode-rs"));
 
         assert_eq!(modes.len(), 1);
         assert_eq!(modes[0].name, "code-review");
@@ -855,7 +853,7 @@ mod tests {
     #[test]
     fn test_scan_skills() {
         let temp = TempDir::new().unwrap();
-        let skills_dir = temp.path().join(".opencode").join("skills");
+        let skills_dir = temp.path().join(".opencode-rs").join("skills");
         let skill_dir = skills_dir.join("test-skill");
         fs::create_dir_all(&skill_dir).unwrap();
         fs::write(
@@ -865,7 +863,7 @@ mod tests {
         .unwrap();
 
         let scanner = DirectoryScanner::new();
-        let skills = scanner.scan_skills(&temp.path().join(".opencode"));
+        let skills = scanner.scan_skills(&temp.path().join(".opencode-rs"));
 
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].name, "test-skill");
@@ -883,13 +881,13 @@ mod tests {
     #[test]
     fn test_scan_skills_no_skill_md() {
         let temp = TempDir::new().unwrap();
-        let skills_dir = temp.path().join(".opencode").join("skills");
+        let skills_dir = temp.path().join(".opencode-rs").join("skills");
         let skill_dir = skills_dir.join("test-skill");
         fs::create_dir_all(&skill_dir).unwrap();
         fs::write(skill_dir.join("README.md"), "Not a skill").unwrap();
 
         let scanner = DirectoryScanner::new();
-        let skills = scanner.scan_skills(&temp.path().join(".opencode"));
+        let skills = scanner.scan_skills(&temp.path().join(".opencode-rs"));
 
         assert!(skills.is_empty());
     }
@@ -897,13 +895,13 @@ mod tests {
     #[test]
     fn test_scan_commands_with_pattern() {
         let temp = TempDir::new().unwrap();
-        let commands_dir = temp.path().join(".opencode").join("commands");
+        let commands_dir = temp.path().join(".opencode-rs").join("commands");
         fs::create_dir_all(&commands_dir).unwrap();
         fs::write(commands_dir.join("test.md"), "# Test").unwrap();
         fs::write(commands_dir.join("other.md"), "# Other").unwrap();
 
         let scanner = DirectoryScanner::new();
-        let commands = scanner.scan_commands(&temp.path().join(".opencode"), Some("*.md"));
+        let commands = scanner.scan_commands(&temp.path().join(".opencode-rs"), Some("*.md"));
 
         assert_eq!(commands.len(), 2);
     }
@@ -911,12 +909,12 @@ mod tests {
     #[test]
     fn test_scan_commands_pattern_no_match() {
         let temp = TempDir::new().unwrap();
-        let commands_dir = temp.path().join(".opencode").join("commands");
+        let commands_dir = temp.path().join(".opencode-rs").join("commands");
         fs::create_dir_all(&commands_dir).unwrap();
         fs::write(commands_dir.join("test.txt"), "# Test").unwrap();
 
         let scanner = DirectoryScanner::new();
-        let commands = scanner.scan_commands(&temp.path().join(".opencode"), Some("*.md"));
+        let commands = scanner.scan_commands(&temp.path().join(".opencode-rs"), Some("*.md"));
 
         assert!(commands.is_empty());
     }
@@ -959,7 +957,7 @@ mod tests {
     #[test]
     fn test_scan_tools_invalid_regex() {
         let temp = TempDir::new().unwrap();
-        let tools_dir = temp.path().join(".opencode").join("tools");
+        let tools_dir = temp.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
         fs::write(
             tools_dir.join("noexport.ts"),
@@ -970,14 +968,14 @@ const x = 1;
         .unwrap();
 
         let scanner = DirectoryScanner::new();
-        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+        let tools = scanner.scan_tools(&temp.path().join(".opencode-rs"));
         assert!(tools.is_empty());
     }
 
     #[test]
     fn test_scan_tools_no_name_in_export() {
         let temp = TempDir::new().unwrap();
-        let tools_dir = temp.path().join(".opencode").join("tools");
+        let tools_dir = temp.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
         fs::write(
             tools_dir.join("noname.ts"),
@@ -990,7 +988,7 @@ const x = 1;
         .unwrap();
 
         let scanner = DirectoryScanner::new();
-        let tools = scanner.scan_tools(&temp.path().join(".opencode"));
+        let tools = scanner.scan_tools(&temp.path().join(".opencode-rs"));
         assert!(tools.len() == 1);
     }
 
@@ -1007,7 +1005,7 @@ const x = 1;
     #[test]
     fn test_scan_modes_no_frontmatter() {
         let temp = TempDir::new().unwrap();
-        let modes_dir = temp.path().join(".opencode").join("modes");
+        let modes_dir = temp.path().join(".opencode-rs").join("modes");
         fs::create_dir_all(&modes_dir).unwrap();
         fs::write(
             modes_dir.join("simple.md"),
@@ -1016,7 +1014,7 @@ const x = 1;
         .unwrap();
 
         let scanner = DirectoryScanner::new();
-        let modes = scanner.scan_modes(&temp.path().join(".opencode"));
+        let modes = scanner.scan_modes(&temp.path().join(".opencode-rs"));
 
         assert_eq!(modes.len(), 1);
         assert_eq!(modes[0].name, "simple");

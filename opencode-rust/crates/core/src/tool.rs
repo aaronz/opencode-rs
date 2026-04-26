@@ -310,7 +310,7 @@ fn register_discovered_custom_tools(registry: &mut ToolRegistry, project_root: O
     let scanner = DirectoryScanner::new();
 
     if let Some(ref root) = project_root {
-        let opencode_path = root.join(".opencode");
+        let opencode_path = root.join(".opencode-rs");
         if opencode_path.exists() {
             let tools = scanner.scan_tools(&opencode_path);
             for tool_info in tools {
@@ -708,7 +708,7 @@ pub fn build_default_registry() -> ToolRegistry {
 fn find_project_root() -> Option<PathBuf> {
     let cwd = std::env::current_dir().ok()?;
     for ancestor in cwd.ancestors() {
-        let opencode_dir = ancestor.join(".opencode");
+        let opencode_dir = ancestor.join(".opencode-rs");
         if opencode_dir.exists() && opencode_dir.is_dir() {
             return Some(ancestor.to_path_buf());
         }
@@ -868,7 +868,7 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
 
         fs::write(
@@ -883,7 +883,7 @@ mod tests {
 
         let mut registry = ToolRegistry::new();
         let scanner = DirectoryScanner::new();
-        let opencode_path = temp_dir.path().join(".opencode");
+        let opencode_path = temp_dir.path().join(".opencode-rs");
         let tools = scanner.scan_tools(&opencode_path);
 
         assert_eq!(tools.len(), 1);
@@ -910,7 +910,7 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
 
         fs::write(
@@ -925,7 +925,7 @@ mod tests {
 
         let mut registry = ToolRegistry::new();
         let scanner = DirectoryScanner::new();
-        let opencode_path = temp_dir.path().join(".opencode");
+        let opencode_path = temp_dir.path().join(".opencode-rs");
         let tools = scanner.scan_tools(&opencode_path);
 
         for tool_info in tools {
@@ -946,7 +946,7 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
 
         fs::write(
@@ -965,7 +965,7 @@ mod tests {
 
         let mut registry = ToolRegistry::new();
         let scanner = DirectoryScanner::new();
-        let opencode_path = temp_dir.path().join(".opencode");
+        let opencode_path = temp_dir.path().join(".opencode-rs");
         let tools = scanner.scan_tools(&opencode_path);
 
         for tool_info in tools {
@@ -990,7 +990,7 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
 
         fs::write(
@@ -1016,7 +1016,7 @@ mod tests {
         );
 
         let scanner = DirectoryScanner::new();
-        let opencode_path = temp_dir.path().join(".opencode");
+        let opencode_path = temp_dir.path().join(".opencode-rs");
         let tools = scanner.scan_tools(&opencode_path);
 
         for tool_info in tools {
@@ -1051,7 +1051,7 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        let tools_dir = temp_dir.path().join(".opencode").join("tools");
+        let tools_dir = temp_dir.path().join(".opencode-rs").join("tools");
         fs::create_dir_all(&tools_dir).unwrap();
 
         fs::write(
@@ -1067,7 +1067,7 @@ mod tests {
 
         let mut registry = ToolRegistry::new();
         let scanner = DirectoryScanner::new();
-        let opencode_path = temp_dir.path().join(".opencode");
+        let opencode_path = temp_dir.path().join(".opencode-rs");
         let tools = scanner.scan_tools(&opencode_path);
 
         assert_eq!(

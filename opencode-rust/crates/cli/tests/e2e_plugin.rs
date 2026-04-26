@@ -114,7 +114,7 @@ fn test_plugin_remove_removes_from_config() {
 #[test]
 fn test_plugin_search_filters_by_query() {
     let harness = TestHarness::setup();
-    let plugins_dir = harness.temp_dir.path().join(".opencode/plugins");
+    let plugins_dir = harness.temp_dir.path().join(".opencode-rs/plugins");
     fs::create_dir_all(&plugins_dir).unwrap();
 
     let plugin1_dir = plugins_dir.join("searchable-plugin");
@@ -160,7 +160,7 @@ fn test_plugin_search_filters_by_query() {
 #[test]
 fn test_plugin_search_with_no_query_returns_all_discovered() {
     let harness = TestHarness::setup();
-    let plugins_dir = harness.temp_dir.path().join(".opencode/plugins");
+    let plugins_dir = harness.temp_dir.path().join(".opencode-rs/plugins");
     fs::create_dir_all(&plugins_dir).unwrap();
 
     let plugin1_dir = plugins_dir.join("plugin-one");

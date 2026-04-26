@@ -53,12 +53,20 @@ const DEFAULT_SESSION_EXPIRY_SECS: i64 = 3600;
 
 fn get_config_path() -> PathBuf {
     if let Ok(config_dir) = std::env::var("OPENCODE_CONFIG_DIR") {
+        if !config_dir.contains("opencode-rs") {
+            tracing::warn!(
+                "OPENCODE_CONFIG_DIR is set - consider using OPENCODE_RS_CONFIG_DIR instead"
+            );
+        }
         return PathBuf::from(config_dir).join("config.json");
     }
-    if let Some(dirs) = directories::ProjectDirs::from("ai", "opencode", "opencode") {
+    if let Ok(env_dir) = std::env::var("OPENCODE_RS_CONFIG_DIR") {
+        return PathBuf::from(env_dir).join("config.json");
+    }
+    if let Some(dirs) = directories::ProjectDirs::from("ai", "opencode", "opencode-rs") {
         return dirs.config_dir().join("config.json");
     }
-    PathBuf::from("~/.config/opencode/config.json")
+    PathBuf::from("~/.config/opencode-rs/config.json")
 }
 
 fn save_config(config: &Config) -> Result<(), String> {

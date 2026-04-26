@@ -133,7 +133,7 @@ impl SkillManager {
     }
 
     pub(crate) fn with_project_path(mut self, project_path: PathBuf) -> Self {
-        self.project_skills_path = Some(project_path.join(".opencode").join("skills"));
+        self.project_skills_path = Some(project_path.join(".opencode-rs").join("skills"));
         self
     }
 
@@ -147,7 +147,7 @@ impl SkillManager {
     }
 
     pub(crate) fn set_project_path(&mut self, project_path: PathBuf) {
-        self.project_skills_path = Some(project_path.join(".opencode").join("skills"));
+        self.project_skills_path = Some(project_path.join(".opencode-rs").join("skills"));
     }
 
     fn ensure_discovered(&self) -> Result<(), OpenCodeError> {
@@ -675,7 +675,7 @@ Custom skill body content"#,
 
         let project_skills_dir = project_dir
             .path()
-            .join(".opencode")
+            .join(".opencode-rs")
             .join("skills")
             .join("test-skill");
         std::fs::create_dir_all(&project_skills_dir).unwrap();
@@ -848,7 +848,7 @@ Skill two content"#,
         let project_dir = TempDir::new().unwrap();
         let project_skills_dir = project_dir
             .path()
-            .join(".opencode")
+            .join(".opencode-rs")
             .join("skills")
             .join("my-project-skill");
         std::fs::create_dir_all(&project_skills_dir).unwrap();
@@ -1034,7 +1034,7 @@ MMM content"#,
         let temp_dir = TempDir::new().unwrap();
         let project_dir = temp_dir
             .path()
-            .join(".opencode")
+            .join(".opencode-rs")
             .join("skills")
             .join("priority-test");
         std::fs::create_dir_all(&project_dir).unwrap();
@@ -1095,7 +1095,7 @@ Test content"#,
 
         let project_skill_dir = project_dir
             .path()
-            .join(".opencode")
+            .join(".opencode-rs")
             .join("skills")
             .join("project-skill");
         std::fs::create_dir_all(&project_skill_dir).unwrap();
@@ -1430,7 +1430,7 @@ Nested content"#,
 
         let project_skills_dir = project_dir
             .path()
-            .join(".opencode")
+            .join(".opencode-rs")
             .join("skills")
             .join("high-priority");
         std::fs::create_dir_all(&project_skills_dir).unwrap();

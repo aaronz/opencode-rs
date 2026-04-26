@@ -96,9 +96,10 @@ pub(crate) fn run(args: McpArgs) {
             McpAction::Add { .. } => "add",
             McpAction::Remove { .. } => "remove",
         };
+        let servers = list_mcp_servers();
         let result = json!({
             "action": action_str,
-            "servers": []
+            "servers": servers
         });
         println!(
             "{}",
@@ -109,6 +110,9 @@ pub(crate) fn run(args: McpArgs) {
 
     match args.action {
         McpAction::Auth(auth_args) => mcp_auth::run(auth_args),
+        McpAction::List => {
+            list_mcp_servers();
+        }
         McpAction::Add {
             name,
             command,
@@ -119,7 +123,12 @@ pub(crate) fn run(args: McpArgs) {
                 std::process::exit(1);
             }
         }
-        _ => println!("MCP action: {:?}", args.action),
+        McpAction::Remove { name } => {
+            if let Err(e) = remove_mcp_server(&name) {
+                eprintln!("Error removing MCP server: {}", e);
+                std::process::exit(1);
+            }
+        }
     }
 }
 
@@ -156,5 +165,79 @@ fn add_mcp_server(name: &str, command: &str, args: Option<&[String]>) -> Result<
         .map_err(|e| format!("Failed to save config: {}", e))?;
 
     println!("Added MCP server '{}' with command '{}'", name, command);
+    Ok(())
+}
+
+fn list_mcp_servers() -> Vec<serde_json::Value> {
+    let path = Config::config_path();
+    let config = Config::load(&path).unwrap_or_default();
+
+    let mcp_servers = config.mcp.as_ref();
+    let servers: Vec<serde_json::Value> = mcp_servers
+        .map(|mcp_map| {
+            mcp_map
+                .iter()
+                .map(|(name, cfg)| {
+                    let (command, enabled) = match cfg {
+                        McpConfig::Local(local) => {
+                            (local.command.join(" "), local.enabled.unwrap_or(true))
+                        }
+                        McpConfig::Remote(remote) => {
+                            (remote.url.clone(), remote.enabled.unwrap_or(true))
+                        }
+                        McpConfig::Simple { enabled } => ("simple".to_string(), *enabled),
+                    };
+                    serde_json::json!({
+                        "name": name,
+                        "command": command,
+                        "enabled": enabled
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if servers.is_empty() {
+        println!("No MCP servers configured");
+    } else {
+        println!("MCP Servers:");
+        for server in &servers {
+            let name = server
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let command = server.get("command").and_then(|v| v.as_str()).unwrap_or("");
+            let enabled = server
+                .get("enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
+            let status = if enabled { "enabled" } else { "disabled" };
+            println!("  {} - {} ({})", name, command, status);
+        }
+    }
+
+    servers
+}
+
+fn remove_mcp_server(name: &str) -> Result<(), String> {
+    let path = Config::config_path();
+    let mut config = Config::load(&path).unwrap_or_default();
+
+    let mcp_map = config
+        .mcp
+        .as_mut()
+        .ok_or_else(|| "No MCP servers configured".to_string())?;
+
+    if !mcp_map.contains_key(name) {
+        return Err(format!("MCP server '{}' not found", name));
+    }
+
+    mcp_map.remove(name);
+
+    config
+        .save(&path)
+        .map_err(|e| format!("Failed to save config: {}", e))?;
+
+    println!("Removed MCP server '{}'", name);
     Ok(())
 }

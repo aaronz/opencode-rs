@@ -210,14 +210,14 @@ mod tests {
     }
 
     #[test]
-    fn test_get_workspace_opencode_dir_creates_dir_if_missing() {
+    fn test_get_workspace_opencode_rs_dir_creates_dir_if_missing() {
         let temp_dir = tempfile::tempdir().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
 
-        let opencode_dir = get_workspace_opencode_dir();
-        assert!(opencode_dir.is_some());
+        let opencode_rs_dir = get_workspace_opencode_rs_dir();
+        assert!(opencode_rs_dir.is_some());
 
-        let dir = opencode_dir.unwrap();
+        let dir = opencode_rs_dir.unwrap();
         assert!(dir.exists());
         assert!(dir.is_dir());
 
@@ -225,17 +225,17 @@ mod tests {
     }
 
     #[test]
-    fn test_get_workspace_opencode_dir_finds_existing() {
+    fn test_get_workspace_opencode_rs_dir_finds_existing() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let opencode_dir = temp_dir.path().join(".opencode");
-        std::fs::create_dir_all(&opencode_dir).unwrap();
+        let opencode_rs_dir = temp_dir.path().join(".opencode-rs");
+        std::fs::create_dir_all(&opencode_rs_dir).unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
 
-        let result = get_workspace_opencode_dir();
+        let result = get_workspace_opencode_rs_dir();
         assert!(result.is_some());
         let result_path = result.unwrap();
         assert!(result_path.exists());
-        assert!(result_path.file_name().unwrap() == ".opencode");
+        assert!(result_path.file_name().unwrap() == ".opencode-rs");
 
         std::env::set_current_dir("/").ok();
     }
@@ -243,10 +243,10 @@ mod tests {
     #[test]
     fn test_save_workflow_to_local_creates_workflows_dir() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let opencode_dir = temp_dir.path().join(".opencode");
-        std::fs::create_dir_all(&opencode_dir).unwrap();
+        let opencode_rs_dir = temp_dir.path().join(".opencode-rs");
+        std::fs::create_dir_all(&opencode_rs_dir).unwrap();
 
-        let workflows_dir = opencode_dir.join("workflows");
+        let workflows_dir = opencode_rs_dir.join("workflows");
         std::fs::create_dir_all(&workflows_dir).unwrap();
 
         std::env::set_current_dir(temp_dir.path()).unwrap();
@@ -289,8 +289,8 @@ mod tests {
     #[test]
     fn test_check_existing_workflow_returns_record() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let opencode_dir = temp_dir.path().join(".opencode");
-        let workflows_dir = opencode_dir.join("workflows");
+        let opencode_rs_dir = temp_dir.path().join(".opencode-rs");
+        let workflows_dir = opencode_rs_dir.join("workflows");
         std::fs::create_dir_all(&workflows_dir).unwrap();
 
         let record = GithubWorkflowRecord {
@@ -460,8 +460,8 @@ fn get_token(token: Option<String>) -> String {
 }
 
 fn check_existing_workflow(owner: &str, repo: &str) -> Option<GithubWorkflowRecord> {
-    let opencode_dir = get_workspace_opencode_dir()?;
-    let record_path = opencode_dir
+    let opencode_rs_dir = get_workspace_opencode_rs_dir()?;
+    let record_path = opencode_rs_dir
         .join("workflows")
         .join(format!("{}-{}.json", owner, repo));
     let content = std::fs::read_to_string(&record_path).ok()?;
@@ -512,7 +512,7 @@ fn run_install(token: Option<String>, owner: &str, repo: &str, branch: &str) {
         println!("  Workflow path: {}", existing.workflow_path);
         println!("  Installed at: {}", existing.installed_at);
         println!("  Commit SHA: {}", existing.commit_sha);
-        println!("\nTo reinstall, remove the existing record from .opencode/workflows/");
+        println!("\nTo reinstall, remove the existing record from .opencode-rs/workflows/");
         return;
     }
 
@@ -545,7 +545,7 @@ fn run_install(token: Option<String>, owner: &str, repo: &str, branch: &str) {
             if let Err(e) = save_workflow_to_local(result, owner, repo, branch) {
                 eprintln!("  Warning: Failed to save local workflow record: {}", e);
             } else {
-                println!("  Local workflow record saved to .opencode/");
+                println!("  Local workflow record saved to .opencode-rs/");
             }
         }
         Err(e) => {
@@ -555,17 +555,17 @@ fn run_install(token: Option<String>, owner: &str, repo: &str, branch: &str) {
     }
 }
 
-fn get_workspace_opencode_dir() -> Option<PathBuf> {
+fn get_workspace_opencode_rs_dir() -> Option<PathBuf> {
     let cwd = std::env::current_dir().ok()?;
     for ancestor in cwd.ancestors() {
-        let opencode_dir = ancestor.join(".opencode");
-        if opencode_dir.exists() && opencode_dir.is_dir() {
-            return Some(opencode_dir);
+        let opencode_rs_dir = ancestor.join(".opencode-rs");
+        if opencode_rs_dir.exists() && opencode_rs_dir.is_dir() {
+            return Some(opencode_rs_dir);
         }
     }
-    let new_opencode = cwd.join(".opencode");
-    if std::fs::create_dir_all(&new_opencode).is_ok() {
-        Some(new_opencode)
+    let new_opencode_rs = cwd.join(".opencode-rs");
+    if std::fs::create_dir_all(&new_opencode_rs).is_ok() {
+        Some(new_opencode_rs)
     } else {
         None
     }
@@ -577,10 +577,10 @@ fn save_workflow_to_local(
     repo: &str,
     branch: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let opencode_dir =
-        get_workspace_opencode_dir().ok_or("Could not find or create .opencode directory")?;
+    let opencode_rs_dir =
+        get_workspace_opencode_rs_dir().ok_or("Could not find or create .opencode-rs directory")?;
 
-    let workflows_dir = opencode_dir.join("workflows");
+    let workflows_dir = opencode_rs_dir.join("workflows");
     std::fs::create_dir_all(&workflows_dir)?;
 
     let record = GithubWorkflowRecord {

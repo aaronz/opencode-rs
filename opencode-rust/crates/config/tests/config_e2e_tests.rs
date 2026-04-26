@@ -62,7 +62,7 @@ async fn config_e2e_006_directory_scanner() {
     use std::fs;
 
     let temp_dir = TempDir::new().unwrap();
-    let opencode_dir = temp_dir.path().join(".opencode").join("tools");
+    let opencode_dir = temp_dir.path().join(".opencode-rs").join("tools");
     fs::create_dir_all(&opencode_dir).unwrap();
 
     fs::write(
@@ -85,7 +85,7 @@ async fn config_e2e_006_directory_scanner() {
     .unwrap();
 
     let scanner = DirectoryScanner::new();
-    let results = scanner.scan_tools(&temp_dir.path().join(".opencode"));
+    let results = scanner.scan_tools(&temp_dir.path().join(".opencode-rs"));
 
     assert_eq!(results.len(), 2);
 }

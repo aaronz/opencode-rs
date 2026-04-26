@@ -67,7 +67,7 @@ impl DirectoryScanner {
 
     fn find_opencode_dir(start_dir: &Path) -> Option<PathBuf> {
         for ancestor in start_dir.ancestors() {
-            let opencode_dir = ancestor.join(".opencode");
+            let opencode_dir = ancestor.join(".opencode-rs");
             if opencode_dir.exists() && opencode_dir.is_dir() {
                 return Some(opencode_dir);
             }
