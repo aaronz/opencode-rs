@@ -396,6 +396,69 @@ mod tests {
         };
         assert!(!is_session_expired(&valid_session));
     }
+
+    #[test]
+    fn test_acp_handshake_result_persisted() {
+        let mut config = Config::default();
+        let response = AcpHandshakeResponse {
+            version: "1.0".to_string(),
+            server_id: "server-test".to_string(),
+            session_id: "session-persist-123".to_string(),
+            accepted: true,
+            error: None,
+        };
+
+        let result = store_acp_session(
+            &mut config,
+            "http://localhost:9090",
+            "client-persist",
+            "1.0",
+            &["chat".to_string(), "tasks".to_string()],
+            &response,
+        );
+        assert!(result.is_ok(), "store_acp_session should succeed");
+
+        let stored = get_stored_session(&config);
+        assert!(stored.is_some(), "Session should be stored");
+        let session = stored.unwrap();
+        assert_eq!(session.session_id, "session-persist-123");
+        assert_eq!(session.server_id, "server-test");
+        assert_eq!(session.server_url, "http://localhost:9090");
+        assert_eq!(session.client_id, "client-persist");
+        assert_eq!(session.capabilities, vec!["chat", "tasks"]);
+    }
+
+    #[test]
+    fn test_acp_handshake_session_restored() {
+        let mut config = Config::default();
+        let response = AcpHandshakeResponse {
+            version: "1.0".to_string(),
+            server_id: "server-restore".to_string(),
+            session_id: "session-restore-456".to_string(),
+            accepted: true,
+            error: None,
+        };
+
+        store_acp_session(
+            &mut config,
+            "http://localhost:7070",
+            "client-restore",
+            "1.0",
+            &["code_review".to_string()],
+            &response,
+        )
+        .expect("First handshake should be stored");
+
+        let restored = get_stored_session(&config);
+        assert!(restored.is_some(), "Should be able to retrieve stored session");
+        let session = restored.expect("Session should exist");
+
+        assert_eq!(session.session_id, "session-restore-456");
+        assert_eq!(session.server_id, "server-restore");
+        assert_eq!(session.server_url, "http://localhost:7070");
+        assert_eq!(session.client_id, "client-restore");
+        assert!(!is_session_expired(&session), "Restored session should not be expired");
+    }
 }
 
 pub fn run(args: AcpArgs) {

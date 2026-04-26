@@ -799,7 +799,7 @@
       "priority": "P1",
       "title": "Extend providers login for multi-provider",
       "description": "Extend `providers login` for multi-provider (Anthropic, etc.) at cmd/providers.rs:142-145",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify provider flag is parsed",
         "AddUnitTest: verify Anthropic and other providers authenticate",
@@ -817,7 +817,7 @@
       "priority": "P1",
       "title": "Implement acp handshake session persistence",
       "description": "Implement `acp handshake` session persistence at cmd/acp.rs:250-292",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify handshake result is persisted",
         "AddUnitTest: verify persisted session can be restored"

@@ -5692,7 +5692,10 @@ OpenCode Agent Configuration
                 if key.code == KeyCode::Esc {
                     self.validation_in_progress = false;
                     self.pending_api_key_for_validation = None;
-                    self.mode = AppMode::ConnectApiKey;
+                    self.pending_connect_provider = None;
+                    self.api_key_input_dialog = None;
+                    self.connect_method_dialog = None;
+                    self.mode = AppMode::ConnectProvider;
                 }
             }
         }
