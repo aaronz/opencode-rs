@@ -526,7 +526,7 @@
       "priority": "P0",
       "title": "Create ACP integration tests file",
       "description": "Create `crates/acp/tests/acp_tests.rs` for integration tests",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddIntegrationTest: verify all ACP components work together",
         "RunTestSuite: cargo test -p opencode-acp"
@@ -545,7 +545,7 @@
       "priority": "P1",
       "title": "Implement acp status CLI command",
       "description": "Implement `acp status` CLI command to show ACP connection status",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify CLI command parses correctly",
         "AddIntegrationTest: verify status output reflects actual ACP state"
