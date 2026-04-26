@@ -73,6 +73,120 @@ async fn test_disconnect_transitions_to_disconnected() {
 }
 
 #[tokio::test]
+async fn test_disconnect_cleans_up_resources() {
+    let client = create_test_client();
+
+    {
+        let mut state = client.state().lock().unwrap();
+        state.connection_state = AcpConnectionState::Connected;
+        state.server_id = Some("srv-123".to_string());
+        state.session_token = Some("tok-456".to_string());
+        state.capabilities = vec!["chat".to_string(), "tasks".to_string()];
+        state.server_url = Some("http://localhost:8080".to_string());
+    }
+
+    client.disconnect().await.unwrap();
+
+    let state = client.state().lock().unwrap();
+    assert!(matches!(state.connection_state, AcpConnectionState::Disconnected));
+    assert_eq!(state.server_id, None);
+    assert_eq!(state.session_token, None);
+    assert_eq!(state.server_url, None);
+}
+
+#[tokio::test]
+async fn test_disconnect_from_handshaking_state() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv1",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok1"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+
+    {
+        let mut state = client.state().lock().unwrap();
+        state.connection_state = AcpConnectionState::Handshaking;
+        state.server_url = Some(mock_server.uri());
+    }
+
+    let result = client.disconnect().await;
+    assert!(result.is_ok());
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+}
+
+#[tokio::test]
+async fn test_disconnect_from_connected_state() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv1",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok1"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    client.connect(&mock_server.uri(), Some("my-client".to_string())).await.unwrap();
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+
+    client.disconnect().await.unwrap();
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    let state = client.state().lock().unwrap();
+    assert_eq!(state.server_id, None);
+    assert_eq!(state.session_token, None);
+}
+
+#[tokio::test]
+async fn test_disconnect_from_failed_state() {
+    let client = create_test_client();
+
+    {
+        let mut state = client.state().lock().unwrap();
+        state.connection_state = AcpConnectionState::Failed("connection refused".to_string());
+        state.server_id = Some("srv-123".to_string());
+        state.session_token = Some("tok-456".to_string());
+        state.server_url = Some("http://localhost:8080".to_string());
+    }
+
+    let result = client.disconnect().await;
+    assert!(result.is_ok());
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    let state = client.state().lock().unwrap();
+    assert_eq!(state.server_id, None);
+    assert_eq!(state.session_token, None);
+    assert_eq!(state.server_url, None);
+}
+
+#[tokio::test]
+async fn test_disconnect_from_already_disconnected_is_idempotent() {
+    let client = create_test_client();
+
+    let result1 = client.disconnect().await;
+    let result2 = client.disconnect().await;
+
+    assert!(result1.is_ok());
+    assert!(result2.is_ok());
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+}
+
+#[tokio::test]
 async fn test_send_message_returns_error_when_not_connected() {
     let client = create_test_client();
     let result = client
