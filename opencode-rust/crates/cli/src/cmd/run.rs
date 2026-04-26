@@ -327,9 +327,12 @@ async fn run_llm(config: &Config, model: &str, prompt: &str, format: OutputForma
             let chunks = Arc::new(Mutex::new(Vec::<String>::new()));
             let chunks_clone = chunks.clone();
             let result = provider
-                .complete_streaming(prompt, Box::new(move |chunk| {
-                    chunks_clone.lock().unwrap().push(chunk);
-                }))
+                .complete_streaming(
+                    prompt,
+                    Box::new(move |chunk| {
+                        chunks_clone.lock().unwrap().push(chunk);
+                    }),
+                )
                 .await;
 
             match result {
@@ -359,9 +362,12 @@ async fn run_llm(config: &Config, model: &str, prompt: &str, format: OutputForma
 
             let serializer_clone = serializer.clone();
             let result = provider
-                .complete_streaming(prompt, Box::new(move |chunk| {
-                    serializer_clone.lock().unwrap().write_chunk(&chunk).ok();
-                }))
+                .complete_streaming(
+                    prompt,
+                    Box::new(move |chunk| {
+                        serializer_clone.lock().unwrap().write_chunk(&chunk).ok();
+                    }),
+                )
                 .await;
 
             match result {
@@ -377,9 +383,12 @@ async fn run_llm(config: &Config, model: &str, prompt: &str, format: OutputForma
         }
         _ => {
             let result = provider
-                .complete_streaming(prompt, Box::new(|chunk| {
-                    print!("{}", chunk);
-                }))
+                .complete_streaming(
+                    prompt,
+                    Box::new(|chunk| {
+                        print!("{}", chunk);
+                    }),
+                )
                 .await;
 
             if result.is_err() {

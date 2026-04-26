@@ -74,12 +74,7 @@ fn test_config_set_string_value_persists() {
 
     std::fs::write(&config_path, "{}").unwrap();
 
-    let result = harness.run_cli(&[
-        "config",
-        "--set",
-        "model",
-        "gpt-4o",
-    ]);
+    let result = harness.run_cli(&["config", "--set", "model", "gpt-4o"]);
 
     assert!(
         result.status.success(),
@@ -145,12 +140,7 @@ fn test_config_set_type_validation_rejects_mismatch() {
 
     std::fs::write(&config_path, r#"{"model": "gpt-4o"}"#).unwrap();
 
-    let result = harness.run_cli(&[
-        "config",
-        "--set",
-        "model",
-        "not_a_number_for_model",
-    ]);
+    let result = harness.run_cli(&["config", "--set", "model", "not_a_number_for_model"]);
 
     assert!(
         result.status.success(),
@@ -159,12 +149,7 @@ fn test_config_set_type_validation_rejects_mismatch() {
 
     std::fs::write(&config_path, r#"{"temperature": 0.7}"#).unwrap();
 
-    let result = harness.run_cli(&[
-        "config",
-        "--set",
-        "temperature",
-        "not_a_number",
-    ]);
+    let result = harness.run_cli(&["config", "--set", "temperature", "not_a_number"]);
 
     assert!(
         !result.status.success(),
@@ -182,12 +167,7 @@ fn test_config_get_after_config_set() {
 
     std::fs::write(&config_path, "{}").unwrap();
 
-    let set_result = harness.run_cli(&[
-        "config",
-        "--set",
-        "model",
-        "gpt-4o",
-    ]);
+    let set_result = harness.run_cli(&["config", "--set", "model", "gpt-4o"]);
 
     assert!(
         set_result.status.success(),

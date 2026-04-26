@@ -621,7 +621,7 @@
       "priority": "P1",
       "title": "Write integration test: full connect-message-disconnect cycle",
       "description": "Write integration test: verify full connect-message-disconnect cycle works",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify full lifecycle: connect -> send_message -> disconnect",
         "AddErrorHandlingTest: verify errors at each stage are handled correctly",

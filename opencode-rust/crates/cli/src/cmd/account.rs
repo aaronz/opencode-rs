@@ -1,6 +1,6 @@
 use clap::{Args, Subcommand};
-use opencode_auth::oauth::OAuthFlow;
 use opencode_auth::credential_store::CredentialStore;
+use opencode_auth::oauth::OAuthFlow;
 use serde_json::json;
 
 const DEFAULT_CALLBACK_PORT: u16 = 54345;
@@ -58,7 +58,10 @@ pub(crate) enum AccountAction {
 
 fn run_login(provider: &str) {
     if !SUPPORTED_PROVIDERS.contains(&provider) {
-        eprintln!("Unsupported provider: {}. Supported providers: {:?}", provider, SUPPORTED_PROVIDERS);
+        eprintln!(
+            "Unsupported provider: {}. Supported providers: {:?}",
+            provider, SUPPORTED_PROVIDERS
+        );
         std::process::exit(1);
     }
 
@@ -71,7 +74,8 @@ fn run_login(provider: &str) {
 
     let redirect_port = DEFAULT_CALLBACK_PORT;
 
-    let (state, verifier) = match oauth_flow.start_browser_login(provider, client_id, redirect_port) {
+    let (state, verifier) = match oauth_flow.start_browser_login(provider, client_id, redirect_port)
+    {
         Ok(result) => result,
         Err(e) => {
             eprintln!("Failed to start OAuth login: {}", e);
@@ -82,20 +86,22 @@ fn run_login(provider: &str) {
     println!("\nWaiting for authentication in browser...");
     println!("(You can also manually visit the URL if browser doesn't open)\n");
 
-    let (code, returned_state) = match oauth_flow.run_callback_server_and_wait(redirect_port, CALLBACK_TIMEOUT_SECS) {
-        Ok(result) => result,
-        Err(e) => {
-            eprintln!("Failed waiting for callback: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let (code, returned_state) =
+        match oauth_flow.run_callback_server_and_wait(redirect_port, CALLBACK_TIMEOUT_SECS) {
+            Ok(result) => result,
+            Err(e) => {
+                eprintln!("Failed waiting for callback: {}", e);
+                std::process::exit(1);
+            }
+        };
 
     if returned_state != state {
         eprintln!("State mismatch - possible CSRF attack");
         std::process::exit(1);
     }
 
-    let token = match oauth_flow.complete_login(&code, &state, &verifier, client_id, "", token_url) {
+    let token = match oauth_flow.complete_login(&code, &state, &verifier, client_id, "", token_url)
+    {
         Ok(token) => token,
         Err(e) => {
             eprintln!("Failed to exchange code for token: {}", e);
@@ -114,7 +120,10 @@ fn run_login(provider: &str) {
 
 fn run_logout(provider: &str) {
     if !SUPPORTED_PROVIDERS.contains(&provider) {
-        eprintln!("Unsupported provider: {}. Supported providers: {:?}", provider, SUPPORTED_PROVIDERS);
+        eprintln!(
+            "Unsupported provider: {}. Supported providers: {:?}",
+            provider, SUPPORTED_PROVIDERS
+        );
         std::process::exit(1);
     }
 
@@ -150,7 +159,10 @@ fn run_status(json_output: bool) {
             Ok(Some(..)) => {
                 any_logged_in = true;
                 let token_info = oauth_flow.load_token_for_provider(provider).ok().flatten();
-                let is_valid = token_info.as_ref().map(|t| !t.is_expired()).unwrap_or(false);
+                let is_valid = token_info
+                    .as_ref()
+                    .map(|t| !t.is_expired())
+                    .unwrap_or(false);
                 let expires_at = token_info.as_ref().map(|t| t.expires_at().to_rfc3339());
 
                 serde_json::json!({
@@ -184,14 +196,26 @@ fn run_status(json_output: bool) {
             "logged_in": any_logged_in,
             "accounts": statuses,
         });
-        println!("{}", serde_json::to_string_pretty(&result).expect("failed to serialize JSON output"));
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("failed to serialize JSON output")
+        );
     } else {
         println!("Account Status:");
         println!("===============");
         for status in &statuses {
-            let provider = status.get("provider").and_then(|v| v.as_str()).unwrap_or("unknown");
-            let logged_in = status.get("logged_in").and_then(|v| v.as_bool()).unwrap_or(false);
-            let valid = status.get("valid").and_then(|v| v.as_bool()).unwrap_or(false);
+            let provider = status
+                .get("provider")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let logged_in = status
+                .get("logged_in")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let valid = status
+                .get("valid")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
 
             if logged_in {
                 if valid {
@@ -215,7 +239,9 @@ mod tests {
     fn test_account_args_login() {
         let args = AccountArgs {
             json: false,
-            action: AccountAction::Login { provider: "github".to_string() },
+            action: AccountAction::Login {
+                provider: "github".to_string(),
+            },
         };
         match args.action {
             AccountAction::Login { ref provider } => assert_eq!(provider, "github"),
@@ -227,7 +253,9 @@ mod tests {
     fn test_account_args_logout() {
         let args = AccountArgs {
             json: false,
-            action: AccountAction::Logout { provider: "openai".to_string() },
+            action: AccountAction::Logout {
+                provider: "openai".to_string(),
+            },
         };
         match args.action {
             AccountAction::Logout { ref provider } => assert_eq!(provider, "openai"),
@@ -251,7 +279,9 @@ mod tests {
     fn test_account_args_with_json() {
         let args = AccountArgs {
             json: true,
-            action: AccountAction::Login { provider: "github".to_string() },
+            action: AccountAction::Login {
+                provider: "github".to_string(),
+            },
         };
         assert!(args.json);
     }
@@ -266,9 +296,15 @@ mod tests {
 
     #[test]
     fn test_get_provider_client_id() {
-        assert_eq!(get_provider_client_id("github"), Some("Iv1.8a1f8c05dfd1c06e"));
+        assert_eq!(
+            get_provider_client_id("github"),
+            Some("Iv1.8a1f8c05dfd1c06e")
+        );
         assert_eq!(get_provider_client_id("openai"), Some("client_id_openai"));
-        assert_eq!(get_provider_client_id("anthropic"), Some("anthropic_client_id"));
+        assert_eq!(
+            get_provider_client_id("anthropic"),
+            Some("anthropic_client_id")
+        );
         assert_eq!(get_provider_client_id("unknown"), None);
     }
 
@@ -293,7 +329,9 @@ mod tests {
     fn test_login_default_provider() {
         let args = AccountArgs {
             json: false,
-            action: AccountAction::Login { provider: "github".to_string() },
+            action: AccountAction::Login {
+                provider: "github".to_string(),
+            },
         };
         if let AccountAction::Login { provider } = args.action {
             assert_eq!(provider, "github");
@@ -304,7 +342,9 @@ mod tests {
     fn test_logout_default_provider() {
         let args = AccountArgs {
             json: false,
-            action: AccountAction::Logout { provider: "github".to_string() },
+            action: AccountAction::Logout {
+                provider: "github".to_string(),
+            },
         };
         if let AccountAction::Logout { provider } = args.action {
             assert_eq!(provider, "github");
@@ -324,7 +364,9 @@ mod tests {
     fn test_anthropic_provider_support() {
         let args = AccountArgs {
             json: false,
-            action: AccountAction::Login { provider: "anthropic".to_string() },
+            action: AccountAction::Login {
+                provider: "anthropic".to_string(),
+            },
         };
         match args.action {
             AccountAction::Login { ref provider } => assert_eq!(provider, "anthropic"),
@@ -359,7 +401,11 @@ mod tests {
         let credential_store = CredentialStore::new();
         for provider in SUPPORTED_PROVIDERS {
             let result = credential_store.load(provider);
-            assert!(result.is_ok(), "Loading {} credentials should succeed", provider);
+            assert!(
+                result.is_ok(),
+                "Loading {} credentials should succeed",
+                provider
+            );
         }
     }
 }

@@ -196,13 +196,10 @@ mod tests {
 
     #[test]
     fn test_has_any_override_with_overrides() {
-        temp_env::with_vars(
-            vec![("OPENCODE_AUTO_SHARE", Some("true"))],
-            || {
-                let config = EnvVarConfig::parse();
-                assert!(config.has_any_override());
-            },
-        );
+        temp_env::with_vars(vec![("OPENCODE_AUTO_SHARE", Some("true"))], || {
+            let config = EnvVarConfig::parse();
+            assert!(config.has_any_override());
+        });
     }
 
     #[test]

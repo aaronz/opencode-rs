@@ -199,7 +199,10 @@ mod tests {
     fn test_parse_primitive_value_string() {
         let result = parse_primitive_value("hello");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), serde_json::Value::String("hello".to_string()));
+        assert_eq!(
+            result.unwrap(),
+            serde_json::Value::String("hello".to_string())
+        );
     }
 
     #[test]
@@ -284,7 +287,10 @@ mod tests {
     fn test_set_nested_value_invalid_path() {
         let json = serde_json::json!({"name": "value"});
         let result = set_nested_value(json, &["name", "path"], "value");
-        assert!(result.is_err(), "Should fail when navigating through non-object value");
+        assert!(
+            result.is_err(),
+            "Should fail when navigating through non-object value"
+        );
     }
 
     #[test]
@@ -292,7 +298,10 @@ mod tests {
         let current = serde_json::Value::String("old".to_string());
         let result = parse_value_with_type(&current, "new");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), serde_json::Value::String("new".to_string()));
+        assert_eq!(
+            result.unwrap(),
+            serde_json::Value::String("new".to_string())
+        );
     }
 
     #[test]
@@ -327,7 +336,10 @@ mod tests {
 
     #[test]
     fn test_parse_value_with_type_array() {
-        let current = serde_json::Value::Array(vec![serde_json::Value::String("a".to_string()), serde_json::Value::String("b".to_string())]);
+        let current = serde_json::Value::Array(vec![
+            serde_json::Value::String("a".to_string()),
+            serde_json::Value::String("b".to_string()),
+        ]);
         let result = parse_value_with_type(&current, "[x, y, z]");
         assert!(result.is_ok());
         let arr = result.unwrap();
@@ -345,7 +357,10 @@ temperature = 0.7
         let toml_value: toml::Value = toml_content.parse().unwrap();
         let config = migrate_from_toml(toml_value).unwrap();
         assert_eq!(config.model, Some("gpt-4o".to_string()));
-        assert_eq!(config.log_level, Some(opencode_core::config::LogLevel::Debug));
+        assert_eq!(
+            config.log_level,
+            Some(opencode_core::config::LogLevel::Debug)
+        );
         assert_eq!(config.temperature, Some(0.7));
     }
 
@@ -402,7 +417,10 @@ autoUpdate = true
 "#;
         let toml_value: toml::Value = toml_content.parse().unwrap();
         let config = migrate_from_toml(toml_value).unwrap();
-        assert_eq!(config.autoupdate, Some(opencode_core::config::AutoUpdate::Bool(true)));
+        assert_eq!(
+            config.autoupdate,
+            Some(opencode_core::config::AutoUpdate::Bool(true))
+        );
     }
 
     #[test]
@@ -542,7 +560,10 @@ fn run_migrate() {
         return;
     }
 
-    eprintln!("Found TOML config at {}. Starting migration...", toml_path.display());
+    eprintln!(
+        "Found TOML config at {}. Starting migration...",
+        toml_path.display()
+    );
 
     let toml_content = match std::fs::read_to_string(&toml_path) {
         Ok(content) => content,
@@ -571,7 +592,11 @@ fn run_migrate() {
     let jsonc_path = config_dir.join("config.jsonc");
 
     if let Err(e) = config.save(&jsonc_path) {
-        eprintln!("Error saving migrated config to {}: {}", jsonc_path.display(), e);
+        eprintln!(
+            "Error saving migrated config to {}: {}",
+            jsonc_path.display(),
+            e
+        );
         std::process::exit(1);
     }
 
@@ -604,7 +629,11 @@ fn migrate_from_toml(toml_value: toml::Value) -> Result<Config, String> {
         config.schema = Some(v.to_string());
     }
 
-    if let Some(v) = table.get("logLevel").or_else(|| table.get("log_level")).and_then(|v| v.as_str()) {
+    if let Some(v) = table
+        .get("logLevel")
+        .or_else(|| table.get("log_level"))
+        .and_then(|v| v.as_str())
+    {
         config.log_level = match v.to_lowercase().as_str() {
             "trace" => Some(opencode_core::config::LogLevel::Trace),
             "debug" => Some(opencode_core::config::LogLevel::Debug),
@@ -619,11 +648,19 @@ fn migrate_from_toml(toml_value: toml::Value) -> Result<Config, String> {
         config.model = Some(v.to_string());
     }
 
-    if let Some(v) = table.get("smallModel").or_else(|| table.get("small_model")).and_then(|v| v.as_str()) {
+    if let Some(v) = table
+        .get("smallModel")
+        .or_else(|| table.get("small_model"))
+        .and_then(|v| v.as_str())
+    {
         config.small_model = Some(v.to_string());
     }
 
-    if let Some(v) = table.get("defaultAgent").or_else(|| table.get("default_agent")).and_then(|v| v.as_str()) {
+    if let Some(v) = table
+        .get("defaultAgent")
+        .or_else(|| table.get("default_agent"))
+        .and_then(|v| v.as_str())
+    {
         config.default_agent = Some(v.to_string());
     }
 
@@ -631,7 +668,11 @@ fn migrate_from_toml(toml_value: toml::Value) -> Result<Config, String> {
         config.username = Some(v.to_string());
     }
 
-    if let Some(v) = table.get("apiKey").or_else(|| table.get("api_key")).and_then(|v| v.as_str()) {
+    if let Some(v) = table
+        .get("apiKey")
+        .or_else(|| table.get("api_key"))
+        .and_then(|v| v.as_str())
+    {
         config.api_key = Some(v.to_string());
     }
 
@@ -639,7 +680,11 @@ fn migrate_from_toml(toml_value: toml::Value) -> Result<Config, String> {
         config.temperature = Some(v as f32);
     }
 
-    if let Some(v) = table.get("maxTokens").or_else(|| table.get("max_tokens")).and_then(|v| v.as_integer()) {
+    if let Some(v) = table
+        .get("maxTokens")
+        .or_else(|| table.get("max_tokens"))
+        .and_then(|v| v.as_integer())
+    {
         config.max_tokens = Some(v as u32);
     }
 
@@ -668,7 +713,11 @@ fn migrate_from_toml(toml_value: toml::Value) -> Result<Config, String> {
         config.autoshare = Some(v);
     }
 
-    if let Some(disabled) = table.get("disabledProviders").or_else(|| table.get("disabled_providers")).and_then(|v| v.as_array()) {
+    if let Some(disabled) = table
+        .get("disabledProviders")
+        .or_else(|| table.get("disabled_providers"))
+        .and_then(|v| v.as_array())
+    {
         config.disabled_providers = Some(
             disabled
                 .iter()
@@ -677,7 +726,11 @@ fn migrate_from_toml(toml_value: toml::Value) -> Result<Config, String> {
         );
     }
 
-    if let Some(enabled) = table.get("enabledProviders").or_else(|| table.get("enabled_providers")).and_then(|v| v.as_array()) {
+    if let Some(enabled) = table
+        .get("enabledProviders")
+        .or_else(|| table.get("enabled_providers"))
+        .and_then(|v| v.as_array())
+    {
         config.enabled_providers = Some(
             enabled
                 .iter()
@@ -696,10 +749,18 @@ fn migrate_from_toml(toml_value: toml::Value) -> Result<Config, String> {
                 };
 
                 let mut options = opencode_core::config::ProviderOptions::default();
-                if let Some(api_key) = provider_obj.get("apiKey").or_else(|| provider_obj.get("api_key")).and_then(|v| v.as_str()) {
+                if let Some(api_key) = provider_obj
+                    .get("apiKey")
+                    .or_else(|| provider_obj.get("api_key"))
+                    .and_then(|v| v.as_str())
+                {
                     options.api_key = Some(api_key.to_string());
                 }
-                if let Some(base_url) = provider_obj.get("baseUrl").or_else(|| provider_obj.get("base_url")).and_then(|v| v.as_str()) {
+                if let Some(base_url) = provider_obj
+                    .get("baseUrl")
+                    .or_else(|| provider_obj.get("base_url"))
+                    .and_then(|v| v.as_str())
+                {
                     options.base_url = Some(base_url.to_string());
                 }
                 provider_config.options = Some(options);
@@ -736,7 +797,8 @@ fn set_config_value(path: &PathBuf, key: &str, value: &str) -> Result<(), Config
     config = serde_json::from_value(updated_json)
         .map_err(|e| ConfigSetError::InvalidValue(format!("Type mismatch: {}", e)))?;
 
-    config.save(path)
+    config
+        .save(path)
         .map_err(|e| ConfigSetError::SaveError(e.to_string()))?;
 
     let _ = Config::load(path).map(|c| config = c);
@@ -809,7 +871,9 @@ fn set_nested_value(
         json[key] = serde_json::Value::Object(serde_json::Map::new());
     }
 
-    let child = json.get_mut(key).ok_or_else(|| ConfigSetError::InvalidKey(key.to_string()))?;
+    let child = json
+        .get_mut(key)
+        .ok_or_else(|| ConfigSetError::InvalidKey(key.to_string()))?;
 
     if !child.is_object() && !child.is_array() {
         return Err(ConfigSetError::InvalidKey(format!(
@@ -822,7 +886,10 @@ fn set_nested_value(
     Ok(json)
 }
 
-fn parse_value_with_type(current: &serde_json::Value, value: &str) -> Result<serde_json::Value, String> {
+fn parse_value_with_type(
+    current: &serde_json::Value,
+    value: &str,
+) -> Result<serde_json::Value, String> {
     match current {
         serde_json::Value::Null => parse_primitive_value(value),
         serde_json::Value::Bool(_) => {
@@ -851,7 +918,10 @@ fn parse_value_with_type(current: &serde_json::Value, value: &str) -> Result<ser
     }
 }
 
-fn parse_and_validate_value(current: &serde_json::Value, value: &str) -> Result<serde_json::Value, String> {
+fn parse_and_validate_value(
+    current: &serde_json::Value,
+    value: &str,
+) -> Result<serde_json::Value, String> {
     match current {
         serde_json::Value::Null => parse_primitive_value(value),
         serde_json::Value::Bool(_) => parse_value_with_type(current, value),

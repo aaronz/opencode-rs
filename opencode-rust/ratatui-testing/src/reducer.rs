@@ -36,10 +36,7 @@ impl<S: Debug + Clone, A: Debug + Clone> ReducerTester<S, A> {
         if state_before == state_after && !self.actions.is_empty() {
             self.errors.push(ReducerError {
                 action: action_desc,
-                error: format!(
-                    "State did not change after action. State: {}",
-                    state_before
-                ),
+                error: format!("State did not change after action. State: {}", state_before),
             });
         }
 
@@ -107,10 +104,7 @@ impl<S: Debug + Clone, A: Debug + Clone> ReducerTester<S, A> {
         if invariant(&self.state) {
             Ok(())
         } else {
-            Err(format!(
-                "Invariant violated. Final state: {:?}",
-                self.state
-            ))
+            Err(format!("Invariant violated. Final state: {:?}", self.state))
         }
     }
 }
@@ -140,7 +134,7 @@ where
                 tester.dispatch(reducer, case.action);
 
                 if let Some(assertion) = case.assertion {
-                    if !assertion(&tester.state(), &case.expected_state) {
+                    if !assertion(tester.state(), &case.expected_state) {
                         return Err(format!(
                             "Assertion failed for '{}'. Got: {:?}, Expected: {:?}",
                             case.name,
@@ -168,7 +162,7 @@ where
 
 #[allow(unused_imports)]
 pub mod prelude {
-    pub use super::{Reducer, ReducerError, ReducerTester, TableDrivenCase, test_table_driven};
+    pub use super::{test_table_driven, Reducer, ReducerError, ReducerTester, TableDrivenCase};
 }
 
 #[cfg(test)]

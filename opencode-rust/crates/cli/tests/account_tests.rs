@@ -161,7 +161,10 @@ fn test_account_status_includes_anthropic() {
         .filter_map(|a| a.get("provider").and_then(|p| p.as_str()))
         .collect();
 
-    assert!(providers.contains(&"anthropic"), "anthropic should be in status");
+    assert!(
+        providers.contains(&"anthropic"),
+        "anthropic should be in status"
+    );
 }
 
 #[test]
@@ -188,6 +191,9 @@ fn test_account_all_providers_status() {
 
     assert!(providers.contains(&"github"), "github should be in status");
     assert!(providers.contains(&"openai"), "openai should be in status");
-    assert!(providers.contains(&"anthropic"), "anthropic should be in status");
+    assert!(
+        providers.contains(&"anthropic"),
+        "anthropic should be in status"
+    );
     assert_eq!(providers.len(), 3, "should have exactly 3 providers");
 }

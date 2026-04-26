@@ -106,13 +106,7 @@ fn store_acp_session(
 }
 
 fn get_stored_session(config: &Config) -> Option<AcpSession> {
-    config
-        .server
-        .as_ref()?
-        .acp
-        .as_ref()?
-        .session
-        .clone()
+    config.server.as_ref()?.acp.as_ref()?.session.clone()
 }
 
 fn clear_stored_session(config: &mut Config) {
@@ -460,7 +454,9 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
                 return Ok(());
             }
             Some(AcpAction::Ack { .. }) => {
-                return Err("ACK requires active connection. Use 'opencode acp connect' first.".into());
+                return Err(
+                    "ACK requires active connection. Use 'opencode acp connect' first.".into(),
+                );
             }
             None => serde_json::json!({
                 "component": "acp",
@@ -571,7 +567,10 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
                             let handshake_response = AcpHandshakeResponse {
                                 version: response["version"].as_str().unwrap_or("1.0").to_string(),
                                 server_id: response["server_id"].as_str().unwrap_or("").to_string(),
-                                session_id: response["session_id"].as_str().unwrap_or("").to_string(),
+                                session_id: response["session_id"]
+                                    .as_str()
+                                    .unwrap_or("")
+                                    .to_string(),
                                 accepted: response["accepted"].as_bool().unwrap_or(false),
                                 error: response["error"].as_str().map(String::from),
                             };
@@ -660,16 +659,14 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
             let client = AcpClient::new(http, uuid::Uuid::new_v4().to_string(), bus);
 
             match client.connect(&server_url, None).await {
-                Ok(()) => {
-                    match client.ack(handshake_id, *accepted).await {
-                        Ok(()) => {
-                            println!("  Status: Acknowledgement sent successfully");
-                        }
-                        Err(e) => {
-                            println!("  Status: Acknowledgement failed - {}", e);
-                        }
+                Ok(()) => match client.ack(handshake_id, *accepted).await {
+                    Ok(()) => {
+                        println!("  Status: Acknowledgement sent successfully");
                     }
-                }
+                    Err(e) => {
+                        println!("  Status: Acknowledgement failed - {}", e);
+                    }
+                },
                 Err(e) => {
                     println!("  Status: Connection failed - {}", e);
                 }

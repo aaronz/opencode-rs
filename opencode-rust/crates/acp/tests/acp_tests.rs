@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use opencode_acp::{
     AcpClient, AcpConnectionState, AcpError, AcpMessage, AcpState, AcpStatus, HandshakeRequest,
 };
+use std::sync::Arc;
 
 fn create_test_client() -> AcpClient {
     let http = reqwest::Client::new();
@@ -88,7 +88,10 @@ async fn test_disconnect_cleans_up_resources() {
     client.disconnect().await.unwrap();
 
     let state = client.state().lock().unwrap();
-    assert!(matches!(state.connection_state, AcpConnectionState::Disconnected));
+    assert!(matches!(
+        state.connection_state,
+        AcpConnectionState::Disconnected
+    ));
     assert_eq!(state.server_id, None);
     assert_eq!(state.session_token, None);
     assert_eq!(state.server_url, None);
@@ -141,7 +144,10 @@ async fn test_disconnect_from_connected_state() {
         .await;
 
     let client = create_test_client();
-    client.connect(&mock_server.uri(), Some("my-client".to_string())).await.unwrap();
+    client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await
+        .unwrap();
     assert_eq!(client.connection_state(), AcpConnectionState::Connected);
 
     client.disconnect().await.unwrap();
@@ -250,7 +256,10 @@ fn test_acp_state_instantiation() {
         capabilities: Vec::new(),
         server_url: None,
     };
-    assert!(matches!(state.connection_state, AcpConnectionState::Disconnected));
+    assert!(matches!(
+        state.connection_state,
+        AcpConnectionState::Disconnected
+    ));
     assert_eq!(state.client_id, "test-client");
 }
 
@@ -274,7 +283,10 @@ fn test_acp_state_fields_accessible() {
     state.connection_state = AcpConnectionState::Connected;
     state.capabilities.push("files".to_string());
 
-    assert!(matches!(state.connection_state, AcpConnectionState::Connected));
+    assert!(matches!(
+        state.connection_state,
+        AcpConnectionState::Connected
+    ));
     assert_eq!(state.capabilities.len(), 3);
 }
 
@@ -363,8 +375,14 @@ fn test_acp_status_serialize_deserialize() {
     let deserialized: AcpStatus = serde_json::from_str(&json).unwrap();
     assert!(deserialized.connected);
     assert_eq!(deserialized.client_id, Some("client-xyz".to_string()));
-    assert_eq!(deserialized.capabilities, vec!["files".to_string(), "search".to_string()]);
-    assert_eq!(deserialized.server_url, Some("https://acp.example.com".to_string()));
+    assert_eq!(
+        deserialized.capabilities,
+        vec!["files".to_string(), "search".to_string()]
+    );
+    assert_eq!(
+        deserialized.server_url,
+        Some("https://acp.example.com".to_string())
+    );
 }
 
 #[test]
@@ -410,15 +428,17 @@ async fn test_connect_transitions_state_from_disconnected_to_handshaking() {
     let client_clone = client.clone();
     let uri = mock_server.uri();
     let handle = tokio::spawn(async move {
-        client_clone.connect(&uri, Some("my-client".to_string())).await
+        client_clone
+            .connect(&uri, Some("my-client".to_string()))
+            .await
     });
 
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
     let state_after_delay = client.connection_state();
     assert!(
-        state_after_delay == AcpConnectionState::Handshaking ||
-        state_after_delay == AcpConnectionState::Connected,
+        state_after_delay == AcpConnectionState::Handshaking
+            || state_after_delay == AcpConnectionState::Connected,
         "State should be Handshaking or Connected during/after connection, got {:?}",
         state_after_delay
     );
@@ -447,14 +467,17 @@ async fn test_connect_transitions_state_to_connected_on_success() {
     let client = create_test_client();
     let uri = mock_server.uri();
 
-    client.connect(&uri, Some("my-client".to_string())).await.unwrap();
+    client
+        .connect(&uri, Some("my-client".to_string()))
+        .await
+        .unwrap();
 
     assert_eq!(client.connection_state(), AcpConnectionState::Connected);
 }
 
 #[tokio::test]
 async fn test_connect_handles_connection_failures() {
-    use wiremock::{MockServer};
+    use wiremock::MockServer;
 
     let mock_server = MockServer::start().await;
 
@@ -487,7 +510,10 @@ fn test_acp_status_roundtrip() {
 
 #[tokio::test]
 async fn test_handshake_sends_correct_request() {
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path, body_json}};
+    use wiremock::{
+        matchers::{body_json, method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -511,7 +537,11 @@ async fn test_handshake_sends_correct_request() {
 
     let client = create_test_client();
     let result = client
-        .handshake(&mock_server.uri(), "my-client-id".to_string(), vec!["chat".to_string(), "tasks".to_string()])
+        .handshake(
+            &mock_server.uri(),
+            "my-client-id".to_string(),
+            vec!["chat".to_string(), "tasks".to_string()],
+        )
         .await;
 
     assert!(result.is_ok());
@@ -523,7 +553,10 @@ async fn test_handshake_sends_correct_request() {
 
 #[tokio::test]
 async fn test_handshake_parses_handshake_response_correctly() {
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -540,18 +573,28 @@ async fn test_handshake_parses_handshake_response_correctly() {
 
     let client = create_test_client();
     let response = client
-        .handshake(&mock_server.uri(), "client-abc".to_string(), vec!["chat".to_string()])
+        .handshake(
+            &mock_server.uri(),
+            "client-abc".to_string(),
+            vec!["chat".to_string()],
+        )
         .await
         .unwrap();
 
     assert_eq!(response.server_id, "remote-server-xyz");
-    assert_eq!(response.accepted_capabilities, vec!["chat", "files", "search"]);
+    assert_eq!(
+        response.accepted_capabilities,
+        vec!["chat", "files", "search"]
+    );
     assert_eq!(response.session_token, Some("token-12345".to_string()));
 }
 
 #[tokio::test]
 async fn test_handshake_fails_when_server_returns_error() {
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -564,7 +607,11 @@ async fn test_handshake_fails_when_server_returns_error() {
 
     let client = create_test_client();
     let result = client
-        .handshake(&mock_server.uri(), "my-client".to_string(), vec!["chat".to_string()])
+        .handshake(
+            &mock_server.uri(),
+            "my-client".to_string(),
+            vec!["chat".to_string()],
+        )
         .await;
 
     assert!(result.is_err());
@@ -573,7 +620,10 @@ async fn test_handshake_fails_when_server_returns_error() {
 
 #[tokio::test]
 async fn test_handshake_fails_on_invalid_response() {
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -586,7 +636,11 @@ async fn test_handshake_fails_on_invalid_response() {
 
     let client = create_test_client();
     let result = client
-        .handshake(&mock_server.uri(), "my-client".to_string(), vec!["chat".to_string()])
+        .handshake(
+            &mock_server.uri(),
+            "my-client".to_string(),
+            vec!["chat".to_string()],
+        )
         .await;
 
     assert!(result.is_err());
@@ -595,8 +649,11 @@ async fn test_handshake_fails_on_invalid_response() {
 
 #[tokio::test]
 async fn test_ack_sends_correct_request() {
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path, body_json}};
     use opencode_acp::AckRequest;
+    use wiremock::{
+        matchers::{body_json, method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -627,7 +684,10 @@ async fn test_ack_sends_correct_request() {
 
 #[tokio::test]
 async fn test_ack_returns_success_response() {
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -652,7 +712,10 @@ async fn test_ack_returns_success_response() {
 
 #[tokio::test]
 async fn test_send_message_sends_successfully_when_connected() {
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -696,8 +759,8 @@ async fn test_send_message_handles_network_errors() {
 
 #[tokio::test]
 async fn test_acp_connected_event_published_on_successful_connect() {
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use opencode_core::bus::InternalEvent;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
 
@@ -719,13 +782,19 @@ async fn test_acp_connected_event_published_on_successful_connect() {
 
     let mut subscriber = shared_bus.subscribe();
 
-    client.connect(&mock_server.uri(), Some("my-client".to_string())).await.unwrap();
+    client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await
+        .unwrap();
 
     assert_eq!(client.connection_state(), AcpConnectionState::Connected);
 
     let event = subscriber.recv().await.unwrap();
     match event {
-        InternalEvent::AcpConnected { server_id, capabilities } => {
+        InternalEvent::AcpConnected {
+            server_id,
+            capabilities,
+        } => {
             assert_eq!(server_id, "srv1");
             assert_eq!(capabilities, vec!["chat", "tasks"]);
         }
@@ -735,8 +804,8 @@ async fn test_acp_connected_event_published_on_successful_connect() {
 
 #[tokio::test]
 async fn test_acp_connected_event_contains_correct_connection_info() {
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use opencode_core::bus::InternalEvent;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
 
@@ -758,11 +827,17 @@ async fn test_acp_connected_event_contains_correct_connection_info() {
 
     let mut subscriber = shared_bus.subscribe();
 
-    client.connect(&mock_server.uri(), Some("my-client-id".to_string())).await.unwrap();
+    client
+        .connect(&mock_server.uri(), Some("my-client-id".to_string()))
+        .await
+        .unwrap();
 
     let event = subscriber.recv().await.unwrap();
     match event {
-        InternalEvent::AcpConnected { server_id, capabilities } => {
+        InternalEvent::AcpConnected {
+            server_id,
+            capabilities,
+        } => {
             assert_eq!(server_id, "server-abc-123");
             assert_eq!(capabilities, vec!["chat", "files", "search"]);
         }
@@ -772,8 +847,8 @@ async fn test_acp_connected_event_contains_correct_connection_info() {
 
 #[tokio::test]
 async fn test_acp_disconnected_event_published_on_disconnect() {
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use opencode_core::bus::InternalEvent;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
 
@@ -795,10 +870,16 @@ async fn test_acp_disconnected_event_published_on_disconnect() {
 
     let mut subscriber = shared_bus.subscribe();
 
-    client.connect(&mock_server.uri(), Some("my-client".to_string())).await.unwrap();
+    client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await
+        .unwrap();
 
     let connected_event = subscriber.recv().await.unwrap();
-    assert!(matches!(connected_event, InternalEvent::AcpConnected { .. }));
+    assert!(matches!(
+        connected_event,
+        InternalEvent::AcpConnected { .. }
+    ));
 
     client.disconnect().await.unwrap();
 
@@ -810,19 +891,26 @@ async fn test_acp_disconnected_event_published_on_disconnect() {
 }
 
 #[tokio::test]
-async fn test_acp_connected_and_disconnected_events_both_fired_in_cycle() {
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+async fn test_full_connect_message_disconnect_cycle() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
     use opencode_core::bus::InternalEvent;
 
     let mock_server = MockServer::start().await;
 
-    Mock::given(wiremock::matchers::method("POST"))
-        .and(wiremock::matchers::path("/api/acp/handshake"))
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "server_id": "srv-cycle",
-            "accepted_capabilities": ["chat"],
-            "session_token": "tok-cycle"
+            "server_id": "srv-full-cycle",
+            "accepted_capabilities": ["chat", "tasks"],
+            "session_token": "tok-full-cycle"
         })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/message"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
         .expect(1)
         .mount(&mock_server)
         .await;
@@ -830,15 +918,212 @@ async fn test_acp_connected_and_disconnected_events_both_fired_in_cycle() {
     let http = reqwest::Client::new();
     let bus = opencode_core::bus::EventBus::new();
     let shared_bus = std::sync::Arc::new(bus);
-    let client = AcpClient::new(http, "test-client".to_string(), shared_bus.clone());
+    let client = AcpClient::new(http, "client-full-cycle".to_string(), shared_bus.clone());
 
     let mut subscriber = shared_bus.subscribe();
 
-    client.connect(&mock_server.uri(), Some("my-client".to_string())).await.unwrap();
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    client.connect(&mock_server.uri(), Some("client-full-cycle".to_string())).await.unwrap();
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+
     let connect_event = subscriber.recv().await.unwrap();
-    assert!(matches!(connect_event, InternalEvent::AcpConnected { .. }));
+    assert!(matches!(connect_event, InternalEvent::AcpConnected { server_id, .. } if server_id == "srv-full-cycle"));
+
+    let msg_result = client
+        .send_message("srv-full-cycle", "chat", serde_json::json!({"text": "hello world"}))
+        .await;
+    assert!(msg_result.is_ok());
 
     client.disconnect().await.unwrap();
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
     let disconnect_event = subscriber.recv().await.unwrap();
     assert!(matches!(disconnect_event, InternalEvent::AcpDisconnected));
+}
+
+#[tokio::test]
+async fn test_error_handling_at_each_stage_connect_failure() {
+    use wiremock::MockServer;
+
+    let mock_server = MockServer::start().await;
+    let client = create_test_client();
+
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    let result = client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await;
+    assert!(result.is_err());
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+}
+
+#[tokio::test]
+async fn test_error_handling_at_each_stage_send_message_not_connected() {
+    let client = create_test_client();
+
+    let result = client
+        .send_message("srv", "chat", serde_json::json!({"text": "hello"}))
+        .await;
+    assert!(matches!(result, Err(AcpError::NotConnected)));
+}
+
+#[tokio::test]
+async fn test_error_handling_at_each_stage_ack_not_connected() {
+    let client = create_test_client();
+
+    let result = client.ack("handshake-123", true).await;
+    assert!(matches!(result, Err(AcpError::NotConnected)));
+}
+
+#[tokio::test]
+async fn test_error_handling_at_each_stage_after_disconnect() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-err",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-err"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+
+    client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await
+        .unwrap();
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+
+    client.disconnect().await.unwrap();
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    let msg_result = client
+        .send_message("srv", "chat", serde_json::json!({"text": "hello"}))
+        .await;
+    assert!(matches!(msg_result, Err(AcpError::NotConnected)));
+
+    let ack_result = client.ack("handshake-123", true).await;
+    assert!(matches!(ack_result, Err(AcpError::NotConnected)));
+}
+
+#[tokio::test]
+async fn test_error_handling_handshake_server_error() {
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+
+    let result = client
+        .handshake(
+            &mock_server.uri(),
+            "my-client".to_string(),
+            vec!["chat".to_string()],
+        )
+        .await;
+
+    assert!(result.is_err());
+    assert!(matches!(result.unwrap_err(), AcpError::ServerError(_)));
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+}
+
+#[tokio::test]
+async fn test_error_handling_send_message_server_error() {
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-msg-err",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-msg-err"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await
+        .unwrap();
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/message"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Message Processing Failed"))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let result = client
+        .send_message("srv-msg-err", "chat", serde_json::json!({"text": "hello"}))
+        .await;
+
+    assert!(result.is_err());
+    assert!(
+        matches!(result.unwrap_err(), AcpError::ServerError(msg) if msg.contains("Message Processing Failed"))
+    );
+}
+
+#[tokio::test]
+async fn test_error_handling_ack_server_error() {
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-ack-err",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-ack-err"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    client
+        .connect(&mock_server.uri(), Some("my-client".to_string()))
+        .await
+        .unwrap();
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/ack"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Ack Failed"))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let result = client.ack("handshake-123", true).await;
+
+    assert!(result.is_err());
+    assert!(
+        matches!(result.unwrap_err(), AcpError::ServerError(msg) if msg.contains("Ack Failed"))
+    );
 }

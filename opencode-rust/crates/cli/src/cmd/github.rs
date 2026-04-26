@@ -245,7 +245,11 @@ mod tests {
         };
 
         let save_result = save_workflow_to_local(result, "myowner", "myrepo", "main");
-        assert!(save_result.is_ok(), "save_workflow_to_local failed: {:?}", save_result.err());
+        assert!(
+            save_result.is_ok(),
+            "save_workflow_to_local failed: {:?}",
+            save_result.err()
+        );
 
         let record_path = workflows_dir.join("myowner-myrepo.json");
         assert!(record_path.exists(), "record file should exist");
@@ -306,7 +310,10 @@ mod tests {
 
     #[test]
     fn test_get_api_base_reads_from_env_var() {
-        std::env::set_var("OPENCODE_GITHUB_API_BASE", "https://github.example.com/api/v3");
+        std::env::set_var(
+            "OPENCODE_GITHUB_API_BASE",
+            "https://github.example.com/api/v3",
+        );
         let result = get_api_base();
         assert_eq!(result, "https://github.example.com/api/v3");
         std::env::remove_var("OPENCODE_GITHUB_API_BASE");
@@ -316,7 +323,9 @@ mod tests {
     fn test_get_api_base_falls_back_to_config() {
         std::env::remove_var("OPENCODE_GITHUB_API_BASE");
         let config = load_config();
-        let expected = config.github.as_ref()
+        let expected = config
+            .github
+            .as_ref()
             .and_then(|c| c.api_url.clone())
             .unwrap_or_else(|| GITHUB_API_BASE.to_string());
         let result = get_api_base();
@@ -378,7 +387,10 @@ fn run_install(token: Option<String>, owner: &str, repo: &str, branch: &str) {
     let client = GitHubAppClient::new(&token);
 
     if let Some(existing) = check_existing_workflow(owner, repo) {
-        println!("Found existing OpenCode workflow installation for {}/{}", owner, repo);
+        println!(
+            "Found existing OpenCode workflow installation for {}/{}",
+            owner, repo
+        );
         println!("  Workflow path: {}", existing.workflow_path);
         println!("  Installed at: {}", existing.installed_at);
         println!("  Commit SHA: {}", existing.commit_sha);
@@ -435,7 +447,8 @@ fn save_workflow_to_local(
     repo: &str,
     branch: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let opencode_dir = get_workspace_opencode_dir().ok_or("Could not find or create .opencode directory")?;
+    let opencode_dir =
+        get_workspace_opencode_dir().ok_or("Could not find or create .opencode directory")?;
 
     let workflows_dir = opencode_dir.join("workflows");
     std::fs::create_dir_all(&workflows_dir)?;

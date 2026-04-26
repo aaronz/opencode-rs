@@ -256,7 +256,8 @@ impl AcpSession {
     }
 
     pub fn time_until_expiration(&self) -> Option<chrono::Duration> {
-        self.expires_at.map(|expires_at| expires_at - chrono::Utc::now())
+        self.expires_at
+            .map(|expires_at| expires_at - chrono::Utc::now())
     }
 }
 
@@ -2803,18 +2804,16 @@ impl Config {
     pub fn get(&self, key: &str) -> Option<String> {
         let parts: Vec<&str> = key.split('.').collect();
         match parts.as_slice() {
-            ["agent", "model"] => {
-                self.agent
-                    .as_ref()
-                    .and_then(|a| a.get_default_agent())
-                    .and_then(|agent| agent.model.clone())
-            }
-            ["agent", name, "model"] => {
-                self.agent
-                    .as_ref()
-                    .and_then(|a| a.get_agent(name))
-                    .and_then(|agent| agent.model.clone())
-            }
+            ["agent", "model"] => self
+                .agent
+                .as_ref()
+                .and_then(|a| a.get_default_agent())
+                .and_then(|agent| agent.model.clone()),
+            ["agent", name, "model"] => self
+                .agent
+                .as_ref()
+                .and_then(|a| a.get_agent(name))
+                .and_then(|agent| agent.model.clone()),
             ["model"] => self.model.clone(),
             _ => None,
         }
@@ -4607,7 +4606,10 @@ mod tests {
 
         let serialized = serde_json::to_string_pretty(&config).unwrap();
         let deserialized: Config = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(deserialized.hidden_models, Some(vec!["model-1".to_string(), "model-2".to_string()]));
+        assert_eq!(
+            deserialized.hidden_models,
+            Some(vec!["model-1".to_string(), "model-2".to_string()])
+        );
     }
 
     #[test]
@@ -4653,7 +4655,10 @@ mod tests {
             }),
             ..Default::default()
         };
-        assert_eq!(config.get("agent.review.model"), Some("claude-3-5-sonnet".to_string()));
+        assert_eq!(
+            config.get("agent.review.model"),
+            Some("claude-3-5-sonnet".to_string())
+        );
     }
 
     #[test]

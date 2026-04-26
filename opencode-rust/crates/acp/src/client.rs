@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-pub use crate::protocol::{AcpMessage, AckRequest, AcpStatus, HandshakeRequest, HandshakeResponse};
+pub use crate::protocol::{AckRequest, AcpMessage, AcpStatus, HandshakeRequest, HandshakeResponse};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum AcpConnectionState {
@@ -52,7 +52,11 @@ pub struct AcpClient {
 }
 
 impl AcpClient {
-    pub fn new(http: reqwest::Client, client_id: String, bus: opencode_core::bus::SharedEventBus) -> Self {
+    pub fn new(
+        http: reqwest::Client,
+        client_id: String,
+        bus: opencode_core::bus::SharedEventBus,
+    ) -> Self {
         Self {
             http,
             state: Arc::new(Mutex::new(AcpState::new(client_id))),
@@ -128,7 +132,10 @@ impl AcpClient {
             std::env::var("OPENCODE_CLIENT_ID").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
         });
 
-        let response = match self.handshake(server_url, cid, vec!["chat".to_string()]).await {
+        let response = match self
+            .handshake(server_url, cid, vec!["chat".to_string()])
+            .await
+        {
             Ok(r) => r,
             Err(e) => {
                 {
@@ -150,19 +157,16 @@ impl AcpClient {
 
         let server_id = self.state.lock().unwrap().server_id.clone().unwrap();
         let capabilities = self.state.lock().unwrap().capabilities.clone();
-        self.bus.publish(opencode_core::bus::InternalEvent::AcpConnected {
-            server_id,
-            capabilities,
-        });
+        self.bus
+            .publish(opencode_core::bus::InternalEvent::AcpConnected {
+                server_id,
+                capabilities,
+            });
 
         Ok(())
     }
 
-    pub async fn ack(
-        &self,
-        handshake_id: &str,
-        accepted: bool,
-    ) -> Result<(), error::AcpError> {
+    pub async fn ack(&self, handshake_id: &str, accepted: bool) -> Result<(), error::AcpError> {
         {
             let state = self.state.lock().unwrap();
             if !matches!(state.connection_state, AcpConnectionState::Connected) {
@@ -252,7 +256,8 @@ impl AcpClient {
             state.server_url = None;
         }
 
-        self.bus.publish(opencode_core::bus::InternalEvent::AcpDisconnected);
+        self.bus
+            .publish(opencode_core::bus::InternalEvent::AcpDisconnected);
 
         Ok(())
     }

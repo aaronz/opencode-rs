@@ -697,7 +697,10 @@ fn review_session(session_id: &str, file_filter: Option<&str>, format: &str) {
     let modifications = extract_file_modifications(&session);
 
     let filtered: Vec<&FileModification> = if let Some(filter) = file_filter {
-        modifications.iter().filter(|m| m.file_path.contains(filter)).collect()
+        modifications
+            .iter()
+            .filter(|m| m.file_path.contains(filter))
+            .collect()
     } else {
         modifications.iter().collect()
     };
@@ -743,7 +746,10 @@ fn review_session(session_id: &str, file_filter: Option<&str>, format: &str) {
                     println!("  {}", line);
                 }
                 if modif.new_content.lines().count() > 10 {
-                    println!("  ... ({} more lines)", modif.new_content.lines().count() - 10);
+                    println!(
+                        "  ... ({} more lines)",
+                        modif.new_content.lines().count() - 10
+                    );
                 }
             }
             println!("\n{}", "=".repeat(60));
@@ -778,7 +784,10 @@ fn diff_session(session_id: &str, file_path: &str, _context_lines: usize) {
         .collect();
 
     if file_mods.is_empty() {
-        eprintln!("No modifications found for file '{}' in session {}", file_path, session_id);
+        eprintln!(
+            "No modifications found for file '{}' in session {}",
+            file_path, session_id
+        );
         std::process::exit(1);
     }
 
@@ -814,21 +823,31 @@ fn extract_file_modifications(session: &Session) -> Vec<FileModification> {
     for invocation in &session.tool_invocations {
         let tool_name = &invocation.tool_name;
         if tool_name == "edit" || tool_name == "write" || tool_name == "apply_patch" {
-            if let Some(args) = invocation.arguments.get("file_path").or(invocation.arguments.get("path")) {
+            if let Some(args) = invocation
+                .arguments
+                .get("file_path")
+                .or(invocation.arguments.get("path"))
+            {
                 let file_path = args.as_str().unwrap_or("unknown").to_string();
 
                 let (old_content, new_content) = if tool_name == "edit" {
-                    let old = invocation.arguments.get("oldString")
+                    let old = invocation
+                        .arguments
+                        .get("oldString")
                         .and_then(|v| v.as_str())
                         .map(String::from)
                         .unwrap_or_default();
-                    let new = invocation.arguments.get("newString")
+                    let new = invocation
+                        .arguments
+                        .get("newString")
                         .and_then(|v| v.as_str())
                         .map(String::from)
                         .unwrap_or_default();
                     (Some(old), new)
                 } else if tool_name == "write" {
-                    let content = invocation.arguments.get("content")
+                    let content = invocation
+                        .arguments
+                        .get("content")
                         .and_then(|v| v.as_str())
                         .map(String::from)
                         .unwrap_or_default();

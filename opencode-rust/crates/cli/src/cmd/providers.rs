@@ -100,7 +100,11 @@ fn prompt_for_api_key(provider: &str) -> Option<String> {
     }
 }
 
-fn store_api_key_credential(provider: &str, api_key: &str, base_url: Option<&str>) -> Result<(), String> {
+fn store_api_key_credential(
+    provider: &str,
+    api_key: &str,
+    base_url: Option<&str>,
+) -> Result<(), String> {
     let credential_store = CredentialStore::new();
     let credential = opencode_auth::credential_store::Credential {
         api_key: api_key.to_string(),
@@ -165,7 +169,10 @@ fn run_api_key_login(provider: &str) {
     let supports_browser = auth_methods.contains(&AuthMethod::Browser);
 
     if supports_browser {
-        println!("Note: {} supports browser authentication. Use --browser flag for OAuth flow.", provider);
+        println!(
+            "Note: {} supports browser authentication. Use --browser flag for OAuth flow.",
+            provider
+        );
         println!("Proceeding with API key login...\n");
     }
 
@@ -251,7 +258,10 @@ pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
         }
 
         if supports_browser && args.browser {
-            eprintln!("Browser authentication for {} is not yet implemented.", provider_id);
+            eprintln!(
+                "Browser authentication for {} is not yet implemented.",
+                provider_id
+            );
             eprintln!("Falling back to API key authentication...");
         }
 
@@ -486,7 +496,10 @@ mod tests {
                 metadata: std::collections::HashMap::new(),
             },
         );
-        assert!(result.is_ok(), "Should store anthropic credential successfully");
+        assert!(
+            result.is_ok(),
+            "Should store anthropic credential successfully"
+        );
 
         let loaded = store.load("anthropic");
         assert!(loaded.is_ok());
@@ -510,7 +523,10 @@ mod tests {
                 metadata: std::collections::HashMap::new(),
             },
         );
-        assert!(result.is_ok(), "Should store google credential successfully");
+        assert!(
+            result.is_ok(),
+            "Should store google credential successfully"
+        );
 
         let loaded = store.load("google");
         assert!(loaded.is_ok());
@@ -540,7 +556,10 @@ mod tests {
         assert!(loaded.is_ok());
         let cred = loaded.unwrap().expect("Should have azure credential");
         assert_eq!(cred.api_key, "azure-test-key");
-        assert_eq!(cred.base_url, Some("https://test.openai.azure.com".to_string()));
+        assert_eq!(
+            cred.base_url,
+            Some("https://test.openai.azure.com".to_string())
+        );
     }
 
     #[test]
@@ -559,11 +578,16 @@ mod tests {
                 metadata: std::collections::HashMap::new(),
             },
         );
-        assert!(result.is_ok(), "Should store custom provider credential successfully");
+        assert!(
+            result.is_ok(),
+            "Should store custom provider credential successfully"
+        );
 
         let loaded = store.load("custom-provider");
         assert!(loaded.is_ok());
-        let cred = loaded.unwrap().expect("Should have custom provider credential");
+        let cred = loaded
+            .unwrap()
+            .expect("Should have custom provider credential");
         assert_eq!(cred.api_key, "custom-key-123");
         assert_eq!(cred.base_url, Some("https://custom.api.com".to_string()));
     }
@@ -598,7 +622,10 @@ mod tests {
     #[test]
     fn test_load_config_returns_result_type() {
         let result = load_config_result();
-        assert!(result.is_ok() || result.is_err(), "load_config should return a Result");
+        assert!(
+            result.is_ok() || result.is_err(),
+            "load_config should return a Result"
+        );
     }
 
     #[test]

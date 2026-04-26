@@ -45,12 +45,7 @@ pub struct AcpMessage {
 }
 
 impl AcpMessage {
-    pub fn new(
-        from: String,
-        to: String,
-        message_type: String,
-        payload: serde_json::Value,
-    ) -> Self {
+    pub fn new(from: String, to: String, message_type: String, payload: serde_json::Value) -> Self {
         Self {
             from,
             to,

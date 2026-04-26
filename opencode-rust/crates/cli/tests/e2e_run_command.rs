@@ -16,7 +16,11 @@ fn setup_config_with_model(config_dir: &std::path::Path, model: &str) {
             "defaultAgent": "default"
         }
     });
-    fs::write(&config_path, serde_json::to_string_pretty(&config_content).unwrap()).unwrap();
+    fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&config_content).unwrap(),
+    )
+    .unwrap();
 }
 
 #[test]

@@ -48,7 +48,9 @@ pub async fn cmd_handshake(
     client_id: &str,
     capabilities: &[String],
 ) -> Result<(), AcpError> {
-    let response = client.handshake(server_url, client_id.to_string(), capabilities.to_vec()).await?;
+    let response = client
+        .handshake(server_url, client_id.to_string(), capabilities.to_vec())
+        .await?;
     println!("Server ID: {}", response.server_id);
     println!(
         "Accepted capabilities: {}",

@@ -15,8 +15,8 @@ pub use dialog_tester::{assert_empty_state, assert_render_result, DialogRenderTe
 pub use diff::{BufferDiff, CellDiff, DiffResult, IgnoreOptions};
 pub use dsl::{TestDsl, WaitPredicate};
 pub use input::{
-    layout_helpers, test_table_driven, Direction,
-    InputMapper, Reducer, ReducerError, ReducerTester, TableDrivenCase, TerminalSizes,
+    layout_helpers, test_table_driven, Direction, InputMapper, Reducer, ReducerError,
+    ReducerTester, TableDrivenCase, TerminalSizes,
 };
 
 pub use pty::PtySimulator;

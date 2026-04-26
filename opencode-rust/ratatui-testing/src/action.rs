@@ -38,7 +38,9 @@ pub mod helpers {
         let basic = match (key.code, key.modifiers) {
             (KeyCode::Char('q'), KeyModifiers::NONE) => Some(BasicAction::Quit),
             (KeyCode::Char('c'), KeyModifiers::CONTROL) => Some(BasicAction::Quit),
-            (KeyCode::Esc, _) | (KeyCode::Char('['), KeyModifiers::NONE) => Some(BasicAction::Escape),
+            (KeyCode::Esc, _) | (KeyCode::Char('['), KeyModifiers::NONE) => {
+                Some(BasicAction::Escape)
+            }
             (KeyCode::Enter, _) => Some(BasicAction::Enter),
             (KeyCode::Tab, _) => Some(BasicAction::Tab),
             (KeyCode::Backspace, _) => Some(BasicAction::Backspace),
@@ -56,7 +58,9 @@ pub mod helpers {
             (KeyCode::Char('h'), KeyModifiers::NONE) => Some(BasicAction::Move(Direction::Left)),
             (KeyCode::Char('l'), KeyModifiers::NONE) => Some(BasicAction::Move(Direction::Right)),
             (KeyCode::Char(c), KeyModifiers::NONE) if c.is_ascii() => Some(BasicAction::Char(c)),
-            (KeyCode::Char(c), KeyModifiers::SHIFT) if c.is_ascii() => Some(BasicAction::Char(c.to_ascii_uppercase())),
+            (KeyCode::Char(c), KeyModifiers::SHIFT) if c.is_ascii() => {
+                Some(BasicAction::Char(c.to_ascii_uppercase()))
+            }
             _ => None,
         }?;
 
@@ -76,7 +80,9 @@ pub mod helpers {
     {
         let basic = match (key.code, key.modifiers) {
             (KeyCode::Char('b'), KeyModifiers::CONTROL) => Some(BasicAction::Move(Direction::Left)),
-            (KeyCode::Char('f'), KeyModifiers::CONTROL) => Some(BasicAction::Move(Direction::Right)),
+            (KeyCode::Char('f'), KeyModifiers::CONTROL) => {
+                Some(BasicAction::Move(Direction::Right))
+            }
             (KeyCode::Char('p'), KeyModifiers::CONTROL) => Some(BasicAction::Move(Direction::Up)),
             (KeyCode::Char('n'), KeyModifiers::CONTROL) => Some(BasicAction::Move(Direction::Down)),
             (KeyCode::Char('a'), KeyModifiers::CONTROL) => Some(BasicAction::Home),
@@ -114,14 +120,14 @@ impl From<BasicAction> for () {
 
 #[allow(unused_imports)]
 pub mod prelude {
+    pub use super::helpers::{emacs_key_to_action, key_to_action_simple, vim_key_to_action};
     pub use super::{Action, Direction};
-    pub use super::helpers::{key_to_action_simple, vim_key_to_action, emacs_key_to_action};
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::helpers::*;
+    use super::*;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     fn make_key(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
@@ -131,9 +137,18 @@ mod tests {
     #[test]
     fn direction_from_key_code() {
         assert_eq!(Direction::from_key_code(KeyCode::Up), Some(Direction::Up));
-        assert_eq!(Direction::from_key_code(KeyCode::Down), Some(Direction::Down));
-        assert_eq!(Direction::from_key_code(KeyCode::Left), Some(Direction::Left));
-        assert_eq!(Direction::from_key_code(KeyCode::Right), Some(Direction::Right));
+        assert_eq!(
+            Direction::from_key_code(KeyCode::Down),
+            Some(Direction::Down)
+        );
+        assert_eq!(
+            Direction::from_key_code(KeyCode::Left),
+            Some(Direction::Left)
+        );
+        assert_eq!(
+            Direction::from_key_code(KeyCode::Right),
+            Some(Direction::Right)
+        );
         assert_eq!(Direction::from_key_code(KeyCode::Enter), None);
     }
 
@@ -142,19 +157,15 @@ mod tests {
         let quit_q = make_key(KeyCode::Char('q'), KeyModifiers::NONE);
         let quit_ctrl_c = make_key(KeyCode::Char('c'), KeyModifiers::CONTROL);
 
-        let result_q: Option<BasicAction> = key_to_action_simple(quit_q, |a| {
-            match a {
-                BasicAction::Quit => Some(a),
-                _ => None,
-            }
+        let result_q: Option<BasicAction> = key_to_action_simple(quit_q, |a| match a {
+            BasicAction::Quit => Some(a),
+            _ => None,
         });
         assert!(result_q.is_some());
 
-        let result_ctrl_c: Option<BasicAction> = key_to_action_simple(quit_ctrl_c, |a| {
-            match a {
-                BasicAction::Quit => Some(a),
-                _ => None,
-            }
+        let result_ctrl_c: Option<BasicAction> = key_to_action_simple(quit_ctrl_c, |a| match a {
+            BasicAction::Quit => Some(a),
+            _ => None,
         });
         assert!(result_ctrl_c.is_some());
     }

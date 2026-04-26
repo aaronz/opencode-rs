@@ -10,7 +10,7 @@ use opencode_agent::{
 use opencode_config::{AgentConfig, AgentMapConfig, Config};
 use opencode_core::{Message, OpenCodeError, Session};
 use opencode_llm::provider::sealed;
-use opencode_llm::provider_abstraction::{ProviderManager, ProviderSpec, DynProvider};
+use opencode_llm::provider_abstraction::{DynProvider, ProviderManager, ProviderSpec};
 use opencode_llm::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
 use opencode_tools::ToolRegistry;
 
@@ -31,11 +31,7 @@ impl sealed::Sealed for ProviderWrapper {}
 
 #[async_trait]
 impl Provider for ProviderWrapper {
-    async fn complete(
-        &self,
-        prompt: &str,
-        context: Option<&str>,
-    ) -> Result<String, OpenCodeError> {
+    async fn complete(&self, prompt: &str, context: Option<&str>) -> Result<String, OpenCodeError> {
         self.inner.complete(prompt, context).await
     }
 
@@ -96,14 +92,20 @@ mod tests {
 
     #[test]
     fn test_agent_args_no_action() {
-        let args = AgentArgs { action: None, verbose: false };
+        let args = AgentArgs {
+            action: None,
+            verbose: false,
+        };
         assert!(args.action.is_none());
         assert!(!args.verbose);
     }
 
     #[test]
     fn test_agent_args_verbose() {
-        let args = AgentArgs { action: None, verbose: true };
+        let args = AgentArgs {
+            action: None,
+            verbose: true,
+        };
         assert!(args.verbose);
     }
 
@@ -223,7 +225,12 @@ mod tests {
             model: Some("gpt-4o".to_string()),
         };
         match action {
-            AgentAction::Create { name, agent_type, description, model } => {
+            AgentAction::Create {
+                name,
+                agent_type,
+                description,
+                model,
+            } => {
                 assert_eq!(name, "my-agent");
                 assert_eq!(agent_type, "custom");
                 assert_eq!(description, Some("My custom agent".to_string()));
@@ -242,7 +249,12 @@ mod tests {
             model: None,
         };
         match action {
-            AgentAction::Create { name, agent_type, description, model } => {
+            AgentAction::Create {
+                name,
+                agent_type,
+                description,
+                model,
+            } => {
                 assert_eq!(name, "minimal-agent");
                 assert_eq!(agent_type, "custom");
                 assert!(description.is_none());
@@ -259,7 +271,10 @@ mod tests {
             model: Some("gpt-4o".to_string()),
             ..Default::default()
         };
-        assert_eq!(agent_config.description, Some("Test agent description".to_string()));
+        assert_eq!(
+            agent_config.description,
+            Some("Test agent description".to_string())
+        );
         assert_eq!(agent_config.model, Some("gpt-4o".to_string()));
     }
 
@@ -291,7 +306,11 @@ mod tests {
 
         assert!(agent_map.get_agent("test-agent").is_some());
         assert_eq!(
-            agent_map.get_agent("test-agent").unwrap().description.as_deref(),
+            agent_map
+                .get_agent("test-agent")
+                .unwrap()
+                .description
+                .as_deref(),
             Some("A test agent")
         );
     }
@@ -322,7 +341,11 @@ mod tests {
 
         assert!(agent_map.get_default_agent().is_some());
         assert_eq!(
-            agent_map.get_default_agent().unwrap().description.as_deref(),
+            agent_map
+                .get_default_agent()
+                .unwrap()
+                .description
+                .as_deref(),
             Some("Default agent")
         );
     }
@@ -340,10 +363,16 @@ mod tests {
 
     #[test]
     fn test_existing_agents_still_available() {
-        let existing_types = vec!["build", "plan", "general", "explore", "debug", "refactor", "review"];
+        let existing_types = vec![
+            "build", "plan", "general", "explore", "debug", "refactor", "review",
+        ];
         for agent_type in existing_types {
             let agent = create_agent_by_type(agent_type);
-            assert!(agent.is_some(), "Agent type '{}' should still be available", agent_type);
+            assert!(
+                agent.is_some(),
+                "Agent type '{}' should still be available",
+                agent_type
+            );
             assert_eq!(agent.unwrap().name(), agent_type);
         }
     }
@@ -351,7 +380,10 @@ mod tests {
     #[test]
     fn test_custom_agent_type_not_registered_as_builder() {
         let agent = create_agent_by_type("custom");
-        assert!(agent.is_none(), "Custom agent type should not be registered as a built-in");
+        assert!(
+            agent.is_none(),
+            "Custom agent type should not be registered as a built-in"
+        );
     }
 }
 
@@ -368,12 +400,7 @@ fn save_config(config: &Config) -> Result<(), String> {
     Ok(())
 }
 
-fn create_agent(
-    name: &str,
-    agent_type: &str,
-    description: Option<&str>,
-    model: Option<&str>,
-) {
+fn create_agent(name: &str, agent_type: &str, description: Option<&str>, model: Option<&str>) {
     let mut config = load_config();
 
     let agent_config = AgentConfig {
@@ -478,7 +505,10 @@ fn get_provider_from_config(config: &Config, model: &str) -> Option<ProviderWrap
         },
     };
 
-    provider_manager.create_provider(&spec).ok().map(ProviderWrapper::new)
+    provider_manager
+        .create_provider(&spec)
+        .ok()
+        .map(ProviderWrapper::new)
 }
 
 fn run_agent_with_ndjson(
@@ -496,7 +526,9 @@ fn run_agent_with_ndjson(
     let rt = tokio::runtime::Runtime::new().unwrap();
 
     let result = rt.block_on(async {
-        agent.run(&mut session, &provider, &ToolRegistry::new()).await
+        agent
+            .run(&mut session, &provider, &ToolRegistry::new())
+            .await
     });
 
     match result {
@@ -530,10 +562,7 @@ pub(crate) fn run(args: AgentArgs) {
         }) => {
             create_agent(name, agent_type, description.as_deref(), model.as_deref());
         }
-        Some(AgentAction::Run {
-            agent_name,
-            prompt,
-        }) => {
+        Some(AgentAction::Run { agent_name, prompt }) => {
             run_agent(agent_name, prompt);
         }
         None => {
@@ -553,7 +582,10 @@ fn list_agents(verbose: bool) {
         println!("{}", "-".repeat(63));
         for agent in agents {
             let capabilities = format_capabilities(&agent);
-            println!("{:<12} {:<40} {}", agent.name, agent.description, capabilities);
+            println!(
+                "{:<12} {:<40} {}",
+                agent.name, agent.description, capabilities
+            );
         }
     } else {
         println!("Available agents:");
@@ -565,10 +597,7 @@ fn list_agents(verbose: bool) {
 
 fn run_agent(agent_name: &str, prompt: &str) {
     let config = load_config();
-    let model = config
-        .model
-        .clone()
-        .unwrap_or_else(|| "gpt-4o".to_string());
+    let model = config.model.clone().unwrap_or_else(|| "gpt-4o".to_string());
 
     let agent = match create_agent_by_type(agent_name) {
         Some(a) => a,

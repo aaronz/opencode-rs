@@ -55,7 +55,12 @@ mod tests {
             args: Some(vec!["mcp-server".to_string()]),
         };
         assert!(matches!(action, McpAction::Add { .. }));
-        if let McpAction::Add { name, command, args } = action {
+        if let McpAction::Add {
+            name,
+            command,
+            args,
+        } = action
+        {
             assert_eq!(name, "my-mcp-server");
             assert_eq!(command, "npx");
             assert_eq!(args, Some(vec!["mcp-server".to_string()]));
@@ -69,7 +74,9 @@ mod tests {
             command: "echo".to_string(),
             args: None,
         };
-        assert!(matches!(action, McpAction::Add { name, command, args } if name == "simple-server" && command == "echo" && args.is_none()));
+        assert!(
+            matches!(action, McpAction::Add { name, command, args } if name == "simple-server" && command == "echo" && args.is_none())
+        );
     }
 
     #[test]
@@ -102,7 +109,11 @@ pub(crate) fn run(args: McpArgs) {
 
     match args.action {
         McpAction::Auth(auth_args) => mcp_auth::run(auth_args),
-        McpAction::Add { name, command, args } => {
+        McpAction::Add {
+            name,
+            command,
+            args,
+        } => {
             if let Err(e) = add_mcp_server(&name, &command, args.as_deref()) {
                 eprintln!("Error adding MCP server: {}", e);
                 std::process::exit(1);

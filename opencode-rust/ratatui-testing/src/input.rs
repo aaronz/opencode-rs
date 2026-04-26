@@ -1,5 +1,7 @@
 pub use crate::action::{Direction, InputMapper};
-pub use crate::reducer::{test_table_driven, Reducer, ReducerError, ReducerTester, TableDrivenCase};
+pub use crate::reducer::{
+    test_table_driven, Reducer, ReducerError, ReducerTester, TableDrivenCase,
+};
 
 pub struct TerminalSizes;
 
@@ -71,7 +73,12 @@ pub mod layout_helpers {
     }
 
     pub fn top_left(area: Rect, width: u16, height: u16) -> Rect {
-        Rect::new(area.x, area.y, width.min(area.width), height.min(area.height))
+        Rect::new(
+            area.x,
+            area.y,
+            width.min(area.width),
+            height.min(area.height),
+        )
     }
 
     pub fn bottom_right(area: Rect, width: u16, height: u16) -> Rect {

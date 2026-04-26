@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use uuid::Uuid;
 
+use opencode_control_plane::SharedAcpStream;
 use opencode_core::acp::AcpHandshakeRequest;
 use opencode_core::{Config, SessionSharing};
-use opencode_control_plane::SharedAcpStream;
 
 #[derive(clap::Args, Debug)]
 pub struct AttachArgs {
@@ -111,7 +111,9 @@ impl AttachCommand {
 
         if !handshake_response.accepted {
             return Err(AttachError::HandshakeFailed(
-                handshake_response.error.unwrap_or_else(|| "Unknown error".to_string()),
+                handshake_response
+                    .error
+                    .unwrap_or_else(|| "Unknown error".to_string()),
             ));
         }
 
@@ -143,7 +145,8 @@ impl AttachCommand {
             .get_session(&session_uuid)
             .map_err(|_| AttachError::SessionNotFound(session_id.to_string()))?;
 
-        let _serialized_state = self.serialize_session_state(&session)
+        let _serialized_state = self
+            .serialize_session_state(&session)
             .map_err(|e| AttachError::StateTransferFailed(e.to_string()))?;
 
         println!("Session loaded: {} messages", session.messages.len());
@@ -151,7 +154,8 @@ impl AttachCommand {
 
         println!("Attaching to session {} via ACP", session_id);
 
-        self.initiate_state_sync(session_id, "http://127.0.0.1:8080").await?;
+        self.initiate_state_sync(session_id, "http://127.0.0.1:8080")
+            .await?;
 
         println!("State synchronization complete");
         println!("Attached to local session successfully");
@@ -202,7 +206,11 @@ impl AttachCommand {
         Ok((host.to_string(), port, path))
     }
 
-    async fn initiate_state_sync(&self, session_id: &str, api_url: &str) -> Result<(), AttachError> {
+    async fn initiate_state_sync(
+        &self,
+        session_id: &str,
+        api_url: &str,
+    ) -> Result<(), AttachError> {
         let client = reqwest::Client::new();
 
         let sync_request = serde_json::json!({
@@ -234,7 +242,10 @@ impl AttachCommand {
         Ok(())
     }
 
-    fn serialize_session_state(&self, session: &opencode_core::Session) -> Result<String, AttachError> {
+    fn serialize_session_state(
+        &self,
+        session: &opencode_core::Session,
+    ) -> Result<String, AttachError> {
         serde_json::to_string(session).map_err(|e| AttachError::StateTransferFailed(e.to_string()))
     }
 
@@ -487,7 +498,10 @@ mod tests {
         assert_eq!(format!("{}", err), "Handshake failed: version mismatch");
 
         let err = AttachError::StateTransferFailed(" serialization error".to_string());
-        assert_eq!(format!("{}", err), "State transfer failed:  serialization error");
+        assert_eq!(
+            format!("{}", err),
+            "State transfer failed:  serialization error"
+        );
     }
 
     #[test]
@@ -518,7 +532,10 @@ mod tests {
     #[test]
     fn test_create_acp_stream() {
         let stream = AttachCommand::create_acp_stream();
-        assert!(!std::sync::Arc::ptr_eq(&stream, &SharedAcpStream::default()));
+        assert!(!std::sync::Arc::ptr_eq(
+            &stream,
+            &SharedAcpStream::default()
+        ));
     }
 
     #[tokio::test]
