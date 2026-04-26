@@ -752,6 +752,18 @@ pub async fn validate_api_key_and_fetch_models(
             false,
             false,
         ),
+        "minimax" => (
+            "https://api.minimax.io/v1/models".to_string(),
+            format!("Bearer {}", api_key),
+            false,
+            false,
+        ),
+        "minimax-cn" => (
+            "https://api.minimaxi.com/v1/models".to_string(),
+            format!("Bearer {}", api_key),
+            false,
+            false,
+        ),
         "lmstudio" | "lm_studio" | "lm-studio" => {
             let base_url = std::env::var("LMSTUDIO_BASE_URL")
                 .ok()

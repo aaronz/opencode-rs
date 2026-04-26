@@ -696,7 +696,7 @@
       "priority": "P1",
       "title": "Implement account login/logout/status commands",
       "description": "Implement `account login/logout/status` commands in cmd/account.rs",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify login authenticates and stores credentials",
         "AddUnitTest: verify logout clears credentials",

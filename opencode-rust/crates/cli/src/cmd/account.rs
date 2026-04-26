@@ -408,6 +408,120 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_login_stores_credentials() {
+        use opencode_auth::oauth::{OAuthFlow, OAuthToken};
+        use tempfile::TempDir;
+        use chrono::Utc;
+
+        let tmp = TempDir::new().unwrap();
+        let store = opencode_auth::credential_store::CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(tmp.path().to_path_buf());
+        let flow = OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let token = OAuthToken {
+            access_token: "test-access-token".to_string(),
+            refresh_token: Some("test-refresh-token".to_string()),
+            expires_in: 3600,
+            token_type: "Bearer".to_string(),
+            scope: Some("read".to_string()),
+            received_at: Utc::now(),
+        };
+
+        flow.store_token("github", &token).unwrap();
+
+        let loaded = flow.load_token_for_provider("github").unwrap().unwrap();
+        assert_eq!(loaded.access_token, "test-access-token");
+        assert_eq!(loaded.refresh_token.as_deref(), Some("test-refresh-token"));
+    }
+
+    #[test]
+    fn test_logout_clears_credentials() {
+        use opencode_auth::oauth::{OAuthFlow, OAuthToken};
+        use tempfile::TempDir;
+        use chrono::Utc;
+
+        let tmp = TempDir::new().unwrap();
+        let store_path = tmp.path().join("credentials.enc.json");
+        let key_path = tmp.path().join("credentials.key");
+        let store = opencode_auth::credential_store::CredentialStore::with_paths(
+            store_path.clone(),
+            key_path.clone(),
+        );
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(tmp.path().to_path_buf());
+        let flow = OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let token = OAuthToken {
+            access_token: "test-access-token".to_string(),
+            refresh_token: Some("test-refresh-token".to_string()),
+            expires_in: 3600,
+            token_type: "Bearer".to_string(),
+            scope: Some("read".to_string()),
+            received_at: Utc::now(),
+        };
+
+        flow.store_token("github", &token).unwrap();
+        let before = flow.load_token_for_provider("github").unwrap();
+        assert!(before.is_some());
+
+        let store2 = opencode_auth::credential_store::CredentialStore::with_paths(
+            store_path.clone(),
+            key_path,
+        );
+        store2.delete("github").unwrap();
+        drop(store2);
+        let after = flow.load_token_for_provider("github").unwrap();
+        assert!(after.is_none(), "Expected credential to be deleted after logout");
+    }
+
+    #[test]
+    fn test_status_shows_auth_state() {
+        use opencode_auth::oauth::{OAuthFlow, OAuthToken};
+        use tempfile::TempDir;
+        use chrono::Utc;
+
+        let tmp = TempDir::new().unwrap();
+        let store = opencode_auth::credential_store::CredentialStore::with_paths(
+            tmp.path().join("credentials.enc.json"),
+            tmp.path().join("credentials.key"),
+        );
+        let session_manager =
+            opencode_auth::oauth::OAuthSessionManager::new(tmp.path().to_path_buf());
+        let flow = OAuthFlow::with_client_and_store(
+            reqwest::blocking::Client::new(),
+            store,
+            session_manager,
+        );
+
+        let token = OAuthToken {
+            access_token: "test-access-token".to_string(),
+            refresh_token: Some("test-refresh-token".to_string()),
+            expires_in: 3600,
+            token_type: "Bearer".to_string(),
+            scope: Some("read".to_string()),
+            received_at: Utc::now(),
+        };
+
+        flow.store_token("github", &token).unwrap();
+
+        let loaded = flow.load_token_for_provider("github").unwrap().unwrap();
+        assert!(!loaded.is_expired());
+        assert_eq!(loaded.access_token, "test-access-token");
+    }
 }
 
 pub(crate) fn run(args: AccountArgs) {
