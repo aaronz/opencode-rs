@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use opencode_acp::{
-    AcpClient, AcpConnectionState, AcpError, AcpMessage, AcpState, HandshakeRequest,
+    AcpClient, AcpConnectionState, AcpError, AcpMessage, AcpState, AcpStatus, HandshakeRequest,
 };
 
 fn create_test_client() -> AcpClient {
@@ -173,4 +173,78 @@ fn test_acp_error_http_variant_supports_from_trait() {
     fn _assert_from<T: From<reqwest::Error>>() {}
     _assert_from::<AcpError>();
     let _err: AcpError = AcpError::NotConnected;
+}
+
+#[test]
+fn test_acp_status_instantiation() {
+    let status = AcpStatus {
+        connected: true,
+        client_id: Some("client-abc".to_string()),
+        capabilities: vec!["chat".to_string(), "tasks".to_string()],
+        server_url: Some("http://localhost:8080".to_string()),
+    };
+    assert!(status.connected);
+    assert_eq!(status.client_id, Some("client-abc".to_string()));
+    assert_eq!(status.capabilities.len(), 2);
+    assert_eq!(status.server_url, Some("http://localhost:8080".to_string()));
+}
+
+#[test]
+fn test_acp_status_serialize_deserialize() {
+    let status = AcpStatus {
+        connected: true,
+        client_id: Some("client-xyz".to_string()),
+        capabilities: vec!["files".to_string(), "search".to_string()],
+        server_url: Some("https://acp.example.com".to_string()),
+    };
+
+    let json = serde_json::to_string(&status).unwrap();
+    assert!(json.contains("\"connected\":true"));
+    assert!(json.contains("\"client_id\":\"client-xyz\""));
+    assert!(json.contains("\"capabilities\""));
+    assert!(json.contains("\"server_url\""));
+
+    let deserialized: AcpStatus = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized.connected, true);
+    assert_eq!(deserialized.client_id, Some("client-xyz".to_string()));
+    assert_eq!(deserialized.capabilities, vec!["files".to_string(), "search".to_string()]);
+    assert_eq!(deserialized.server_url, Some("https://acp.example.com".to_string()));
+}
+
+#[test]
+fn test_acp_status_disconnected_state() {
+    let status = AcpStatus {
+        connected: false,
+        client_id: None,
+        capabilities: Vec::new(),
+        server_url: None,
+    };
+    assert!(!status.connected);
+    assert!(status.client_id.is_none());
+    assert!(status.capabilities.is_empty());
+    assert!(status.server_url.is_none());
+
+    let json = serde_json::to_string(&status).unwrap();
+    assert!(json.contains("\"connected\":false"));
+    assert!(json.contains("\"client_id\":null"));
+    assert!(json.contains("\"capabilities\":[]"));
+    assert!(json.contains("\"server_url\":null"));
+}
+
+#[test]
+fn test_acp_status_roundtrip() {
+    let status = AcpStatus {
+        connected: true,
+        client_id: Some("test-client".to_string()),
+        capabilities: vec!["chat".to_string()],
+        server_url: Some("http://127.0.0.1:3000".to_string()),
+    };
+
+    let json = serde_json::to_string(&status).unwrap();
+    let roundtrip: AcpStatus = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(roundtrip.connected, status.connected);
+    assert_eq!(roundtrip.client_id, status.client_id);
+    assert_eq!(roundtrip.capabilities, status.capabilities);
+    assert_eq!(roundtrip.server_url, status.server_url);
 }
