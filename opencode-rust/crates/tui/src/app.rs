@@ -600,10 +600,10 @@ pub async fn validate_api_key(
             false,
         ),
         "minimax-cn" => (
-            "https://api.minimaxi.com/anthropic/v1/models".to_string(),
+            "https://api.minimaxi.com/v1/chat/completions".to_string(),
             format!("Bearer {}", api_key),
-            true,
             false,
+            true,
         ),
         "lmstudio" | "lm_studio" | "lm-studio" => {
             let base_url = std::env::var("LMSTUDIO_BASE_URL")
@@ -759,10 +759,10 @@ pub async fn validate_api_key_and_fetch_models(
             false,
         ),
         "minimax-cn" => (
-            "https://api.minimaxi.com/anthropic/v1/models".to_string(),
+            "https://api.minimaxi.com/v1/chat/completions".to_string(),
             format!("Bearer {}", api_key),
-            true,
             false,
+            true,
         ),
         "lmstudio" | "lm_studio" | "lm-studio" => {
             let base_url = std::env::var("LMSTUDIO_BASE_URL")
@@ -5690,7 +5690,9 @@ OpenCode Agent Configuration
                     }
                 }
                 if key.code == KeyCode::Esc {
-                    self.mode = AppMode::Chat;
+                    self.validation_in_progress = false;
+                    self.pending_api_key_for_validation = None;
+                    self.mode = AppMode::ConnectApiKey;
                 }
             }
         }

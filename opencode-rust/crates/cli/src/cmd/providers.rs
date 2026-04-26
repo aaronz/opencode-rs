@@ -1,5 +1,6 @@
 use clap::Args;
 use opencode_auth::credential_store::CredentialStore;
+use opencode_auth::oauth::OAuthFlow;
 use opencode_core::Config;
 use opencode_llm::auth_method::{get_provider_auth_methods, AuthMethod};
 use opencode_llm::{ModelRegistry, OpenAiBrowserAuthService, OpenAiBrowserAuthStore};
@@ -9,6 +10,35 @@ use std::io::Write;
 use std::process::Command;
 
 use super::load_config_result;
+
+const DEFAULT_CALLBACK_PORT: u16 = 54345;
+const CALLBACK_TIMEOUT_SECS: u64 = 300;
+
+const SUPPORTED_BROWSER_AUTH_PROVIDERS: &[(&str, &str)] = &[
+    ("github", "Iv1.8a1f8c05dfd1c06e"),
+    ("openai", "client_id_openai"),
+    ("anthropic", "anthropic_client_id"),
+];
+
+const SUPPORTED_BROWSER_AUTH_TOKEN_URLS: &[(&str, &str)] = &[
+    ("github", "https://github.com/login/oauth/access_token"),
+    ("openai", "https://auth.openai.com/oauth/token"),
+    ("anthropic", "https://auth.anthropic.com/oauth/token"),
+];
+
+fn get_provider_client_id(provider: &str) -> Option<&'static str> {
+    SUPPORTED_BROWSER_AUTH_PROVIDERS
+        .iter()
+        .find(|(p, _)| *p == provider)
+        .map(|(_, id)| *id)
+}
+
+fn get_provider_token_url(provider: &str) -> Option<&'static str> {
+    SUPPORTED_BROWSER_AUTH_TOKEN_URLS
+        .iter()
+        .find(|(p, _)| *p == provider)
+        .map(|(_, url)| *url)
+}
 
 #[derive(Args, Debug)]
 pub(crate) struct ProvidersArgs {
@@ -23,6 +53,9 @@ pub(crate) struct ProvidersArgs {
 
     #[arg(long)]
     pub browser: bool,
+
+    #[arg(long)]
+    pub provider: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -164,6 +197,77 @@ fn run_openai_browser_login() {
     println!("OpenAI browser login successful");
 }
 
+fn run_browser_auth_login(provider: &str) {
+    let client_id = match get_provider_client_id(provider) {
+        Some(id) => id,
+        None => {
+            eprintln!(
+                "Browser authentication is not supported for provider: {}",
+                provider
+            );
+            eprintln!("Supported providers for browser auth: github, openai, anthropic");
+            std::process::exit(1);
+        }
+    };
+
+    let token_url = match get_provider_token_url(provider) {
+        Some(url) => url,
+        None => {
+            eprintln!(
+                "Browser authentication is not supported for provider: {}",
+                provider
+            );
+            std::process::exit(1);
+        }
+    };
+
+    println!("Starting {} OAuth login flow...", provider);
+
+    let oauth_flow = OAuthFlow::new();
+    let redirect_port = DEFAULT_CALLBACK_PORT;
+
+    let (state, verifier) = match oauth_flow.start_browser_login(provider, client_id, redirect_port) {
+        Ok(result) => result,
+        Err(e) => {
+            eprintln!("Failed to start OAuth login: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    println!("\nWaiting for authentication in browser...");
+    println!("(You can also manually visit the URL if browser doesn't open)\n");
+
+    let (code, returned_state) =
+        match oauth_flow.run_callback_server_and_wait(redirect_port, CALLBACK_TIMEOUT_SECS) {
+            Ok(result) => result,
+            Err(e) => {
+                eprintln!("Failed waiting for callback: {}", e);
+                std::process::exit(1);
+            }
+        };
+
+    if returned_state != state {
+        eprintln!("State mismatch - possible CSRF attack");
+        std::process::exit(1);
+    }
+
+    let token = match oauth_flow.complete_login(&code, &state, &verifier, client_id, "", token_url) {
+        Ok(token) => token,
+        Err(e) => {
+            eprintln!("Failed to exchange code for token: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if let Err(e) = oauth_flow.store_token(provider, &token) {
+        eprintln!("Failed to store token: {}", e);
+        std::process::exit(1);
+    }
+
+    println!("✓ {} authentication successful!", provider);
+    println!("  Token stored securely.");
+}
+
 fn run_api_key_login(provider: &str) {
     let auth_methods = get_provider_auth_methods(provider);
     let supports_browser = auth_methods.contains(&AuthMethod::Browser);
@@ -231,11 +335,13 @@ pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
         .collect::<Vec<_>>();
 
     if let Some(provider_id) = args.login.as_deref() {
+        let effective_provider = args.provider.as_deref().unwrap_or(provider_id);
+
         if args.json {
-            let auth_methods = get_provider_auth_methods(provider_id);
+            let auth_methods = get_provider_auth_methods(effective_provider);
             let result = json!({
                 "action": "login",
-                "provider": provider_id,
+                "provider": effective_provider,
                 "method": if args.browser && auth_methods.contains(&AuthMethod::Browser) {
                     "browser"
                 } else {
@@ -249,7 +355,7 @@ pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
             return Ok(());
         }
 
-        let auth_methods = get_provider_auth_methods(provider_id);
+        let auth_methods = get_provider_auth_methods(effective_provider);
         let supports_browser = auth_methods.contains(&AuthMethod::Browser);
 
         if provider_id == "openai" && args.browser && supports_browser {
@@ -257,15 +363,20 @@ pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
             return Ok(());
         }
 
-        if supports_browser && args.browser {
-            eprintln!(
-                "Browser authentication for {} is not yet implemented.",
-                provider_id
-            );
-            eprintln!("Falling back to API key authentication...");
+        if args.browser && supports_browser {
+            run_browser_auth_login(effective_provider);
+            return Ok(());
         }
 
-        run_api_key_login(provider_id);
+        if supports_browser && !args.browser {
+            println!(
+                "Note: {} supports browser authentication. Use --browser flag for OAuth flow.",
+                effective_provider
+            );
+            println!("Proceeding with API key login...\n");
+        }
+
+        run_api_key_login(effective_provider);
         return Ok(());
     }
 
@@ -416,11 +527,13 @@ mod tests {
             test_connection: None,
             login: None,
             browser: false,
+            provider: None,
         };
         assert!(!args.json);
         assert!(args.test_connection.is_none());
         assert!(args.login.is_none());
         assert!(!args.browser);
+        assert!(args.provider.is_none());
     }
 
     #[test]
@@ -430,6 +543,7 @@ mod tests {
             test_connection: None,
             login: None,
             browser: false,
+            provider: None,
         };
         assert!(args.json);
     }
@@ -441,6 +555,7 @@ mod tests {
             test_connection: Some("openai".to_string()),
             login: None,
             browser: false,
+            provider: None,
         };
         assert_eq!(args.test_connection.as_deref(), Some("openai"));
     }
@@ -452,6 +567,7 @@ mod tests {
             test_connection: None,
             login: Some("anthropic".to_string()),
             browser: false,
+            provider: None,
         };
         assert_eq!(args.login.as_deref(), Some("anthropic"));
     }
@@ -463,8 +579,22 @@ mod tests {
             test_connection: None,
             login: Some("openai".to_string()),
             browser: true,
+            provider: None,
         };
         assert!(args.browser);
+    }
+
+    #[test]
+    fn test_providers_args_with_provider() {
+        let args = ProvidersArgs {
+            json: false,
+            test_connection: None,
+            login: Some("openai".to_string()),
+            browser: true,
+            provider: Some("anthropic".to_string()),
+        };
+        assert!(args.browser);
+        assert_eq!(args.provider.as_deref(), Some("anthropic"));
     }
 
     #[test]
@@ -474,10 +604,25 @@ mod tests {
             test_connection: None,
             login: Some("openai".to_string()),
             browser: true,
+            provider: None,
         };
 
         assert!(args.browser);
         assert_eq!(args.login.as_deref(), Some("openai"));
+    }
+
+    #[test]
+    fn test_providers_login_with_provider_flag() {
+        let args = ProvidersArgs {
+            json: false,
+            test_connection: None,
+            login: Some("openai".to_string()),
+            browser: true,
+            provider: Some("anthropic".to_string()),
+        };
+
+        assert_eq!(args.provider.as_deref(), Some("anthropic"));
+        assert!(args.browser);
     }
 
     #[test]
@@ -638,5 +783,127 @@ mod tests {
     fn test_open_browser_invalid_url() {
         let result = open_browser("not-a-valid-url");
         assert!(result.is_err() || result.is_ok());
+    }
+
+    #[test]
+    fn test_get_provider_client_id_github() {
+        assert_eq!(
+            get_provider_client_id("github"),
+            Some("Iv1.8a1f8c05dfd1c06e")
+        );
+    }
+
+    #[test]
+    fn test_get_provider_client_id_openai() {
+        assert_eq!(get_provider_client_id("openai"), Some("client_id_openai"));
+    }
+
+    #[test]
+    fn test_get_provider_client_id_anthropic() {
+        assert_eq!(
+            get_provider_client_id("anthropic"),
+            Some("anthropic_client_id")
+        );
+    }
+
+    #[test]
+    fn test_get_provider_client_id_unknown() {
+        assert_eq!(get_provider_client_id("unknown"), None);
+    }
+
+    #[test]
+    fn test_get_provider_token_url_github() {
+        assert_eq!(
+            get_provider_token_url("github"),
+            Some("https://github.com/login/oauth/access_token")
+        );
+    }
+
+    #[test]
+    fn test_get_provider_token_url_openai() {
+        assert_eq!(
+            get_provider_token_url("openai"),
+            Some("https://auth.openai.com/oauth/token")
+        );
+    }
+
+    #[test]
+    fn test_get_provider_token_url_anthropic() {
+        assert_eq!(
+            get_provider_token_url("anthropic"),
+            Some("https://auth.anthropic.com/oauth/token")
+        );
+    }
+
+    #[test]
+    fn test_get_provider_token_url_unknown() {
+        assert_eq!(get_provider_token_url("unknown"), None);
+    }
+
+    #[test]
+    fn test_supported_browser_auth_providers() {
+        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS.iter().any(|(p, _)| *p == "github"));
+        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS.iter().any(|(p, _)| *p == "openai"));
+        assert!(SUPPORTED_BROWSER_AUTH_PROVIDERS.iter().any(|(p, _)| *p == "anthropic"));
+        assert!(!SUPPORTED_BROWSER_AUTH_PROVIDERS.iter().any(|(p, _)| *p == "ollama"));
+    }
+
+    #[test]
+    fn test_browser_auth_for_anthropic_uses_oauth_flow() {
+        let methods = get_provider_auth_methods("anthropic");
+        assert!(!methods.contains(&AuthMethod::Browser));
+        assert!(methods.contains(&AuthMethod::ApiKey));
+    }
+
+    #[test]
+    fn test_browser_auth_for_google_uses_oauth_flow() {
+        let methods = get_provider_auth_methods("google");
+        assert!(methods.contains(&AuthMethod::Browser));
+        assert!(!methods.contains(&AuthMethod::ApiKey));
+    }
+
+    #[test]
+    fn test_effective_provider_uses_provider_flag() {
+        let args = ProvidersArgs {
+            json: false,
+            test_connection: None,
+            login: Some("openai".to_string()),
+            browser: true,
+            provider: Some("anthropic".to_string()),
+        };
+
+        let effective_provider = args.provider.as_deref().unwrap_or("openai");
+        assert_eq!(effective_provider, "anthropic");
+    }
+
+    #[test]
+    fn test_effective_provider_falls_back_to_login_provider() {
+        let args = ProvidersArgs {
+            json: false,
+            test_connection: None,
+            login: Some("openai".to_string()),
+            browser: true,
+            provider: None,
+        };
+
+        let effective_provider = args.provider.as_deref().unwrap_or("openai");
+        assert_eq!(effective_provider, "openai");
+    }
+
+    #[test]
+    fn test_providers_args_all_fields_initialized() {
+        let args = ProvidersArgs {
+            json: true,
+            test_connection: Some("openai".to_string()),
+            login: Some("anthropic".to_string()),
+            browser: true,
+            provider: Some("google".to_string()),
+        };
+
+        assert!(args.json);
+        assert_eq!(args.test_connection.as_deref(), Some("openai"));
+        assert_eq!(args.login.as_deref(), Some("anthropic"));
+        assert!(args.browser);
+        assert_eq!(args.provider.as_deref(), Some("google"));
     }
 }

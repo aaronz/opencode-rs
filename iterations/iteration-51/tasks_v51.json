@@ -799,7 +799,7 @@
       "priority": "P1",
       "title": "Extend providers login for multi-provider",
       "description": "Extend `providers login` for multi-provider (Anthropic, etc.) at cmd/providers.rs:142-145",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify provider flag is parsed",
         "AddUnitTest: verify Anthropic and other providers authenticate",
