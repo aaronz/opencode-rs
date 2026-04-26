@@ -92,7 +92,7 @@
 |---|------|-----|--------|----------|
 | 3.1 | Implement `account login/logout/status` | FR-007 | TODO | `cmd/account.rs` |
 | 3.2 | Implement `attach` command | FR-008 | ✅ Done | `cmd/attach.rs:83-90` |
-| 3.3 | Add `mcp add` subcommand | FR-009 | TODO | `cmd/mcp.rs` |
+| 3.3 | Add `mcp add` subcommand | FR-009 | ✅ Done | `cmd/mcp.rs` |
 | 3.4 | Implement `agent list` | FR-011 | TODO | `cmd/agent.rs:48` |
 | 3.5 | Implement `session fork` with TUI integration | FR-014 | TODO | `cmd/session.rs:673-698` |
 | 3.6 | Implement `github install` persistence | FR-015 | TODO | `cmd/github.rs:189-211` |

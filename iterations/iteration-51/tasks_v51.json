@@ -731,7 +731,7 @@
       "priority": "P1",
       "title": "Add mcp add subcommand",
       "description": "Add `mcp add` subcommand in cmd/mcp.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify mcp add subcommand parses correctly",
         "AddUnitTest: verify mcp config is updated"
