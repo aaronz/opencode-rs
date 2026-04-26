@@ -25,6 +25,7 @@ use crossterm::{
         disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, LeaveAlternateScreen,
     },
 };
+use std::io::Write;
 use opencode_auth::CredentialStore;
 use opencode_core::{
     AgentExecutor, CostCalculator, SessionSharing, SkillResolver, SkillState, TokenCounter,
@@ -2467,8 +2468,14 @@ impl App {
             cursor::Show
         )?;
         execute!(io::stdout(), TermClear(ClearType::All))?;
+        if let Err(e) = io::stdout().flush() {
+            tracing::warn!("Failed to flush stdout: {}", e);
+        }
 
         loop {
+            if let Err(e) = io::stdout().flush() {
+                tracing::warn!("Pre-draw flush failed: {}", e);
+            }
             terminal.draw(|f| self.draw(f))?;
 
             self.check_leader_key_timeout();
@@ -2692,13 +2699,47 @@ impl App {
                                     .pending_api_key_for_validation
                                     .clone()
                                     .unwrap_or_default();
+                                let provider_id =
+                                    self.pending_connect_provider.clone().unwrap_or_default();
                                 self.pending_api_key_models = models.unwrap_or_default();
-                                self.pending_api_key_for_provider = Some(api_key);
+                                self.pending_api_key_for_provider = Some(api_key.clone());
                                 let theme = self.theme_manager.current().clone();
                                 self.connect_model_dialog = Some(ConnectModelDialog::new(
                                     theme,
                                     self.pending_api_key_models.clone(),
                                 ));
+                                if let Some(providers) = &mut self.config.providers {
+                                    if let Some(existing) =
+                                        providers.iter_mut().find(|p| p.name == provider_id)
+                                    {
+                                        existing.api_key = Some(api_key);
+                                        existing.default_model =
+                                            self.pending_api_key_models.first().map(|m| m.id.clone());
+                                    } else {
+                                        let provider_config = crate::config::ProviderConfig {
+                                            name: provider_id.clone(),
+                                            api_key: Some(api_key),
+                                            default_model: self
+                                                .pending_api_key_models
+                                                .first()
+                                                .map(|m| m.id.clone()),
+                                        };
+                                        providers.push(provider_config);
+                                    }
+                                } else {
+                                    let provider_config = crate::config::ProviderConfig {
+                                        name: provider_id.clone(),
+                                        api_key: Some(api_key),
+                                        default_model: self
+                                            .pending_api_key_models
+                                            .first()
+                                            .map(|m| m.id.clone()),
+                                    };
+                                    self.config.providers = Some(vec![provider_config]);
+                                }
+                                if let Err(e) = self.config.save(&Config::default_config_path()) {
+                                    tracing::warn!("Failed to save provider config: {}", e);
+                                }
                                 self.mode = AppMode::ConnectModel;
                             }
                         } else {
@@ -5885,6 +5926,7 @@ OpenCode Agent Configuration
                     self.pending_connect_provider = None;
                     self.api_key_input_dialog = None;
                     self.connect_method_dialog = None;
+                    self.connect_model_dialog = None;
                     self.mode = AppMode::ConnectProvider;
                     tracing::info!(
                         event = "tui.connect.cancelled",

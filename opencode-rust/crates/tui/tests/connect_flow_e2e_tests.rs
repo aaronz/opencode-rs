@@ -233,7 +233,7 @@ mod connect_flow_regression_tests {
     }
 
     #[test]
-    fn connect_minimax_api_key_saved_after_success() {
+    fn connect_minimax_api_key_persisted_to_config_after_success() {
         let temp_dir = tempfile::TempDir::new().unwrap();
         std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
 
@@ -253,10 +253,9 @@ mod connect_flow_regression_tests {
             }]),
         );
 
-        assert_eq!(
-            app.pending_api_key_for_provider,
-            Some("test-api-key-12345".to_string()),
-            "API key should be saved for provider"
-        );
+        let providers = app.config.providers.as_ref().expect("providers should be set");
+        let minimax_provider = providers.iter().find(|p| p.name == "minimax-cn").expect("minimax-cn should be in providers");
+        assert_eq!(minimax_provider.api_key, Some("test-api-key-12345".to_string()), "API key should be persisted in config");
+        assert_eq!(minimax_provider.default_model, Some("MiniMax-M2.7".to_string()), "default model should be set");
     }
 }

@@ -161,7 +161,8 @@ pub fn setup_tracing(log_level: &str) {
         .with_target(true)
         .with_thread_ids(false)
         .with_file(true)
-        .with_line_number(true);
+        .with_line_number(true)
+        .with_writer(std::io::stderr);
 
     let env_filter = tracing_subscriber::EnvFilter::builder()
         .with_default_directive(level.into())
