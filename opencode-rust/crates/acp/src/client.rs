@@ -1,5 +1,4 @@
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 pub use crate::protocol::{AcpMessage, AckRequest, AcpStatus, HandshakeRequest, HandshakeResponse};
 
@@ -60,11 +59,11 @@ impl AcpClient {
     }
 
     pub fn connection_state(&self) -> AcpConnectionState {
-        AcpConnectionState::Disconnected
+        self.state.lock().unwrap().connection_state.clone()
     }
 
     pub async fn status(&self) -> Result<AcpStatus, crate::AcpError> {
-        let state = self.state.lock().await;
+        let state = self.state.lock().unwrap();
         let connected = matches!(state.connection_state, AcpConnectionState::Connected);
         Ok(AcpStatus {
             connected,
@@ -113,10 +112,11 @@ impl AcpClient {
         server_url: &str,
         client_id: Option<String>,
     ) -> Result<(), crate::AcpError> {
-        let mut state = self.state.lock().await;
-        state.connection_state = AcpConnectionState::Handshaking;
-        state.server_url = Some(server_url.to_string());
-        drop(state);
+        {
+            let mut state = self.state.lock().unwrap();
+            state.connection_state = AcpConnectionState::Handshaking;
+            state.server_url = Some(server_url.to_string());
+        }
 
         let cid = client_id.unwrap_or_else(|| {
             std::env::var("OPENCODE_CLIENT_ID").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
@@ -124,11 +124,13 @@ impl AcpClient {
 
         let response = self.handshake(server_url, cid, vec!["chat".to_string()]).await?;
 
-        let mut state = self.state.lock().await;
-        state.connection_state = AcpConnectionState::Connected;
-        state.server_id = Some(response.server_id);
-        state.session_token = response.session_token;
-        state.capabilities = response.accepted_capabilities;
+        {
+            let mut state = self.state.lock().unwrap();
+            state.connection_state = AcpConnectionState::Connected;
+            state.server_id = Some(response.server_id);
+            state.session_token = response.session_token;
+            state.capabilities = response.accepted_capabilities;
+        }
 
         Ok(())
     }
@@ -138,24 +140,26 @@ impl AcpClient {
         handshake_id: &str,
         accepted: bool,
     ) -> Result<(), crate::AcpError> {
-        let state = self.state.lock().await;
-        if !matches!(state.connection_state, AcpConnectionState::Connected) {
-            return Err(crate::AcpError::NotConnected);
+        {
+            let state = self.state.lock().unwrap();
+            if !matches!(state.connection_state, AcpConnectionState::Connected) {
+                return Err(crate::AcpError::NotConnected);
+            }
         }
-        drop(state);
 
         let request = AckRequest {
             handshake_id: handshake_id.to_string(),
             accepted,
         };
 
-        let server_url = self
-            .state
-            .lock()
-            .await
-            .server_url
-            .clone()
-            .ok_or(crate::AcpError::NotConnected)?;
+        let server_url = {
+            self.state
+                .lock()
+                .unwrap()
+                .server_url
+                .clone()
+                .ok_or(crate::AcpError::NotConnected)?
+        };
 
         let response = self
             .http
@@ -182,16 +186,18 @@ impl AcpClient {
         message_type: &str,
         payload: serde_json::Value,
     ) -> Result<(), crate::AcpError> {
-        let state = self.state.lock().await;
-        if !matches!(state.connection_state, AcpConnectionState::Connected) {
-            return Err(crate::AcpError::NotConnected);
-        }
-        let client_id = state.client_id.clone();
-        let server_url = state
-            .server_url
-            .clone()
-            .ok_or(crate::AcpError::NotConnected)?;
-        drop(state);
+        let (client_id, server_url) = {
+            let state = self.state.lock().unwrap();
+            if !matches!(state.connection_state, AcpConnectionState::Connected) {
+                return Err(crate::AcpError::NotConnected);
+            }
+            let client_id = state.client_id.clone();
+            let server_url = state
+                .server_url
+                .clone()
+                .ok_or(crate::AcpError::NotConnected)?;
+            (client_id, server_url)
+        };
 
         let message = AcpMessage::new(client_id, to.to_string(), message_type.to_string(), payload);
 
@@ -215,12 +221,13 @@ impl AcpClient {
     }
 
     pub async fn disconnect(&self) -> Result<(), crate::AcpError> {
-        let mut state = self.state.lock().await;
-        state.connection_state = AcpConnectionState::Disconnected;
-        state.server_id = None;
-        state.session_token = None;
-        state.server_url = None;
-        drop(state);
+        {
+            let mut state = self.state.lock().unwrap();
+            state.connection_state = AcpConnectionState::Disconnected;
+            state.server_id = None;
+            state.session_token = None;
+            state.server_url = None;
+        }
 
         self.bus.publish(opencode_core::bus::InternalEvent::AcpEventReceived {
             agent_id: "self".to_string(),
