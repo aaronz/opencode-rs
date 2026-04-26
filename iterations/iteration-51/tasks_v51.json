@@ -975,7 +975,7 @@
       "priority": "P1",
       "title": "Move hardcoded URLs to configurable base URL",
       "description": "Move hardcoded URLs to configurable base URL",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify base URL is configurable",
         "AddIntegrationTest: verify connections use configured URL"

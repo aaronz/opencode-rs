@@ -29,6 +29,7 @@ pub struct AcpState {
     pub session_token: Option<String>,
     pub capabilities: Vec<String>,
     pub server_url: Option<String>,
+    pub base_url: Option<String>,
 }
 
 impl AcpState {
@@ -40,6 +41,7 @@ impl AcpState {
             session_token: None,
             capabilities: Vec::new(),
             server_url: None,
+            base_url: None,
         }
     }
 }
@@ -62,6 +64,30 @@ impl AcpClient {
             state: Arc::new(Mutex::new(AcpState::new(client_id))),
             bus,
         }
+    }
+
+    pub fn with_base_url(
+        http: reqwest::Client,
+        client_id: String,
+        bus: opencode_core::bus::SharedEventBus,
+        base_url: String,
+    ) -> Self {
+        let mut state = AcpState::new(client_id);
+        state.base_url = Some(base_url);
+        Self {
+            http,
+            state: Arc::new(Mutex::new(state)),
+            bus,
+        }
+    }
+
+    pub fn set_base_url(&self, base_url: String) {
+        let mut state = self.state.lock().unwrap();
+        state.base_url = Some(base_url);
+    }
+
+    pub fn get_base_url(&self) -> Option<String> {
+        self.state.lock().unwrap().base_url.clone()
     }
 
     pub fn connection_state(&self) -> AcpConnectionState {
@@ -95,9 +121,13 @@ impl AcpClient {
             version: "1.0".to_string(),
         };
 
+        let base = self.state.lock().unwrap().base_url.clone();
+        let url_base = base.as_deref().unwrap_or(server_url);
+        let url = format!("{}/api/acp/handshake", url_base);
+
         let response = self
             .http
-            .post(format!("{}/api/acp/handshake", server_url))
+            .post(&url)
             .json(&request)
             .send()
             .await
@@ -126,6 +156,9 @@ impl AcpClient {
             let mut state = self.state.lock().unwrap();
             state.connection_state = AcpConnectionState::Handshaking;
             state.server_url = Some(server_url.to_string());
+            if state.base_url.is_none() {
+                state.base_url = Some(server_url.to_string());
+            }
         }
 
         let cid = client_id.unwrap_or_else(|| {
@@ -167,11 +200,13 @@ impl AcpClient {
     }
 
     pub async fn ack(&self, handshake_id: &str, accepted: bool) -> Result<(), error::AcpError> {
+        let base_url;
         {
             let state = self.state.lock().unwrap();
             if !matches!(state.connection_state, AcpConnectionState::Connected) {
                 return Err(error::AcpError::NotConnected);
             }
+            base_url = state.base_url.clone().or(state.server_url.clone());
         }
 
         let request = AckRequest {
@@ -179,18 +214,11 @@ impl AcpClient {
             accepted,
         };
 
-        let server_url = {
-            self.state
-                .lock()
-                .unwrap()
-                .server_url
-                .clone()
-                .ok_or(error::AcpError::NotConnected)?
-        };
+        let url_base = base_url.ok_or(error::AcpError::NotConnected)?;
 
         let response = self
             .http
-            .post(format!("{}/api/acp/ack", server_url))
+            .post(format!("{}/api/acp/ack", url_base))
             .json(&request)
             .send()
             .await
@@ -213,24 +241,22 @@ impl AcpClient {
         message_type: &str,
         payload: serde_json::Value,
     ) -> Result<(), error::AcpError> {
-        let (client_id, server_url) = {
+        let (client_id, base_url) = {
             let state = self.state.lock().unwrap();
             if !matches!(state.connection_state, AcpConnectionState::Connected) {
                 return Err(error::AcpError::NotConnected);
             }
             let client_id = state.client_id.clone();
-            let server_url = state
-                .server_url
-                .clone()
-                .ok_or(error::AcpError::NotConnected)?;
-            (client_id, server_url)
+            let base_url = state.base_url.clone().or(state.server_url.clone());
+            (client_id, base_url)
         };
 
+        let url_base = base_url.ok_or(error::AcpError::NotConnected)?;
         let message = AcpMessage::new(client_id, to.to_string(), message_type.to_string(), payload);
 
         let response = self
             .http
-            .post(format!("{}/api/acp/message", server_url))
+            .post(format!("{}/api/acp/message", url_base))
             .json(&message)
             .send()
             .await
@@ -254,6 +280,7 @@ impl AcpClient {
             state.server_id = None;
             state.session_token = None;
             state.server_url = None;
+            state.base_url = None;
         }
 
         self.bus

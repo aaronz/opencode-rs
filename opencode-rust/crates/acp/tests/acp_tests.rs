@@ -255,6 +255,7 @@ fn test_acp_state_instantiation() {
         session_token: None,
         capabilities: Vec::new(),
         server_url: None,
+        base_url: None,
     };
     assert!(matches!(
         state.connection_state,
@@ -272,6 +273,7 @@ fn test_acp_state_fields_accessible() {
         session_token: Some("token-789".to_string()),
         capabilities: vec!["chat".to_string(), "tasks".to_string()],
         server_url: Some("http://localhost:8080".to_string()),
+        base_url: Some("http://localhost:8080".to_string()),
     };
 
     assert_eq!(state.client_id, "client-123");
@@ -279,6 +281,7 @@ fn test_acp_state_fields_accessible() {
     assert_eq!(state.session_token, Some("token-789".to_string()));
     assert_eq!(state.capabilities.len(), 2);
     assert_eq!(state.server_url, Some("http://localhost:8080".to_string()));
+    assert_eq!(state.base_url, Some("http://localhost:8080".to_string()));
 
     state.connection_state = AcpConnectionState::Connected;
     state.capabilities.push("files".to_string());
@@ -1138,4 +1141,277 @@ async fn test_error_handling_ack_server_error() {
     assert!(
         matches!(result.unwrap_err(), AcpError::ServerError(msg) if msg.contains("Ack Failed"))
     );
+}
+
+#[tokio::test]
+async fn test_base_url_configurable_via_with_base_url() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-base-url",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-base-url"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::with_base_url(http, "test-client".to_string(), bus, mock_server.uri());
+
+    assert_eq!(client.get_base_url(), Some(mock_server.uri()));
+
+    client
+        .connect(&mock_server.uri(), Some("test-client".to_string()))
+        .await
+        .unwrap();
+
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+}
+
+#[tokio::test]
+async fn test_base_url_set_after_connect() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-after-connect",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-after-connect"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    assert_eq!(client.get_base_url(), None);
+
+    client
+        .connect(&mock_server.uri(), Some("test-client".to_string()))
+        .await
+        .unwrap();
+
+    assert_eq!(client.get_base_url(), Some(mock_server.uri()));
+}
+
+#[tokio::test]
+async fn test_set_base_url_mutates_client() {
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    assert_eq!(client.get_base_url(), None);
+
+    client.set_base_url("http://custom-server:9000".to_string());
+
+    assert_eq!(
+        client.get_base_url(),
+        Some("http://custom-server:9000".to_string())
+    );
+}
+
+#[tokio::test]
+async fn test_ack_uses_configured_base_url() {
+    use wiremock::{
+        matchers::{body_json, method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-ack-config",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-ack-config"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/ack"))
+        .and(body_json(&serde_json::json!({
+            "handshake_id": "handshake-config-test",
+            "accepted": true
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::with_base_url(http, "test-client".to_string(), bus, mock_server.uri());
+
+    client
+        .connect(&mock_server.uri(), Some("test-client".to_string()))
+        .await
+        .unwrap();
+
+    let result = client.ack("handshake-config-test", true).await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_send_message_uses_configured_base_url() {
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-msg-config",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-msg-config"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/message"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::with_base_url(http, "test-client".to_string(), bus, mock_server.uri());
+
+    client
+        .connect(&mock_server.uri(), Some("test-client".to_string()))
+        .await
+        .unwrap();
+
+    let result = client
+        .send_message(
+            "srv-msg-config",
+            "chat",
+            serde_json::json!({"text": "hello"}),
+        )
+        .await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_disconnect_clears_base_url() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv-disconnect",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok-disconnect"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::new(http, "test-client".to_string(), bus);
+
+    client
+        .connect(&mock_server.uri(), Some("test-client".to_string()))
+        .await
+        .unwrap();
+
+    assert_eq!(client.get_base_url(), Some(mock_server.uri()));
+
+    client.disconnect().await.unwrap();
+
+    assert_eq!(client.get_base_url(), None);
+}
+
+#[test]
+fn test_acp_state_includes_base_url_field() {
+    let state = AcpState {
+        connection_state: AcpConnectionState::Connected,
+        client_id: "test-client".to_string(),
+        server_id: Some("server-123".to_string()),
+        session_token: Some("token-456".to_string()),
+        capabilities: vec!["chat".to_string()],
+        server_url: Some("http://localhost:8080".to_string()),
+        base_url: Some("http://custom-host:9000".to_string()),
+    };
+
+    assert_eq!(state.base_url, Some("http://custom-host:9000".to_string()));
+}
+
+#[test]
+fn test_acp_state_base_url_defaults_to_none() {
+    let state = AcpState {
+        connection_state: AcpConnectionState::Disconnected,
+        client_id: "test-client".to_string(),
+        server_id: None,
+        session_token: None,
+        capabilities: Vec::new(),
+        server_url: None,
+        base_url: None,
+    };
+
+    assert_eq!(state.base_url, None);
+}
+
+#[tokio::test]
+async fn test_handshake_uses_base_url_when_set() {
+    use wiremock::{
+        matchers::{body_json, method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    let mock_server = MockServer::start().await;
+
+    let expected_request = HandshakeRequest {
+        client_id: "my-client-id".to_string(),
+        capabilities: vec!["chat".to_string(), "tasks".to_string()],
+        version: "1.0".to_string(),
+    };
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .and(body_json(&expected_request))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "server-123",
+            "accepted_capabilities": ["chat", "tasks"],
+            "session_token": "session-abc"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let http = reqwest::Client::new();
+    let bus: opencode_core::bus::SharedEventBus = Arc::new(opencode_core::bus::EventBus::new());
+    let client = AcpClient::with_base_url(http, "test-client".to_string(), bus, mock_server.uri());
+
+    let result = client
+        .handshake(
+            &mock_server.uri(),
+            "my-client-id".to_string(),
+            vec!["chat".to_string(), "tasks".to_string()],
+        )
+        .await;
+
+    assert!(result.is_ok());
 }

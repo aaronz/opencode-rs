@@ -336,8 +336,11 @@ pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
         })
         .collect::<Vec<_>>();
 
-    if let Some(provider_id) = args.login.as_deref() {
-        let effective_provider = args.provider.as_deref().unwrap_or(provider_id);
+    if args.login {
+        let effective_provider = args.provider.as_deref().unwrap_or_else(|| {
+            eprintln!("Error: --provider is required when using --login");
+            std::process::exit(1);
+        });
 
         if args.json {
             let auth_methods = get_provider_auth_methods(effective_provider);
@@ -360,7 +363,7 @@ pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
         let auth_methods = get_provider_auth_methods(effective_provider);
         let supports_browser = auth_methods.contains(&AuthMethod::Browser);
 
-        if provider_id == "openai" && args.browser && supports_browser {
+        if effective_provider == "openai" && args.browser && supports_browser {
             run_openai_browser_login();
             return Ok(());
         }
@@ -381,7 +384,6 @@ pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
         run_api_key_login(effective_provider);
         return Ok(());
     }
-
     if let Some(provider_id) = args.test_connection {
         let provider = providers.iter().find(|provider| provider.id == provider_id);
         match provider {
@@ -533,7 +535,7 @@ mod tests {
         };
         assert!(!args.json);
         assert!(args.test_connection.is_none());
-        assert!(args.login.is_none());
+        assert!(!args.login);
         assert!(!args.browser);
         assert!(args.provider.is_none());
     }
