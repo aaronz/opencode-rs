@@ -545,7 +545,7 @@
       "priority": "P1",
       "title": "Implement acp status CLI command",
       "description": "Implement `acp status` CLI command to show ACP connection status",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify CLI command parses correctly",
         "AddIntegrationTest: verify status output reflects actual ACP state"
@@ -564,7 +564,7 @@
       "priority": "P1",
       "title": "Implement acp connect CLI command",
       "description": "Implement `acp connect` CLI command to connect to ACP server",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify CLI command parses URL correctly",
         "AddIntegrationTest: verify connect establishes connection"

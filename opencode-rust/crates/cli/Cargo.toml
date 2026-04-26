@@ -29,6 +29,7 @@ opencode-tui.workspace = true
 opencode-mcp.workspace = true
 opencode-auth = { path = "../auth" }
 opencode-control-plane = { path = "../control-plane" }
+opencode-acp = { path = "../acp" }
 opencode-permission = { path = "../permission" }
 opencode-tools.workspace = true
 opencode-agent = { path = "../agent" }

@@ -68,10 +68,35 @@ impl Provider for MiniMaxProvider {
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
 
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(OpenCodeError::Llm(format!(
+                "MiniMax API error {}: {}",
+                status, error_text
+            )));
+        }
+
         let result: serde_json::Value = response
             .json()
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+
+        if let Some(base_resp) = result.get("base_resp") {
+            if let Some(status_code) = base_resp.get("status_code").and_then(|v| v.as_i64()) {
+                if status_code != 0 {
+                    let msg = base_resp
+                        .get("status_msg")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown error");
+                    return Err(OpenCodeError::Llm(format!(
+                        "MiniMax API error {}: {}",
+                        status_code, msg
+                    )));
+                }
+            }
+        }
+
         result["choices"][0]["message"]["content"]
             .as_str()
             .map(|s| s.to_string())

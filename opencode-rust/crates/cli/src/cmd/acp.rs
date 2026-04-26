@@ -2,7 +2,10 @@ use chrono::Utc;
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use opencode_acp::AcpClient;
+use opencode_core::bus::{EventBus, SharedEventBus};
 use opencode_core::config::{AcpConfig, AcpSession, Config, ServerConfig};
 
 use crate::cmd::load_config;
@@ -173,7 +176,23 @@ mod tests {
             url: "http://example.com".to_string(),
         };
         match action {
-            AcpAction::Connect { url } => assert_eq!(url, "http://example.com"),
+            AcpAction::Connect { url } => {
+                assert_eq!(url, "http://example.com");
+            }
+            _ => panic!("Expected Connect"),
+        }
+    }
+
+    #[test]
+    fn test_acp_connect_url_parsing() {
+        let action = AcpAction::Connect {
+            url: "https://acp.server.example.com:8080/api".to_string(),
+        };
+        match action {
+            AcpAction::Connect { url } => {
+                assert!(url.starts_with("https://"));
+                assert!(url.contains("acp.server.example.com"));
+            }
             _ => panic!("Expected Connect"),
         }
     }
@@ -421,21 +440,13 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
             println!("  Target URL: {}", url);
             println!("  Status: Connecting...");
 
-            let connect_url = format!("{}/api/acp/connect", server_url);
-            let body = serde_json::json!({ "url": url });
+            let http = reqwest::Client::new();
+            let bus: SharedEventBus = Arc::new(EventBus::new());
+            let client = AcpClient::new(http, uuid::Uuid::new_v4().to_string(), bus);
 
-            match reqwest::Client::new()
-                .post(&connect_url)
-                .json(&body)
-                .send()
-                .await
-            {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        println!("  Status: Connected successfully");
-                    } else {
-                        println!("  Status: Connection failed - {}", resp.status());
-                    }
+            match client.connect(url, None).await {
+                Ok(()) => {
+                    println!("  Status: Connected successfully");
                 }
                 Err(e) => {
                     println!("  Status: Connection failed - {}", e);

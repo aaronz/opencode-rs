@@ -4791,6 +4791,7 @@ dependencies = [
  "directories 5.0.1",
  "dirs 6.0.0",
  "once_cell",
+ "opencode-acp",
  "opencode-agent",
  "opencode-auth",
  "opencode-config",
