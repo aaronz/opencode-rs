@@ -388,7 +388,7 @@
       ]
     },
     {
-      "id": "FR-103",
+      "id": "FR-121",
       "priority": "P0",
       "title": "Implement AcpClient::connection_state() method",
       "description": "Implement `AcpClient::connection_state()` method to get current connection state",
@@ -403,11 +403,11 @@
       ],
       "impl_notes": "Simple accessor for internal connection state",
       "dependencies": [
-        "FR-103"
+        "FR-104"
       ]
     },
     {
-      "id": "FR-107",
+      "id": "FR-122",
       "priority": "P0",
       "title": "Implement bus event publishing for acp.connected",
       "description": "Implement bus event publishing for `acp.connected` event when connection succeeds",
@@ -422,18 +422,18 @@
       ],
       "impl_notes": "Event should be published after successful connection handshake",
       "dependencies": [
-        "FR-103"
+        "FR-116"
       ]
     },
     {
-      "id": "FR-107",
+      "id": "FR-123",
       "priority": "P0",
       "title": "Implement bus event publishing for acp.disconnected",
       "description": "Implement bus event publishing for `acp.disconnected` event when disconnected",
       "status": "todo",
       "test_criteria": [
         "AddUnitTest: verify acp.disconnected event is published on disconnect",
-        "AddRegressionTest: ensure event contains correct disconnection info"
+        "AddRegressionTest": ensure event contains correct disconnection info"
       ],
       "test_commands": [
         "cargo test -p opencode-acp",
@@ -441,7 +441,7 @@
       ],
       "impl_notes": "Event should be published after disconnect completes",
       "dependencies": [
-        "FR-103"
+        "FR-120"
       ]
     },
     {
