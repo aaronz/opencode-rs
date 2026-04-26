@@ -34,11 +34,11 @@
 | 1.7 | Implement `AcpClient` struct with `http`, `state`, `bus` fields | FR-103 | ✅ Done | 1.6 |
 | 1.8 | Implement `AcpError` enum with all variants | FR-104 | TODO | 1.1 |
 | 1.9 | Implement `AcpStatus` struct | FR-105 | ✅ Done | 1.1 |
-| 1.10 | Implement `HandshakeRequest` type | FR-105 | TODO | 1.1 |
-| 1.11 | Implement `HandshakeResponse` type | FR-105 | TODO | 1.1 |
-| 1.12 | Implement `ConnectRequest` type | FR-105 | TODO | 1.1 |
-| 1.13 | Implement `AckRequest` type | FR-105 | TODO | 1.1 |
-| 1.14 | Implement `AcpMessage` type | FR-105 | TODO | 1.1 |
+| 1.10 | Implement `HandshakeRequest` type | FR-105 | ✅ Done | 1.1 |
+| 1.11 | Implement `HandshakeResponse` type | FR-105 | ✅ Done | 1.1 |
+| 1.12 | Implement `ConnectRequest` type | FR-105 | ✅ Done | 1.1 |
+| 1.13 | Implement `AckRequest` type | FR-105 | ✅ Done | 1.1 |
+| 1.14 | Implement `AcpMessage` type | FR-105 | ✅ Done | 1.1 |
 
 ### P0 Tasks - ACP State Machine & Events
 
