@@ -155,7 +155,7 @@
       "priority": "P0",
       "title": "Implement AcpStatus struct",
       "description": "Implement `AcpStatus` struct to represent ACP status information",
-      "status": "done",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify AcpStatus can be instantiated",
         "AddUnitTest: verify status fields serialize/deserialize correctly"
