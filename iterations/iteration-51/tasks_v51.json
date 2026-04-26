@@ -288,7 +288,7 @@
       "priority": "P0",
       "title": "Implement AcpClient::connect() with state transitions",
       "description": "Implement `AcpClient::connect()` method with proper state transitions",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddUnitTest: verify connect() transitions state from Disconnected to Connecting",
         "AddUnitTest: verify connect() transitions to Connected on success",

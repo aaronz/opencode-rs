@@ -44,6 +44,7 @@ impl AcpState {
     }
 }
 
+#[derive(Clone)]
 pub struct AcpClient {
     http: reqwest::Client,
     state: Arc<Mutex<AcpState>>,
@@ -123,7 +124,17 @@ impl AcpClient {
             std::env::var("OPENCODE_CLIENT_ID").unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
         });
 
-        let response = self.handshake(server_url, cid, vec!["chat".to_string()]).await?;
+        let response = match self.handshake(server_url, cid, vec!["chat".to_string()]).await {
+            Ok(r) => r,
+            Err(e) => {
+                {
+                    let mut state = self.state.lock().unwrap();
+                    state.connection_state = AcpConnectionState::Disconnected;
+                    state.server_url = None;
+                }
+                return Err(e);
+            }
+        };
 
         {
             let mut state = self.state.lock().unwrap();

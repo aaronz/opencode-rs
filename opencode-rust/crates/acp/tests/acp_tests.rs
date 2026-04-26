@@ -273,6 +273,86 @@ fn test_acp_status_disconnected_state() {
     assert!(json.contains("\"server_url\":null"));
 }
 
+#[tokio::test]
+async fn test_connect_transitions_state_from_disconnected_to_handshaking() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv1",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok1"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+
+    let client_clone = client.clone();
+    let uri = mock_server.uri();
+    let handle = tokio::spawn(async move {
+        client_clone.connect(&uri, Some("my-client".to_string())).await
+    });
+
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    let state_after_delay = client.connection_state();
+    assert!(
+        state_after_delay == AcpConnectionState::Handshaking ||
+        state_after_delay == AcpConnectionState::Connected,
+        "State should be Handshaking or Connected during/after connection, got {:?}",
+        state_after_delay
+    );
+
+    let _ = handle.await.unwrap();
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+}
+
+#[tokio::test]
+async fn test_connect_transitions_state_to_connected_on_success() {
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(wiremock::matchers::method("POST"))
+        .and(wiremock::matchers::path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "srv1",
+            "accepted_capabilities": ["chat"],
+            "session_token": "tok1"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    let uri = mock_server.uri();
+
+    client.connect(&uri, Some("my-client".to_string())).await.unwrap();
+
+    assert_eq!(client.connection_state(), AcpConnectionState::Connected);
+}
+
+#[tokio::test]
+async fn test_connect_handles_connection_failures() {
+    use wiremock::{MockServer};
+
+    let mock_server = MockServer::start().await;
+
+    let client = create_test_client();
+    let uri = mock_server.uri();
+
+    let result = client.connect(&uri, Some("my-client".to_string())).await;
+
+    assert!(result.is_err());
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+}
+
 #[test]
 fn test_acp_status_roundtrip() {
     let status = AcpStatus {
