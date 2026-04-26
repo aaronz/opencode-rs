@@ -43,7 +43,7 @@ if [[ -n "$GENERATE_SNAPSHOT" ]]; then
 fi
 
 echo "Cleaning target folder..."
-rm -rf "$PROJECT_DIR/target"
+rm -rf "$PROJECT_DIR/target" 2>/dev/null || true
 
 echo "Building workspace..."
 cargo build $CARGO_BUILD_FLAGS

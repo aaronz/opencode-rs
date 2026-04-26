@@ -526,7 +526,7 @@
       "priority": "P0",
       "title": "Create ACP integration tests file",
       "description": "Create `crates/acp/tests/acp_tests.rs` for integration tests",
-      "status": "todo",
+      "status": "in_progress",
       "test_criteria": [
         "AddIntegrationTest: verify all ACP components work together",
         "RunTestSuite: cargo test -p opencode-acp"
