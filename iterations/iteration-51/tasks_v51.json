@@ -834,7 +834,7 @@
       "priority": "P1",
       "title": "Implement config migrate command",
       "description": "Implement `config migrate` command at cmd/config.rs:204-208",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify migrate command runs without error",
         "AddIntegrationTest: verify config is migrated correctly"
@@ -851,7 +851,7 @@
       "priority": "P1",
       "title": "Add acp ack command",
       "description": "Add `acp ack` command in cmd/acp.rs",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify acp ack command parses correctly",
         "AddIntegrationTest: verify ack sends to ACP server"

@@ -44,8 +44,8 @@ pub(crate) enum AcpAction {
         #[arg(long)]
         handshake_id: String,
 
-        #[arg(long)]
-        accepted: bool,
+        #[arg(long, num_args = 1..=1)]
+        accepted: String,
     },
 }
 
@@ -245,7 +245,7 @@ mod tests {
     fn test_acp_action_ack() {
         let action = AcpAction::Ack {
             handshake_id: "handshake123".to_string(),
-            accepted: true,
+            accepted: "true".to_string(),
         };
         match action {
             AcpAction::Ack {
@@ -253,7 +253,7 @@ mod tests {
                 accepted,
             } => {
                 assert_eq!(handshake_id, "handshake123");
-                assert!(accepted);
+                assert_eq!(accepted, "true");
             }
             _ => panic!("Expected Ack"),
         }
@@ -263,7 +263,7 @@ mod tests {
     fn test_acp_action_ack_rejected() {
         let action = AcpAction::Ack {
             handshake_id: "handshake456".to_string(),
-            accepted: false,
+            accepted: "false".to_string(),
         };
         match action {
             AcpAction::Ack {
@@ -271,7 +271,7 @@ mod tests {
                 accepted,
             } => {
                 assert_eq!(handshake_id, "handshake456");
-                assert!(!accepted);
+                assert_eq!(accepted, "false");
             }
             _ => panic!("Expected Ack"),
         }
@@ -717,12 +717,13 @@ async fn run_acp(args: AcpArgs) -> Result<(), Box<dyn std::error::Error>> {
             println!("  Accepted: {}", accepted);
             println!("  Status: Sending acknowledgement...");
 
+            let accepted_bool = accepted.to_lowercase() == "true" || accepted == "1";
             let http = reqwest::Client::new();
             let bus: SharedEventBus = Arc::new(EventBus::new());
             let client = AcpClient::new(http, uuid::Uuid::new_v4().to_string(), bus);
 
             match client.connect(&server_url, None).await {
-                Ok(()) => match client.ack(handshake_id, *accepted).await {
+                Ok(()) => match client.ack(handshake_id, accepted_bool).await {
                     Ok(()) => {
                         println!("  Status: Acknowledgement sent successfully");
                     }

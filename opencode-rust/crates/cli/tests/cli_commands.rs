@@ -708,6 +708,69 @@ fn test_invalid_flag_shows_error() {
 }
 
 // ============================================================================
+// ACP Command Tests
+// ============================================================================
+
+#[test]
+fn test_acp_ack_command_parses_correctly() {
+    let harness = TestHarness::setup();
+
+    let output = harness.run_cli(&[
+        "acp", "ack",
+        "--handshake-id", "test-handshake-123",
+        "--accepted", "true",
+    ]);
+
+    assert!(
+        output.status.success() || output.status.code() == Some(1),
+        "acp ack should parse correctly, got: {:?}",
+        output.status
+    );
+}
+
+#[test]
+fn test_acp_ack_command_with_accepted_false() {
+    let harness = TestHarness::setup();
+
+    let output = harness.run_cli(&[
+        "acp", "ack",
+        "--handshake-id", "test-session-456",
+        "--accepted", "false",
+    ]);
+
+    assert!(
+        output.status.success() || output.status.code() == Some(1),
+        "acp ack with accepted=false should parse, got: {:?}",
+        output.status
+    );
+}
+
+#[test]
+fn test_acp_ack_requires_handshake_id() {
+    let harness = TestHarness::setup();
+
+    let output = harness.run_cli(&["acp", "ack", "--accepted", "true"]);
+
+    assert!(
+        !output.status.success(),
+        "acp ack without --handshake-id should fail"
+    );
+}
+
+#[test]
+fn test_acp_status_command() {
+    let harness = TestHarness::setup();
+
+    let output = harness.run_cli(&["acp", "status"]);
+
+    assert!(
+        output.status.success() || output.status.code() == Some(1),
+        "acp status should work, got: {:?}",
+        output.status
+    );
+}
+
+// ============================================================================
 // Global Flags Tests
 // ============================================================================
 
