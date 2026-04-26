@@ -372,7 +372,7 @@
       "priority": "P0",
       "title": "Implement AcpClient::disconnect() method",
       "description": "Implement `AcpClient::disconnect()` method to close ACP connection",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify disconnect() transitions state to Disconnected",
         "AddUnitTest: verify disconnect() cleans up resources",
@@ -392,7 +392,7 @@
       "priority": "P0",
       "title": "Implement AcpClient::connection_state() method",
       "description": "Implement `AcpClient::connection_state()` method to get current connection state",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify connection_state() returns current state",
         "AddRegressionTest: ensure state is updated correctly"
