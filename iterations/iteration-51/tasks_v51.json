@@ -765,7 +765,7 @@
       "priority": "P1",
       "title": "Implement session fork with TUI integration",
       "description": "Implement `session fork` with TUI integration at cmd/session.rs:673-698",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify session fork creates new session",
         "AddIntegrationTest: verify TUI launches for forked session"
@@ -774,7 +774,7 @@
         "cargo test -p opencode-cli -- session_fork",
         "cargo clippy -p opencode-cli -- -D warnings"
       ],
-      "impl_notes": "Should fork existing session with new ID",
+      "impl_notes": "Should fork existing session with new ID - implementation creates forked session via SessionSharing, transfers context via Session::fork, and syncs workspace sessions for TUI integration",
       "dependencies": []
     },
     {

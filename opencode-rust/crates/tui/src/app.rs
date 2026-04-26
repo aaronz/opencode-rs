@@ -600,9 +600,9 @@ pub async fn validate_api_key(
             false,
         ),
         "minimax-cn" => (
-            "https://api.minimaxi.com/v1/models".to_string(),
+            "https://api.minimaxi.com/anthropic/v1/models".to_string(),
             format!("Bearer {}", api_key),
-            false,
+            true,
             false,
         ),
         "lmstudio" | "lm_studio" | "lm-studio" => {
@@ -759,9 +759,9 @@ pub async fn validate_api_key_and_fetch_models(
             false,
         ),
         "minimax-cn" => (
-            "https://api.minimaxi.com/v1/models".to_string(),
+            "https://api.minimaxi.com/anthropic/v1/models".to_string(),
             format!("Bearer {}", api_key),
-            false,
+            true,
             false,
         ),
         "lmstudio" | "lm_studio" | "lm-studio" => {
