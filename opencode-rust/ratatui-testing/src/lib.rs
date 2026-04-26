@@ -8,6 +8,7 @@ mod pty;
 mod reducer;
 mod snapshot;
 mod state;
+mod tui_harness;
 
 pub use action::prelude::*;
 pub use cli::{ChildProcess, CliOutput, CliTester};
@@ -22,6 +23,10 @@ pub use input::{
 pub use pty::PtySimulator;
 pub use snapshot::{load_snapshot, save_snapshot};
 pub use state::{DiffType, StateDiff, StateDiffEntry, StateSnapshot, StateTester, TerminalState};
+pub use tui_harness::{
+    CapturedLog, CapturedLogs, FakeModel, FakeProviderValidator, FakeValidationResult, FocusOwner,
+    KeySimulator, TuiTestDiagnostics, TuiTestHarness, TuiTestHarnessBuilder, WorkflowState,
+};
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
