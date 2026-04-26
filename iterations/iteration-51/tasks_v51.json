@@ -75,7 +75,7 @@
       ]
     },
     {
-      "id": "FR-101",
+      "id": "FR-105",
       "priority": "P0",
       "title": "Implement AcpConnectionState enum",
       "description": "Implement `AcpConnectionState` enum with all connection states (Disconnected, Connecting, Connected, etc.)",
@@ -90,11 +90,11 @@
       ],
       "impl_notes": "Define clear state variants for the ACP connection lifecycle",
       "dependencies": [
-        "FR-100"
+        "FR-103"
       ]
     },
     {
-      "id": "FR-102",
+      "id": "FR-106",
       "priority": "P0",
       "title": "Implement AcpState struct",
       "description": "Implement `AcpState` struct to hold ACP connection state",
@@ -109,7 +109,7 @@
       ],
       "impl_notes": "Struct should hold connection state and metadata",
       "dependencies": [
-        "FR-101"
+        "FR-105"
       ]
     },
     {
@@ -132,7 +132,7 @@
       ]
     },
     {
-      "id": "FR-104",
+      "id": "FR-107",
       "priority": "P0",
       "title": "Implement AcpError enum",
       "description": "Implement `AcpError` enum with all error variants for ACP operations",
@@ -147,7 +147,7 @@
       ],
       "impl_notes": "Follow error code ranges from AGENTS.md (4xxx for tool errors)",
       "dependencies": [
-        "FR-100"
+        "FR-103"
       ]
     },
     {
@@ -185,7 +185,7 @@
       ],
       "impl_notes": "Request should contain client_id and capabilities",
       "dependencies": [
-        "FR-108"
+        "FR-109"
       ]
     },
     {
@@ -223,7 +223,7 @@
       ],
       "impl_notes": "Request should contain URL and connection parameters",
       "dependencies": [
-        "FR-108"
+        "FR-109"
       ]
     },
     {
@@ -242,7 +242,7 @@
       ],
       "impl_notes": "Request should contain session and message info",
       "dependencies": [
-        "FR-108"
+        "FR-109"
       ]
     },
     {
@@ -269,7 +269,7 @@
       "priority": "P0",
       "title": "Implement AcpClient::status() method",
       "description": "Implement `AcpClient::status()` method to get current ACP status",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify status() returns correct status for disconnected state",
         "AddRegressionTest: ensure status reflects actual connection state"
@@ -433,7 +433,7 @@
       "status": "todo",
       "test_criteria": [
         "AddUnitTest: verify acp.disconnected event is published on disconnect",
-        "AddRegressionTest": ensure event contains correct disconnection info"
+        "AddRegressionTest: ensure event contains correct disconnection info"
       ],
       "test_commands": [
         "cargo test -p opencode-acp",
@@ -445,7 +445,7 @@
       ]
     },
     {
-      "id": "FR-109",
+      "id": "FR-124",
       "priority": "P0",
       "title": "Write unit test: status_returns_disconnected_initially",
       "description": "Write unit test: verify status() returns Disconnected state initially",
@@ -460,11 +460,11 @@
       ],
       "impl_notes": "Test should create new AcpClient and verify initial status",
       "dependencies": [
-        "FR-103"
+        "FR-115"
       ]
     },
     {
-      "id": "FR-109",
+      "id": "FR-125",
       "priority": "P0",
       "title": "Write unit test: connect_transitions_state",
       "description": "Write unit test: verify connect() properly transitions connection state",
@@ -479,11 +479,11 @@
       ],
       "impl_notes": "Test should verify full state transition lifecycle",
       "dependencies": [
-        "FR-103"
+        "FR-116"
       ]
     },
     {
-      "id": "FR-109",
+      "id": "FR-126",
       "priority": "P0",
       "title": "Write unit test: send_message_returns_error_when_not_connected",
       "description": "Write unit test: verify send_message() returns error when not connected",
@@ -499,11 +499,11 @@
       ],
       "impl_notes": "Test should verify error handling for send_message when not connected",
       "dependencies": [
-        "FR-103"
+        "FR-119"
       ]
     },
     {
-      "id": "FR-109",
+      "id": "FR-127",
       "priority": "P0",
       "title": "Write unit test: disconnect_transitions_to_disconnected",
       "description": "Write unit test: verify disconnect() transitions to Disconnected state",
@@ -518,11 +518,11 @@
       ],
       "impl_notes": "Test should verify disconnect is idempotent and safe",
       "dependencies": [
-        "FR-103"
+        "FR-120"
       ]
     },
     {
-      "id": "FR-109",
+      "id": "FR-128",
       "priority": "P0",
       "title": "Create ACP integration tests file",
       "description": "Create `crates/acp/tests/acp_tests.rs` for integration tests",
@@ -537,11 +537,11 @@
       ],
       "impl_notes": "Create integration test file structure",
       "dependencies": [
-        "FR-100"
+        "FR-104"
       ]
     },
     {
-      "id": "FR-108",
+      "id": "FR-129",
       "priority": "P1",
       "title": "Implement acp status CLI command",
       "description": "Implement `acp status` CLI command to show ACP connection status",
@@ -556,11 +556,11 @@
       ],
       "impl_notes": "Command should use AcpClient::status() method",
       "dependencies": [
-        "FR-103"
+        "FR-115"
       ]
     },
     {
-      "id": "FR-108",
+      "id": "FR-130",
       "priority": "P1",
       "title": "Implement acp connect CLI command",
       "description": "Implement `acp connect` CLI command to connect to ACP server",
@@ -575,11 +575,11 @@
       ],
       "impl_notes": "Command should use AcpClient::connect() and ::handshake() methods",
       "dependencies": [
-        "FR-103"
+        "FR-104"
       ]
     },
     {
-      "id": "FR-108",
+      "id": "FR-131",
       "priority": "P1",
       "title": "Implement acp ack CLI command",
       "description": "Implement `acp ack` CLI command to acknowledge messages",
@@ -594,11 +594,11 @@
       ],
       "impl_notes": "Command should use AcpClient::ack() method",
       "dependencies": [
-        "FR-103"
+        "FR-104"
       ]
     },
     {
-      "id": "FR-108",
+      "id": "FR-132",
       "priority": "P1",
       "title": "Create ACP CLI module",
       "description": "Create `crates/acp/src/cli.rs` for ACP CLI commands",
@@ -613,11 +613,11 @@
       ],
       "impl_notes": "Module should contain all ACP CLI subcommands",
       "dependencies": [
-        "FR-108"
+        "FR-129"
       ]
     },
     {
-      "id": "FR-110",
+      "id": "FR-133",
       "priority": "P1",
       "title": "Write integration test: full connect-message-disconnect cycle",
       "description": "Write integration test: verify full connect-message-disconnect cycle works",
@@ -633,7 +633,7 @@
       ],
       "impl_notes": "Test should verify complete ACP session lifecycle",
       "dependencies": [
-        "FR-109"
+        "FR-128"
       ]
     },
     {
