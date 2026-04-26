@@ -136,7 +136,7 @@
       "priority": "P0",
       "title": "Implement AcpError enum",
       "description": "Implement `AcpError` enum with all error variants for ACP operations",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify all error variants exist",
         "AddErrorHandlingTest: test error conversion and display"

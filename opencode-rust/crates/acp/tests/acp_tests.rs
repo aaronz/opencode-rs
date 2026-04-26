@@ -121,3 +121,56 @@ fn test_acp_state_fields_accessible() {
     assert!(matches!(state.connection_state, AcpConnectionState::Connected));
     assert_eq!(state.capabilities.len(), 3);
 }
+
+#[test]
+fn test_acp_error_all_variants_exist() {
+    let _ = AcpError::NotConnected;
+    let _ = AcpError::HandshakeFailed("test".to_string());
+    let _ = AcpError::ConnectionFailed("test".to_string());
+    let _ = AcpError::ServerError("test".to_string());
+    let _ = AcpError::InvalidResponse("test".to_string());
+    let _ = AcpError::State("test".to_string());
+}
+
+#[test]
+fn test_acp_error_display_not_connected() {
+    let err = AcpError::NotConnected;
+    assert_eq!(err.to_string(), "Not connected");
+}
+
+#[test]
+fn test_acp_error_display_handshake_failed() {
+    let err = AcpError::HandshakeFailed("timeout".to_string());
+    assert_eq!(err.to_string(), "Handshake failed: timeout");
+}
+
+#[test]
+fn test_acp_error_display_connection_failed() {
+    let err = AcpError::ConnectionFailed("refused".to_string());
+    assert_eq!(err.to_string(), "Connection failed: refused");
+}
+
+#[test]
+fn test_acp_error_display_server_error() {
+    let err = AcpError::ServerError("internal error".to_string());
+    assert_eq!(err.to_string(), "Server returned error: internal error");
+}
+
+#[test]
+fn test_acp_error_display_invalid_response() {
+    let err = AcpError::InvalidResponse("malformed json".to_string());
+    assert_eq!(err.to_string(), "Invalid response: malformed json");
+}
+
+#[test]
+fn test_acp_error_display_state() {
+    let err = AcpError::State("lock poisoned".to_string());
+    assert_eq!(err.to_string(), "State error: lock poisoned");
+}
+
+#[test]
+fn test_acp_error_http_variant_supports_from_trait() {
+    fn _assert_from<T: From<reqwest::Error>>() {}
+    _assert_from::<AcpError>();
+    let _err: AcpError = AcpError::NotConnected;
+}
