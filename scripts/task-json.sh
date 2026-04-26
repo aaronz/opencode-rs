@@ -326,6 +326,7 @@ JSON格式必须包含以下字段：
 }
 
 ## 要求
+0. ⚠️ **重要**：每个任务的 id 必须唯一！绝对不能出现重复的 id。如果任务Markdown中的 id 有重复，必须在JSON中自动去重并使用带后缀的方式区分（如 FR-001, FR-001-2）。生成完成后必须自检确保没有重复ID。
 1. 每个任务必须有清晰可测试的test_criteria，且必须包含自动化测试用例设计
 2. test_commands必须是可自动化执行的验证命令，包括：
    - cargo test 指定具体测试文件或函数（如 cargo test -p opencode-core --test session_storage）

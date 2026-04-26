@@ -430,7 +430,7 @@
       "priority": "P0",
       "title": "Implement bus event publishing for acp.disconnected",
       "description": "Implement bus event publishing for `acp.disconnected` event when disconnected",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify acp.disconnected event is published on disconnect",
         "AddRegressionTest: ensure event contains correct disconnection info"
