@@ -247,7 +247,7 @@ fn test_acp_status_serialize_deserialize() {
     assert!(json.contains("\"server_url\""));
 
     let deserialized: AcpStatus = serde_json::from_str(&json).unwrap();
-    assert_eq!(deserialized.connected, true);
+    assert!(deserialized.connected);
     assert_eq!(deserialized.client_id, Some("client-xyz".to_string()));
     assert_eq!(deserialized.capabilities, vec!["files".to_string(), "search".to_string()]);
     assert_eq!(deserialized.server_url, Some("https://acp.example.com".to_string()));
