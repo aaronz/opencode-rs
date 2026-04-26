@@ -62,7 +62,7 @@ impl AcpClient {
         self.state.lock().unwrap().connection_state.clone()
     }
 
-    pub async fn status(&self) -> Result<AcpStatus, crate::AcpError> {
+    pub async fn status(&self) -> Result<AcpStatus, error::AcpError> {
         let state = self.state.lock().unwrap();
         let connected = matches!(state.connection_state, AcpConnectionState::Connected);
         Ok(AcpStatus {
@@ -78,7 +78,7 @@ impl AcpClient {
         server_url: &str,
         client_id: String,
         capabilities: Vec<String>,
-    ) -> Result<HandshakeResponse, crate::AcpError> {
+    ) -> Result<HandshakeResponse, error::AcpError> {
         let request = HandshakeRequest {
             client_id,
             capabilities,
@@ -91,27 +91,27 @@ impl AcpClient {
             .json(&request)
             .send()
             .await
-            .map_err(crate::AcpError::Http)?;
+            .map_err(error::AcpError::Http)?;
 
         if !response.status().is_success() {
             let error = response
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(crate::AcpError::ServerError(error));
+            return Err(error::AcpError::ServerError(error));
         }
 
         response
             .json::<HandshakeResponse>()
             .await
-            .map_err(|e| crate::AcpError::InvalidResponse(e.to_string()))
+            .map_err(|e| error::AcpError::InvalidResponse(e.to_string()))
     }
 
     pub async fn connect(
         &self,
         server_url: &str,
         client_id: Option<String>,
-    ) -> Result<(), crate::AcpError> {
+    ) -> Result<(), error::AcpError> {
         {
             let mut state = self.state.lock().unwrap();
             state.connection_state = AcpConnectionState::Handshaking;
@@ -139,11 +139,11 @@ impl AcpClient {
         &self,
         handshake_id: &str,
         accepted: bool,
-    ) -> Result<(), crate::AcpError> {
+    ) -> Result<(), error::AcpError> {
         {
             let state = self.state.lock().unwrap();
             if !matches!(state.connection_state, AcpConnectionState::Connected) {
-                return Err(crate::AcpError::NotConnected);
+                return Err(error::AcpError::NotConnected);
             }
         }
 
@@ -158,7 +158,7 @@ impl AcpClient {
                 .unwrap()
                 .server_url
                 .clone()
-                .ok_or(crate::AcpError::NotConnected)?
+                .ok_or(error::AcpError::NotConnected)?
         };
 
         let response = self
@@ -167,14 +167,14 @@ impl AcpClient {
             .json(&request)
             .send()
             .await
-            .map_err(crate::AcpError::Http)?;
+            .map_err(error::AcpError::Http)?;
 
         if !response.status().is_success() {
             let error = response
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(crate::AcpError::ServerError(error));
+            return Err(error::AcpError::ServerError(error));
         }
 
         Ok(())
@@ -185,17 +185,17 @@ impl AcpClient {
         to: &str,
         message_type: &str,
         payload: serde_json::Value,
-    ) -> Result<(), crate::AcpError> {
+    ) -> Result<(), error::AcpError> {
         let (client_id, server_url) = {
             let state = self.state.lock().unwrap();
             if !matches!(state.connection_state, AcpConnectionState::Connected) {
-                return Err(crate::AcpError::NotConnected);
+                return Err(error::AcpError::NotConnected);
             }
             let client_id = state.client_id.clone();
             let server_url = state
                 .server_url
                 .clone()
-                .ok_or(crate::AcpError::NotConnected)?;
+                .ok_or(error::AcpError::NotConnected)?;
             (client_id, server_url)
         };
 
@@ -207,20 +207,20 @@ impl AcpClient {
             .json(&message)
             .send()
             .await
-            .map_err(crate::AcpError::Http)?;
+            .map_err(error::AcpError::Http)?;
 
         if !response.status().is_success() {
             let error = response
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(crate::AcpError::ServerError(error));
+            return Err(error::AcpError::ServerError(error));
         }
 
         Ok(())
     }
 
-    pub async fn disconnect(&self) -> Result<(), crate::AcpError> {
+    pub async fn disconnect(&self) -> Result<(), error::AcpError> {
         {
             let mut state = self.state.lock().unwrap();
             state.connection_state = AcpConnectionState::Disconnected;
