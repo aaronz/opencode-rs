@@ -9,6 +9,48 @@ fn create_test_client() -> AcpClient {
     AcpClient::new(http, "test-client".to_string(), bus)
 }
 
+#[test]
+fn test_acp_client_instantiation_with_all_fields() {
+    let http = reqwest::Client::new();
+    let bus = Arc::new(opencode_core::bus::EventBus::new());
+    let client_id = "test-client-123".to_string();
+
+    let client = AcpClient::new(http, client_id.clone(), bus.clone());
+
+    assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
+    let status = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(client.status())
+        .unwrap();
+    assert!(!status.connected);
+    assert_eq!(status.client_id, Some(client_id));
+}
+
+#[test]
+fn test_acp_client_field_access_via_public_methods() {
+    let http = reqwest::Client::new();
+    let bus = Arc::new(opencode_core::bus::EventBus::new());
+    let client_id = "field-access-test".to_string();
+
+    let client = AcpClient::new(http, client_id.clone(), bus);
+
+    let state = client.connection_state();
+    assert!(matches!(state, AcpConnectionState::Disconnected));
+
+    let status = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(client.status())
+        .unwrap();
+    assert_eq!(status.client_id, Some(client_id));
+    assert!(!status.connected);
+    assert!(status.capabilities.is_empty());
+    assert!(status.server_url.is_none());
+}
+
 #[tokio::test]
 async fn test_status_returns_disconnected_initially() {
     let client = create_test_client();
