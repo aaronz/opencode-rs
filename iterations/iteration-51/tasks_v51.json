@@ -155,7 +155,7 @@
       "priority": "P0",
       "title": "Implement AcpStatus struct",
       "description": "Implement `AcpStatus` struct to represent ACP status information",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AcpStatus can be instantiated",
         "AddUnitTest: verify status fields serialize/deserialize correctly"
@@ -174,7 +174,7 @@
       "priority": "P0",
       "title": "Implement HandshakeRequest type",
       "description": "Implement `HandshakeRequest` type for ACP handshake",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify HandshakeRequest serialization",
         "AddRegressionTest: ensure request can be sent via client"
@@ -193,7 +193,7 @@
       "priority": "P0",
       "title": "Implement HandshakeResponse type",
       "description": "Implement `HandshakeResponse` type for ACP handshake response",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify HandshakeResponse deserialization",
         "AddRegressionTest: ensure response parsing is correct"
@@ -212,7 +212,7 @@
       "priority": "P0",
       "title": "Implement ConnectRequest type",
       "description": "Implement `ConnectRequest` type for ACP connection",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify ConnectRequest serialization",
         "AddRegressionTest: ensure request can be sent via client"
@@ -231,7 +231,7 @@
       "priority": "P0",
       "title": "Implement AckRequest type",
       "description": "Implement `AckRequest` type for ACP acknowledgement",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AckRequest serialization",
         "AddRegressionTest: ensure acknowledgement works correctly"
@@ -250,7 +250,7 @@
       "priority": "P0",
       "title": "Implement AcpMessage type",
       "description": "Implement `AcpMessage` type for ACP message envelope",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify AcpMessage can hold different message types",
         "AddUnitTest: verify message serialization/deserialization"
