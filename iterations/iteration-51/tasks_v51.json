@@ -288,7 +288,7 @@
       "priority": "P0",
       "title": "Implement AcpClient::connect() with state transitions",
       "description": "Implement `AcpClient::connect()` method with proper state transitions",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify connect() transitions state from Disconnected to Connecting",
         "AddUnitTest: verify connect() transitions to Connected on success",
@@ -309,7 +309,7 @@
       "priority": "P0",
       "title": "Implement AcpClient::handshake() method",
       "description": "Implement `AcpClient::handshake()` method for ACP handshake",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify handshake() sends HandshakeRequest",
         "AddUnitTest: verify handshake() parses HandshakeResponse",

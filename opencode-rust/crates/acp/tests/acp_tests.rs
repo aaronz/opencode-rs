@@ -370,3 +370,111 @@ fn test_acp_status_roundtrip() {
     assert_eq!(roundtrip.capabilities, status.capabilities);
     assert_eq!(roundtrip.server_url, status.server_url);
 }
+
+#[tokio::test]
+async fn test_handshake_sends_correct_request() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path, body_json}};
+
+    let mock_server = MockServer::start().await;
+
+    let expected_request = HandshakeRequest {
+        client_id: "my-client-id".to_string(),
+        capabilities: vec!["chat".to_string(), "tasks".to_string()],
+        version: "1.0".to_string(),
+    };
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .and(body_json(&expected_request))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "server-123",
+            "accepted_capabilities": ["chat", "tasks"],
+            "session_token": "session-abc"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    let result = client
+        .handshake(&mock_server.uri(), "my-client-id".to_string(), vec!["chat".to_string(), "tasks".to_string()])
+        .await;
+
+    assert!(result.is_ok());
+    let response = result.unwrap();
+    assert_eq!(response.server_id, "server-123");
+    assert_eq!(response.accepted_capabilities, vec!["chat", "tasks"]);
+    assert_eq!(response.session_token, Some("session-abc".to_string()));
+}
+
+#[tokio::test]
+async fn test_handshake_parses_handshake_response_correctly() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "server_id": "remote-server-xyz",
+            "accepted_capabilities": ["chat", "files", "search"],
+            "session_token": "token-12345"
+        })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    let response = client
+        .handshake(&mock_server.uri(), "client-abc".to_string(), vec!["chat".to_string()])
+        .await
+        .unwrap();
+
+    assert_eq!(response.server_id, "remote-server-xyz");
+    assert_eq!(response.accepted_capabilities, vec!["chat", "files", "search"]);
+    assert_eq!(response.session_token, Some("token-12345".to_string()));
+}
+
+#[tokio::test]
+async fn test_handshake_fails_when_server_returns_error() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    let result = client
+        .handshake(&mock_server.uri(), "my-client".to_string(), vec!["chat".to_string()])
+        .await;
+
+    assert!(result.is_err());
+    assert!(matches!(result.unwrap_err(), AcpError::ServerError(_)));
+}
+
+#[tokio::test]
+async fn test_handshake_fails_on_invalid_response() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/handshake"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("not valid json"))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+    let result = client
+        .handshake(&mock_server.uri(), "my-client".to_string(), vec!["chat".to_string()])
+        .await;
+
+    assert!(result.is_err());
+    assert!(matches!(result.unwrap_err(), AcpError::InvalidResponse(_)));
+}
