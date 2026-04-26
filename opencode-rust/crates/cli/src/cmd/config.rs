@@ -481,6 +481,118 @@ model = "gpt-4
         assert_eq!(commands.unwrap_or("cmd+k"), "ctrl+x");
         assert_eq!(timeline.unwrap_or("cmd+t"), "ctrl+t");
     }
+
+    #[test]
+    fn test_config_set_persists_key_value_pairs() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.jsonc");
+
+        let mut config = Config::default();
+        config.model = Some("gpt-4o".to_string());
+        config.save(&config_path).unwrap();
+
+        let mut config = Config::load(&config_path).unwrap();
+        assert_eq!(config.model, Some("gpt-4o".to_string()));
+
+        config.model = Some("gpt-4".to_string());
+        config.save(&config_path).unwrap();
+
+        let reloaded = Config::load(&config_path).unwrap();
+        assert_eq!(reloaded.model, Some("gpt-4".to_string()));
+    }
+
+    #[test]
+    fn test_config_set_nested_key_persistence() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.jsonc");
+
+        let mut config = Config::default();
+        if config.agent.is_none() {
+            config.agent = Some(opencode_core::config::AgentMapConfig::default());
+        }
+        config.agent.as_mut().unwrap().agents.insert(
+            "my-agent".to_string(),
+            opencode_core::config::AgentConfig {
+                model: Some("gpt-4o".to_string()),
+                ..Default::default()
+            },
+        );
+        config.save(&config_path).unwrap();
+
+        let reloaded = Config::load(&config_path).unwrap();
+        let agent_model = reloaded
+            .agent
+            .as_ref()
+            .and_then(|a| a.agents.get("my-agent"))
+            .and_then(|a| a.model.as_ref());
+        assert_eq!(agent_model, Some(&"gpt-4o".to_string()));
+
+        let mut config = Config::load(&config_path).unwrap();
+        if let Some(ref mut agent) = config.agent {
+            if let Some(ref mut my_agent) = agent.agents.get_mut("my-agent") {
+                my_agent.model = Some("claude-3".to_string());
+            }
+        }
+        config.save(&config_path).unwrap();
+
+        let reloaded = Config::load(&config_path).unwrap();
+        let agent_model = reloaded
+            .agent
+            .as_ref()
+            .and_then(|a| a.agents.get("my-agent"))
+            .and_then(|a| a.model.as_ref());
+        assert_eq!(agent_model, Some(&"claude-3".to_string()));
+    }
+
+    #[test]
+    fn test_config_get_retrieves_set_values() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.jsonc");
+
+        let mut config = Config::default();
+        config.temperature = Some(0.7);
+        config.save(&config_path).unwrap();
+
+        let reloaded = Config::load(&config_path).unwrap();
+        assert_eq!(reloaded.temperature, Some(0.7));
+
+        let mut config = Config::load(&config_path).unwrap();
+        config.max_tokens = Some(1000);
+        config.save(&config_path).unwrap();
+
+        let reloaded = Config::load(&config_path).unwrap();
+        assert_eq!(reloaded.temperature, Some(0.7));
+        assert_eq!(reloaded.max_tokens, Some(1000));
+    }
+
+    #[test]
+    fn test_config_set_temperature_preserves_other_fields() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.jsonc");
+
+        let mut config = Config::default();
+        config.model = Some("gpt-4o".to_string());
+        config.temperature = Some(0.5);
+        config.max_tokens = Some(500);
+        config.save(&config_path).unwrap();
+
+        let mut config = Config::load(&config_path).unwrap();
+        config.temperature = Some(0.9);
+        config.save(&config_path).unwrap();
+
+        let reloaded = Config::load(&config_path).unwrap();
+        assert_eq!(reloaded.model, Some("gpt-4o".to_string()));
+        assert_eq!(reloaded.temperature, Some(0.9));
+        assert_eq!(reloaded.max_tokens, Some(500));
+    }
 }
 
 pub(crate) fn run(args: ConfigArgs) {

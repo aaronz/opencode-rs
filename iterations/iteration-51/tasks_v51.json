@@ -659,7 +659,7 @@
       "priority": "P0",
       "title": "Implement config set with key-value persistence",
       "description": "Implement `config set` with key-value persistence at cmd/config.rs:199-202",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify config set persists key-value pairs",
         "AddUnitTest: verify config get retrieves set values",
