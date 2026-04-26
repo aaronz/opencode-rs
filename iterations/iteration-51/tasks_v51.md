@@ -108,7 +108,7 @@
 | # | Task | FR | Status | Location |
 |---|------|-----|--------|----------|
 | 4.1 | Parse environment variables before config load | FR-019 | TODO | `main.rs` |
-| 4.2 | Model visibility config integration | FR-020 | TODO | `cmd/models.rs:238-267` |
+| 4.2 | Model visibility config integration | FR-020 | ✅ Done | `cmd/models.rs:238-267` |
 | 4.3 | Default model from config (remove hardcoded "gpt-4o") | FR-021 | TODO | `cmd/run.rs:226` |
 
 ---

@@ -235,6 +235,54 @@ mod tests {
         let _ = std::fs::remove_file(&hidden_file);
         std::env::remove_var("OPENCODE_CONFIG_DIR");
     }
+
+    #[test]
+    fn test_model_visibility_is_configurable() {
+        let temp_dir = std::env::temp_dir();
+        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
+        let hidden_file = temp_dir.join("opencode-hidden-models.json");
+        let _ = std::fs::remove_file(&hidden_file);
+
+        let mut hidden = HashSet::new();
+        hidden.insert("gpt-4o".to_string());
+        hidden.insert("claude-3-5-sonnet".to_string());
+        save_hidden_models(&hidden);
+
+        let loaded = load_hidden_models();
+        assert!(loaded.contains("gpt-4o"));
+        assert!(loaded.contains("claude-3-5-sonnet"));
+        assert!(!loaded.contains("gpt-3.5-turbo"));
+
+        let _ = std::fs::remove_file(&hidden_file);
+        std::env::remove_var("OPENCODE_CONFIG_DIR");
+    }
+
+    #[test]
+    fn test_hidden_models_filtered_from_list() {
+        let temp_dir = std::env::temp_dir();
+        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
+        let hidden_file = temp_dir.join("opencode-hidden-models.json");
+        let _ = std::fs::remove_file(&hidden_file);
+
+        let mut hidden = HashSet::new();
+        hidden.insert("gpt-4o".to_string());
+        save_hidden_models(&hidden);
+
+        let hidden_models = load_hidden_models();
+        assert!(hidden_models.contains("gpt-4o"));
+
+        let registry = ModelRegistry::default();
+        let all_models = registry.list();
+        let visible_models: Vec<_> = all_models
+            .into_iter()
+            .filter(|m| !hidden_models.contains(&m.name))
+            .collect();
+
+        assert!(!visible_models.iter().any(|m| m.name == "gpt-4o"));
+
+        let _ = std::fs::remove_file(&hidden_file);
+        std::env::remove_var("OPENCODE_CONFIG_DIR");
+    }
 }
 
 fn hidden_models_path() -> PathBuf {

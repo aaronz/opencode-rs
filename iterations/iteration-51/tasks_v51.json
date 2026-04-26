@@ -868,7 +868,7 @@
       "priority": "P2",
       "title": "Parse environment variables before config load",
       "description": "Parse environment variables before config load in main.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify env vars take precedence over config",
         "AddRegressionTest: ensure existing config loading still works"
@@ -885,7 +885,7 @@
       "priority": "P2",
       "title": "Model visibility config integration",
       "description": "Model visibility config integration at cmd/models.rs:238-267",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify model visibility is configurable",
         "AddUnitTest: verify hidden models are filtered from list"
