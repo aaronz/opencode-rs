@@ -2,6 +2,32 @@
 
 Rust implementation of the AI coding agent.
 
+## Data Directory
+
+opencode-rs stores configuration, data, and cache files in the following locations:
+
+| Type | Linux/macOS | Windows |
+|------|-------------|---------|
+| Config | `~/.config/opencode-rs/` | `%APPDATA%/opencode-rs/` |
+| Data | `~/.local/share/opencode-rs/` | `%LOCALAPPDATA%/opencode-rs/` |
+| Cache | `~/.cache/opencode-rs/` | `%LOCALAPPDATA%/opencode-rs/cache/` |
+| Logs | `~/.config/opencode-rs/logs/` | `%APPDATA%/opencode-rs/logs/` |
+
+### Environment Variables
+
+You can override these paths with environment variables:
+
+- `OPENCODE_RS_CONFIG_DIR` - Override config directory
+- `OPENCODE_RS_DATA_DIR` - Override data directory
+- `OPENCODE_RS_CACHE_DIR` - Override cache directory
+- `OPENCODE_RS_LOG_DIR` - Override log directory
+
+### Project Local Configuration
+
+opencode-rs looks for project-specific configuration in `.opencode-rs/` directory in your project root.
+
+**Note:** opencode-rs does NOT use or modify the `.opencode/` directory used by the original opencode project. They are completely separate.
+
 ## Installation
 
 ```bash

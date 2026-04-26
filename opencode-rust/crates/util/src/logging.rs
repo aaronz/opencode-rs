@@ -138,12 +138,8 @@ impl Default for Logger {
 }
 
 pub fn log_file_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home)
-        .join(".config")
-        .join("opencode")
-        .join("logs")
-        .join("opencode.log")
+    use opencode_core::paths::Paths;
+    Paths::log_file()
 }
 
 #[cfg(test)]
@@ -177,5 +173,21 @@ mod tests {
         let rotation = Rotation::new(10, 5);
         assert_eq!(rotation.max_size_bytes, 10 * 1024 * 1024);
         assert_eq!(rotation.max_files, 5);
+    }
+
+    #[test]
+    fn test_log_file_path_uses_opencode_rs_paths() {
+        let log_path = log_file_path();
+        let log_str = log_path.to_string_lossy();
+        assert!(
+            log_str.contains("opencode-rs"),
+            "log_file_path should use opencode-rs paths, got: {}",
+            log_str
+        );
+        assert!(
+            !log_str.contains("/opencode/"),
+            "log_file_path should NOT use /opencode/ paths, got: {}",
+            log_str
+        );
     }
 }

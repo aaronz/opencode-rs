@@ -5266,6 +5266,7 @@ name = "opencode-util"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "opencode-core",
  "rand 0.8.6",
  "reqwest",
  "serde",
