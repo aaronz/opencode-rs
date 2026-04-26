@@ -351,7 +351,7 @@
       "priority": "P0",
       "title": "Implement AcpClient::send_message() method",
       "description": "Implement `AcpClient::send_message()` method to send ACP messages",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify send_message() sends message successfully when connected",
         "AddUnitTest: verify send_message() returns error when not connected",

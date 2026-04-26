@@ -535,3 +535,47 @@ async fn test_ack_returns_success_response() {
     let result = client.ack("handshake-789", false).await;
     assert!(result.is_ok());
 }
+
+#[tokio::test]
+async fn test_send_message_sends_successfully_when_connected() {
+    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
+
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("POST"))
+        .and(path("/api/acp/message"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({ "ok": true })))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = create_test_client();
+
+    {
+        let mut state = client.state().lock().unwrap();
+        state.connection_state = opencode_acp::AcpConnectionState::Connected;
+        state.server_url = Some(mock_server.uri());
+    }
+
+    let result = client
+        .send_message("srv", "chat", serde_json::json!({"text": "hello"}))
+        .await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_send_message_handles_network_errors() {
+    let client = create_test_client();
+
+    {
+        let mut state = client.state().lock().unwrap();
+        state.connection_state = opencode_acp::AcpConnectionState::Connected;
+        state.server_url = Some("http://localhost:1".to_string());
+    }
+
+    let result = client
+        .send_message("srv", "chat", serde_json::json!({"text": "hello"}))
+        .await;
+    assert!(result.is_err());
+    assert!(matches!(result.unwrap_err(), AcpError::Http(_)));
+}
