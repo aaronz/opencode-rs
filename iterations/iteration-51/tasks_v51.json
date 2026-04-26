@@ -696,7 +696,7 @@
       "priority": "P1",
       "title": "Implement account login/logout/status commands",
       "description": "Implement `account login/logout/status` commands in cmd/account.rs",
-      "status": "in_progress",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify login authenticates and stores credentials",
         "AddUnitTest: verify logout clears credentials",
@@ -714,7 +714,7 @@
       "priority": "P1",
       "title": "Implement attach command",
       "description": "Implement `attach` command at cmd/attach.rs:83-90",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify attach command syntax",
         "AddIntegrationTest: verify attach connects to session"
