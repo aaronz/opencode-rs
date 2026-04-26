@@ -1,10 +1,10 @@
 use chrono::Utc;
 use clap::{Args, Subcommand};
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use opencode_acp::AcpClient;
+use opencode_core::acp::AcpHandshakeResponse;
 use opencode_core::bus::{EventBus, SharedEventBus};
 use opencode_core::config::{AcpConfig, AcpSession, Config, ServerConfig};
 
@@ -47,15 +47,6 @@ pub(crate) enum AcpAction {
         #[arg(long, num_args = 1..=1)]
         accepted: String,
     },
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AcpHandshakeResponse {
-    pub version: String,
-    pub server_id: String,
-    pub session_id: String,
-    pub accepted: bool,
-    pub error: Option<String>,
 }
 
 const DEFAULT_SESSION_EXPIRY_SECS: i64 = 3600;
