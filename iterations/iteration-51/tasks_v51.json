@@ -449,7 +449,7 @@
       "priority": "P0",
       "title": "Write unit test: status_returns_disconnected_initially",
       "description": "Write unit test: verify status() returns Disconnected state initially",
-      "status": "todo",
+      "status": "done",
       "test_criteria": [
         "AddUnitTest: verify new AcpClient has Disconnected status initially",
         "RunTestSuite: cargo test -p opencode-acp -- status_returns_disconnected_initially"
