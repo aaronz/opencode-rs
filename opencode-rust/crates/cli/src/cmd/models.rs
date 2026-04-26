@@ -7,8 +7,12 @@ use serde_json::json;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::cmd::load_config;
+
+#[allow(dead_code)]
+static TEST_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Args, Debug)]
 pub(crate) struct ModelsArgs {
@@ -218,11 +222,12 @@ mod tests {
 
     #[test]
     fn test_save_and_load_hidden_models() {
-        let temp_dir = std::env::temp_dir().join("opencode-test-save-load");
-        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
-        std::fs::create_dir_all(&temp_dir).ok();
-        let hidden_file = temp_dir.join("opencode-hidden-models.json");
-        let _ = std::fs::remove_file(&hidden_file);
+        let _lock = TEST_LOCK.lock().unwrap();
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::env::set_var(
+            "OPENCODE_CONFIG_DIR",
+            temp_dir.path().to_string_lossy().as_ref(),
+        );
 
         let mut hidden = HashSet::new();
         hidden.insert("model-1".to_string());
@@ -233,17 +238,17 @@ mod tests {
         assert!(loaded.contains("model-1"));
         assert!(loaded.contains("model-2"));
 
-        let _ = std::fs::remove_file(&hidden_file);
         std::env::remove_var("OPENCODE_CONFIG_DIR");
     }
 
     #[test]
     fn test_model_visibility_is_configurable() {
-        let temp_dir = std::env::temp_dir().join("opencode-test-visibility");
-        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
-        std::fs::create_dir_all(&temp_dir).ok();
-        let hidden_file = temp_dir.join("opencode-hidden-models.json");
-        let _ = std::fs::remove_file(&hidden_file);
+        let _lock = TEST_LOCK.lock().unwrap();
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::env::set_var(
+            "OPENCODE_CONFIG_DIR",
+            temp_dir.path().to_string_lossy().as_ref(),
+        );
 
         let mut hidden = HashSet::new();
         hidden.insert("gpt-4o".to_string());
@@ -255,17 +260,17 @@ mod tests {
         assert!(loaded.contains("claude-3-5-sonnet"));
         assert!(!loaded.contains("gpt-3.5-turbo"));
 
-        let _ = std::fs::remove_file(&hidden_file);
         std::env::remove_var("OPENCODE_CONFIG_DIR");
     }
 
     #[test]
     fn test_hidden_models_filtered_from_list() {
-        let temp_dir = std::env::temp_dir().join("opencode-test-hidden");
-        std::env::set_var("OPENCODE_CONFIG_DIR", temp_dir.to_string_lossy().as_ref());
-        std::fs::create_dir_all(&temp_dir).ok();
-        let hidden_file = temp_dir.join("opencode-hidden-models.json");
-        let _ = std::fs::remove_file(&hidden_file);
+        let _lock = TEST_LOCK.lock().unwrap();
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::env::set_var(
+            "OPENCODE_CONFIG_DIR",
+            temp_dir.path().to_string_lossy().as_ref(),
+        );
 
         let mut hidden = HashSet::new();
         hidden.insert("gpt-4o".to_string());
@@ -283,7 +288,6 @@ mod tests {
 
         assert!(!visible_models.iter().any(|m| m.name == "gpt-4o"));
 
-        let _ = std::fs::remove_file(&hidden_file);
         std::env::remove_var("OPENCODE_CONFIG_DIR");
     }
 }
@@ -395,7 +399,8 @@ pub(crate) fn run(args: ModelsArgs) {
                     println!("  {}", model_id);
                 }
             } else {
-                println!("Visibility action requires --hide, --show, or --list-hidden");
+                eprintln!("Visibility action requires --hide, --show, or --list-hidden");
+                std::process::exit(1);
             }
         }
         Some(ModelsAction::Refresh) => {

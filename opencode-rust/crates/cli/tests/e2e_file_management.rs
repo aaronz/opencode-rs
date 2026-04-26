@@ -6,8 +6,8 @@ mod common;
 fn test_file_tree_navigation() {
     let harness = TestHarness::setup();
 
-    harness.setup_file("src/main.rs", "fn main() {}");
-    harness.setup_file("src/lib.rs", "pub fn lib() {}");
+    harness.setup_file("main.rs", "fn main() {}");
+    harness.setup_file("lib.rs", "pub fn lib() {}");
     harness.setup_file("Cargo.toml", "[package]");
 
     let output = harness.run_cli(&["files", "list", "--json"]);

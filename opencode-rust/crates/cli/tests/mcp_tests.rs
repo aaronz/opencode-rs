@@ -56,9 +56,15 @@ fn test_mcp_remove_command() {
     let output = harness.run_cli(&["mcp", "remove", "some-server"]);
 
     assert!(
-        output.status.success() || output.status.code() == Some(0),
-        "mcp remove should succeed even if server doesn't exist, got: {:?}",
-        output.status
+        !output.status.success(),
+        "mcp remove should fail when server doesn't exist"
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("No MCP servers configured") || stderr.contains("not found"),
+        "Error message should indicate server not found, got: {}",
+        stderr
     );
 }
 
