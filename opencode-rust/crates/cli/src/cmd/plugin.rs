@@ -1,8 +1,22 @@
 use clap::{Args, Subcommand};
+use opencode_config::PluginConfig;
 use opencode_core::Config;
 use serde::{Deserialize, Serialize};
 
 use crate::cmd::load_config;
+
+fn get_installed_plugins(config: &Config) -> Vec<String> {
+    config
+        .plugin
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| match p {
+            PluginConfig::Simple(s) => s,
+            PluginConfig::WithConfig { path, .. } => path,
+        })
+        .collect()
+}
 
 #[derive(Args, Debug)]
 pub(crate) struct PluginArgs {
@@ -40,10 +54,6 @@ fn save_config(config: &Config) {
         eprintln!("Failed to save config: {}", error);
         std::process::exit(1);
     }
-}
-
-fn get_installed_plugins(config: &Config) -> Vec<String> {
-    config.plugin.clone().unwrap_or_default()
 }
 
 fn discover_plugins() -> Vec<PluginDiscoveryInfo> {
@@ -96,7 +106,7 @@ pub(crate) fn run(args: PluginArgs) {
             }
 
             plugins.push(name.clone());
-            config.plugin = Some(plugins);
+            config.plugin = Some(plugins.into_iter().map(PluginConfig::Simple).collect());
 
             save_config(&config);
             println!("Plugin '{}' installed successfully", name);
@@ -139,7 +149,7 @@ pub(crate) fn run(args: PluginArgs) {
             }
 
             plugins.retain(|p| p != &name);
-            config.plugin = Some(plugins);
+            config.plugin = Some(plugins.into_iter().map(PluginConfig::Simple).collect());
 
             save_config(&config);
             println!("Plugin '{}' removed successfully", name);
@@ -192,7 +202,7 @@ mod tests {
     #[test]
     fn test_plugin_install_already_installed() {
         let config = Config {
-            plugin: Some(vec!["test-plugin".to_string()]),
+            plugin: Some(vec![PluginConfig::Simple("test-plugin".to_string())]),
             ..Default::default()
         };
         let installed = get_installed_plugins(&config);
