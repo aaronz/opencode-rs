@@ -5913,6 +5913,12 @@ OpenCode Agent Configuration
         &mut self,
         _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> io::Result<()> {
+        self.check_connect_events();
+
+        if !matches!(self.mode, AppMode::ConnectProgress) {
+            return Ok(());
+        }
+
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 if let KeyCode::Char('c') = key.code {
