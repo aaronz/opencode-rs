@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use opencode_core::{Message, Session};
+use opencode_llm::provider::{EventCallback, LlmEvent};
 use opencode_llm::Provider;
 use opencode_permission::AgentPermissionScope;
 use opencode_tools::registry::ToolCall as ToolsToolCall;
@@ -10,7 +11,7 @@ use opencode_tools::{ToolContext, ToolRegistry};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::{Agent, AgentResponse, AgentType};
+use crate::{Agent, AgentResponse, AgentType, ToolCall};
 
 /// Result from a subagent execution, containing the response
 /// and metadata about the subagent run.
@@ -339,6 +340,139 @@ impl AgentRuntime {
             tracing::debug!(session_id = %session_id, iteration = iteration, tool_count = response.tool_calls.len(), "Processing tool calls");
 
             for call in response
+                .tool_calls
+                .iter()
+                .take(self.config.max_tool_results_per_iteration)
+            {
+                let tool_call = ToolsToolCall {
+                    name: call.name.clone(),
+                    args: call.arguments.clone(),
+                    ctx: None,
+                };
+
+                let ctx = ToolContext {
+                    session_id: self.session.read().await.id.to_string(),
+                    message_id: Uuid::new_v4().to_string(),
+                    agent: agent.name().to_string(),
+                    worktree: None,
+                    directory: None,
+                    permission_scope: Some(self.config.permission_scope),
+                };
+
+                tracing::debug!(session_id = %session_id, tool = %call.name, "Executing tool");
+                let result = tools
+                    .execute(&call.name, tool_call.args, Some(ctx))
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(session_id = %session_id, tool = %call.name, error = %e, "Tool execution failed");
+                        RuntimeError::ToolExecutionFailed {
+                            tool: call.name.clone(),
+                            reason: e.to_string(),
+                        }
+                    })?;
+
+                let result_text = if result.success {
+                    tracing::debug!(session_id = %session_id, tool = %call.name, "Tool execution succeeded");
+                    result.content.clone()
+                } else {
+                    tracing::warn!(session_id = %session_id, tool = %call.name, error = ?result.error, "Tool execution returned error");
+                    format!("Error: {}", result.error.clone().unwrap_or_default())
+                };
+
+                let result_message =
+                    Message::user(format!("Tool '{}' result:\n{}", call.name, result_text));
+                self.session.write().await.add_message(result_message);
+            }
+        }
+
+        let assistant_msg = Message::assistant(&final_response.content);
+        self.session.write().await.add_message(assistant_msg);
+
+        Ok(final_response)
+    }
+
+    pub async fn run_loop_streaming<A: Agent>(
+        &self,
+        agent: &A,
+        provider: &dyn Provider,
+        tools: &ToolRegistry,
+    ) -> Result<AgentResponse, RuntimeError> {
+        if !self.primary_tracker.is_active() {
+            tracing::error!("No active primary agent");
+            return Err(RuntimeError::NoActivePrimaryAgent);
+        }
+        if self.primary_tracker.active_type() != Some(agent.agent_type()) {
+            tracing::error!(current = ?self.primary_tracker.active_type(), requested = ?agent.agent_type(), "Agent type mismatch");
+            return Err(RuntimeError::NoSuchAgent {
+                agent_type: agent.agent_type(),
+            });
+        }
+
+        let session_id = self.session.read().await.id.to_string();
+        tracing::info!(session_id = %session_id, agent = ?agent.agent_type(), max_iterations = self.config.max_iterations, "Starting streaming agent run loop");
+
+        let mut iteration = 0;
+        let mut final_response = AgentResponse {
+            content: String::new(),
+            tool_calls: Vec::new(),
+        };
+
+        loop {
+            iteration += 1;
+            if iteration > self.config.max_iterations {
+                tracing::warn!(session_id = %session_id, iteration = iteration, limit = self.config.max_iterations, "Max iterations exceeded");
+                return Err(RuntimeError::MaxIterationsExceeded {
+                    limit: self.config.max_iterations,
+                });
+            }
+
+            tracing::debug!(session_id = %session_id, iteration = iteration, "Agent streaming iteration starting");
+
+            let content_buffer = Arc::new(std::sync::Mutex::new(String::new()));
+            let tool_calls_buffer = Arc::new(std::sync::Mutex::new(Vec::new()));
+            let cb_clone = content_buffer.clone();
+            let tc_clone = tool_calls_buffer.clone();
+
+            let events_callback: EventCallback = Box::new(move |event| {
+                match event {
+                    LlmEvent::TextChunk(text) => {
+                        if let Ok(mut guard) = cb_clone.lock() {
+                            guard.push_str(&text);
+                        }
+                    }
+                    LlmEvent::ToolCall { name, arguments, id } => {
+                        if let Ok(mut guard) = tc_clone.lock() {
+                            guard.push(ToolCall { id, name, arguments });
+                        }
+                    }
+                    _ => {}
+                }
+            });
+
+            agent
+                .run_streaming(&mut *self.session.write().await, provider, tools, events_callback)
+                .await
+                .map_err(|e| {
+                    tracing::error!(session_id = %session_id, error = %e, "Agent run_streaming failed");
+                    RuntimeError::ToolExecutionFailed {
+                        tool: "agent".to_string(),
+                        reason: e.to_string(),
+                    }
+                })?;
+
+            if let Ok(mut guard) = content_buffer.lock() {
+                final_response.content = guard.clone();
+            }
+            final_response.tool_calls = tool_calls_buffer.lock().unwrap().clone();
+
+            if final_response.tool_calls.is_empty() {
+                tracing::info!(session_id = %session_id, iteration = iteration, response_len = final_response.content.len(), "Agent completed successfully");
+                break;
+            }
+
+            tracing::debug!(session_id = %session_id, iteration = iteration, tool_count = final_response.tool_calls.len(), "Processing tool calls");
+
+            for call in final_response
                 .tool_calls
                 .iter()
                 .take(self.config.max_tool_results_per_iteration)
