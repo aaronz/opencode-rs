@@ -682,6 +682,10 @@ impl OAuthFlow {
 }
 
 fn open_browser(url: &str) -> Result<(), String> {
+    if std::env::var("OPENCODE_TESTING").is_ok() {
+        return Ok(());
+    }
+
     let cmd = if cfg!(target_os = "macos") {
         "open"
     } else if cfg!(target_os = "linux") {

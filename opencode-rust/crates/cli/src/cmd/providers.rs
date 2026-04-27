@@ -98,6 +98,10 @@ fn provider_name(id: &str) -> String {
 }
 
 fn open_browser(url: &str) -> Result<(), String> {
+    if std::env::var("OPENCODE_TESTING").is_ok() {
+        return Ok(());
+    }
+
     let result = if cfg!(target_os = "macos") {
         Command::new("open").arg(url).status()
     } else if cfg!(target_os = "windows") {

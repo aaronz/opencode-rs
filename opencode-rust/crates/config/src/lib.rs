@@ -154,14 +154,49 @@ pub struct CliOverrideConfig {
     pub default_agent: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum LogLevel {
     Trace,
     Debug,
     Info,
     Warn,
     Error,
+}
+
+impl<'de> Deserialize<'de> for LogLevel {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct LogLevelVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for LogLevelVisitor {
+            type Value = LogLevel;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("trace, debug, info, warn, error, TRACE, DEBUG, INFO, WARN, ERROR, WARNING")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<LogLevel, E>
+            where
+                E: serde::de::Error,
+            {
+                match value.to_uppercase().as_str() {
+                    "TRACE" | "trace" => Ok(LogLevel::Trace),
+                    "DEBUG" | "debug" => Ok(LogLevel::Debug),
+                    "INFO" | "info" => Ok(LogLevel::Info),
+                    "WARN" | "warn" | "WARNING" => Ok(LogLevel::Warn),
+                    "ERROR" | "error" => Ok(LogLevel::Error),
+                    _ => Err(serde::de::Error::unknown_variant(
+                        value,
+                        &["trace", "debug", "info", "warn", "error", "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "WARNING"],
+                    )),
+                }
+            }
+        }
+
+        deserializer.deserialize_str(LogLevelVisitor)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -4749,5 +4784,34 @@ mod tests {
     fn test_config_get_unknown_key_returns_none() {
         let config = Config::default();
         assert_eq!(config.get("unknown.key"), None);
+    }
+
+    // LogLevel case-insensitivity tests
+    #[test]
+    fn test_loglevel_uppercase_parses() {
+        let json = r#"{"logLevel": "DEBUG"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.log_level, Some(LogLevel::Debug));
+    }
+
+    #[test]
+    fn test_loglevel_uppercase_warn_parses() {
+        let json = r#"{"logLevel": "WARN"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.log_level, Some(LogLevel::Warn));
+    }
+
+    #[test]
+    fn test_loglevel_uppercase_error_parses() {
+        let json = r#"{"logLevel": "ERROR"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.log_level, Some(LogLevel::Error));
+    }
+
+    #[test]
+    fn test_loglevel_lowercase_still_works() {
+        let json = r#"{"logLevel": "debug"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.log_level, Some(LogLevel::Debug));
     }
 }
