@@ -178,6 +178,17 @@ pub struct StreamChunk {
     pub done: bool,
 }
 
+#[derive(Debug, Clone)]
+pub enum LlmEvent {
+    TextChunk(String),
+    ToolCall { name: String, arguments: serde_json::Value, id: String },
+    ToolResult { id: String, output: String },
+    Done,
+    Error(String),
+}
+
+pub type EventCallback = Box<dyn FnMut(LlmEvent) + Send>;
+
 #[async_trait]
 pub trait Provider: Send + Sync + sealed::Sealed {
     async fn complete(&self, prompt: &str, context: Option<&str>) -> Result<String, OpenCodeError>;
@@ -189,6 +200,18 @@ pub trait Provider: Send + Sync + sealed::Sealed {
         let content = self.complete(prompt, None).await?;
         callback(content);
         Ok(())
+    }
+
+    async fn complete_with_events(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+        mut callback: EventCallback,
+    ) -> Result<Option<String>, OpenCodeError> {
+        let content = self.complete(prompt, context).await?;
+        callback(LlmEvent::TextChunk(content));
+        callback(LlmEvent::Done);
+        Ok(None)
     }
 
     async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError> {
@@ -245,6 +268,18 @@ impl<P: Provider> CancellableProvider<'_, P> {
             return Err(crate::error::LlmError::Cancelled.into());
         }
         self.inner.complete_streaming(prompt, callback).await
+    }
+
+    pub async fn complete_with_events(
+        &self,
+        prompt: &str,
+        context: Option<&str>,
+        callback: EventCallback,
+    ) -> Result<Option<String>, OpenCodeError> {
+        if self.cancellation_token.is_cancelled() {
+            return Err(crate::error::LlmError::Cancelled.into());
+        }
+        self.inner.complete_with_events(prompt, context, callback).await
     }
 
     pub async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError> {
