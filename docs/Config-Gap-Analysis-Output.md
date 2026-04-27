@@ -2,16 +2,17 @@
 
 ## 1. Executive Summary
 
-**Compatibility Status: PARTIALLY COMPATIBLE**
+**Compatibility Status: MOSTLY COMPATIBLE** ✅
 
-opencode-rs shares the core configuration architecture with opencode but diverges in several significant areas:
+opencode-rs now shares the core configuration architecture with opencode after fixing the P0 gaps:
 
-- **Shared**: ~70% of field names, basic structure, permission model
-- **Incompatible**: LogLevel case, ShareMode enum values, Agent/Mode structure, Provider model
-- **Missing**: `shell` field, certain agent modes (`subagent`, `primary`, `all`), `logLevel` upper case
-- **Extra**: `provider` objects, `mcp`, `formatter`, `lsp`, `tui`, `compaction`, `experimental`, `github`, `enterprise` configs
+- **FIXED (P0)**: LogLevel case sensitivity - now accepts uppercase and lowercase
+- **FIXED (P0)**: Agent/Mode structure - now supports deprecated `mode` field with migration
+- **FIXED (P1)**: Plugin format - now supports `[path, config]` tuple format
+- **FIXED (P2)**: `shell` field - now available for default shell configuration
+- **Remaining**: ShareMode extended enum, Agent mode values, Server AdditionalProperties, etc.
 
-The most critical gaps are **P0** (blocks core compatibility): LogLevel case sensitivity and the `mode` vs `agent` structural difference.
+The P0 gaps (LogLevel case and mode/agent structure) have been resolved. opencode-rs can now parse official opencode config files that use uppercase log levels and the deprecated `mode` field format.
 
 ---
 
@@ -91,11 +92,11 @@ crates/config/src/
 
 ## 4. Field-by-Field Compatibility Matrix
 
-| Official Field | Official Type | opencode-rs | Gap Type | Severity |
-|----------------|---------------|-------------|----------|----------|
-| `shell` | `string` | **MISSING** | Missing | P2 |
-| `logLevel` | `enum: DEBUG\|INFO\|WARN\|ERROR` | `log_level: trace\|debug\|info\|warn\|error` | Wrong case + extra trace | P0 |
-| `server.port` | `integer` | `Option<u16>` | None | - |
+| Official Field | Official Type | opencode-rs | Gap Type | Severity | Status |
+|----------------|---------------|-------------|----------|----------|--------|
+| `shell` | `string` | `Option<String>` | ✅ FIXED | P2 | Fixed |
+| `logLevel` | `enum: DEBUG\|INFO\|WARN\|ERROR` | `trace\|debug\|info\|warn\|error` (case-insensitive) | ✅ FIXED | P0 | Fixed |
+| `server.port` | `integer` | `Option<u16>` | None | - | - |
 | `server.hostname` | `string` | `Option<String>` | None | - |
 | `server.mdns` | `boolean` | `Option<bool>` | None | - |
 | `server.mdnsDomain` | `string` | `mdns_domain` (snake_case) | Minor | P3 |
@@ -106,7 +107,7 @@ crates/config/src/
 | `skills.urls` | `string[] (uris)` | `Option<Vec<String>>` | None | - |
 | `watcher.ignore` | `string[]` | `Option<Vec<String>>` | None | - |
 | `snapshot` | `boolean` | `Option<bool>` | None | - |
-| `plugin` | `array (string\|[string,object])` | `Option<Vec<String>>` | Partially supported | P1 |
+| `plugin` | `array (string\|[string,object])` | `Option<Vec<PluginConfig>>` | ✅ FIXED | P1 | Fixed |
 | `share` | `enum: manual\|auto\|disabled` | `enum: manual\|auto\|disabled\|read_only\|collaborative\|controlled` | Extra values | P1 |
 | `autoshare` | `boolean` | `Option<bool>` (deprecated) | None | - |
 | `autoupdate` | `boolean\|"notify"` | `AutoUpdate::Bool(bool)\|Notify(String)` | Same semantics | - |
@@ -116,7 +117,7 @@ crates/config/src/
 | `small_model` | `string (provider/model)` | `Option<String>` | None | - |
 | `default_agent` | `string` | `Option<String>` | None | - |
 | `username` | `string` | `Option<String>` | None | - |
-| `mode` | **deprecated**, `build`/`plan` primary | `agent` with `agents` map | Different structure | P0 |
+| `mode` | **deprecated**, `build`/`plan` primary | `agent` with `agents` map + migration | ✅ FIXED Different structure | P0 | Fixed |
 | `mode.*.model` | `string` | `AgentConfig.model: Option<String>` | None | - |
 | `mode.*.variant` | `string` | `AgentConfig.variant: Option<String>` | None | - |
 | `mode.*.temperature` | `number` | `Option<f32>` | None | - |
@@ -153,52 +154,37 @@ crates/config/src/
 
 ## 5. Major Capability Gaps
 
-### P0: Blocks Core Compatibility
+### P0: Blocks Core Compatibility ✅ FIXED
 
-#### 1. LogLevel Case Mismatch
+#### 1. LogLevel Case Mismatch ✅
 
-**Problem**: opencode uses uppercase `DEBUG|INFO|WARN|ERROR` but opencode-rs uses lowercase `trace|debug|info|warn|error`
+**Status**: FIXED in commit `dfb6aeb3`
 
-**Current opencode-rs**:
-```rust
-pub enum LogLevel {
-    Trace,  // extra
-    Debug,
-    Info,
-    Warn,
-    Error,
-}
-```
+**Implementation**: Custom `Deserialize` impl for LogLevel accepts both uppercase and lowercase. `serde(rename_all = "lowercase")` removed, replaced with case-insensitive visitor pattern.
 
-**Official**: `DEBUG`, `INFO`, `WARN`, `ERROR` (no Trace)
-
-**Impact**: Config files with uppercase log levels will fail validation or be ignored.
-
-**Fix**: Accept both cases, or normalize on parse.
+**Verification**: 4 tests pass (test_loglevel_uppercase_parses, test_loglevel_uppercase_warn_parses, test_loglevel_uppercase_error_parses, test_loglevel_lowercase_still_works)
 
 ---
 
-#### 2. Agent/Mode Structure Difference
+#### 2. Agent/Mode Structure Difference ✅
 
-**Problem**: Official opencode uses `mode` with `build`/`plan` as primary agents:
-```json
-"mode": {
-  "build": { "model": "..." },
-  "plan": { "model": "..." }
-}
-```
+**Status**: FIXED in commit `cf06e96d`
 
-opencode-rs uses `agent` with `agents` map:
-```json
-"agent": {
-  "agents": { "build": { "model": "..." } },
-  "defaultAgent": "build"
-}
-```
+**Implementation**: Added `ModeConfig` struct with `build` and `plan` fields. Added `mode` field to Config with `#[serde(alias = "mode", skip_serializing)]` - accepts incoming JSON with "mode" key but doesn't serialize back.
 
-**Impact**: Config migration incompatibility, user confusion.
+**Verification**: 6 tests pass including migration from deprecated string format.
 
-**Fix**: Support both formats during migration, convert `mode.build`/`mode.plan` to `agent.agents.build`/`agent.agents.plan`.
+---
+
+### P1: Major Feature Gaps
+
+#### 3. Plugin Format ✅
+
+**Status**: FIXED in commit `f47c284c`
+
+**Implementation**: Added `PluginConfig` enum with `Simple(String)` and `WithConfig { path, config }` variants. Uses custom untagged deserializer.
+
+**Verification**: 3 tests pass (test_plugin_tuple_parses, test_plugin_simple_string, test_plugin_tuple_with_empty_config)
 
 ---
 
@@ -254,13 +240,13 @@ opencode-rs uses `agent` with `agents` map:
 
 ### P2: Important But Not Blocking
 
-#### 7. Missing `shell` Field
+#### 7. Missing `shell` Field ✅
 
-**Official**: `shell: "/bin/zsh"` sets default shell
+**Status**: FIXED in commit `597d1cfc`
 
-**opencode-rs**: Not implemented
+**Implementation**: Added `shell: Option<String>` field to Config struct. Updated JSON schema and KNOWN_CONFIG_FIELDS.
 
-**Impact**: Users can't configure default shell in config.
+**Verification**: test_shell_field_parses passes
 
 ---
 
@@ -457,6 +443,8 @@ Parse official opencode config files and verify they work.
       "title": "Fix LogLevel case sensitivity",
       "priority": "P0",
       "type": "bugfix",
+      "status": "COMPLETED",
+      "commit": "dfb6aeb3",
       "description": "Accept both uppercase (DEBUG, INFO, WARN, ERROR) and lowercase (debug, info, warn, error) LogLevel values",
       "files_to_modify": [
         "crates/config/src/lib.rs"
@@ -471,12 +459,16 @@ Parse official opencode config files and verify they work.
       "title": "Add shell field support",
       "priority": "P2",
       "type": "feature",
+      "status": "COMPLETED",
+      "commit": "597d1cfc",
       "description": "Add shell field to Config and ServerConfig for default shell selection",
       "files_to_modify": [
-        "crates/config/src/lib.rs"
+        "crates/config/src/lib.rs",
+        "crates/config/src/schema.rs",
+        "crates/config/src/builtin_config.schema.json"
       ],
       "tests": [
-        "test_shell_field_parsed"
+        "test_shell_field_parses"
       ]
     },
     {
@@ -484,6 +476,8 @@ Parse official opencode config files and verify they work.
       "title": "Support mode-to-agent migration",
       "priority": "P0",
       "type": "migration",
+      "status": "COMPLETED",
+      "commit": "cf06e96d",
       "description": "Convert legacy mode.build/plan structure to agent.agents structure",
       "files_to_modify": [
         "crates/config/src/lib.rs"
@@ -498,9 +492,16 @@ Parse official opencode config files and verify they work.
       "title": "Extend plugin tuple support",
       "priority": "P1",
       "type": "feature",
+      "status": "COMPLETED",
+      "commit": "f47c284c",
       "description": "Support plugin as [path, config] tuple alongside string",
       "files_to_modify": [
-        "crates/config/src/lib.rs"
+        "crates/config/src/lib.rs",
+        "crates/config/src/builtin_config.schema.json"
+      ],
+      "tests": [
+        "test_plugin_tuple_parses",
+        "test_plugin_simple_string"
       ]
     },
     {
@@ -508,9 +509,33 @@ Parse official opencode config files and verify they work.
       "title": "Add agent mode values",
       "priority": "P2",
       "type": "feature",
+      "status": "PENDING",
       "description": "Add subagent, primary, all to agent mode enum",
       "files_to_modify": [
         "crates/config/src/lib.rs"
+      ]
+    },
+    {
+      "id": "CONFIG-GAP-006",
+      "title": "Handle ShareMode extended enum",
+      "priority": "P1",
+      "type": "bugfix",
+      "status": "PENDING",
+      "description": "Accept official share values (manual|auto|disabled), warn on extended values",
+      "files_to_modify": [
+        "crates/config/src/lib.rs"
+      ]
+    },
+    {
+      "id": "CONFIG-GAP-007",
+      "title": "Server additionalProperties",
+      "priority": "P1",
+      "type": "bugfix",
+      "status": "PENDING",
+      "description": "Add additionalProperties: false to server config or document divergence",
+      "files_to_modify": [
+        "crates/config/src/lib.rs",
+        "crates/config/src/builtin_config.schema.json"
       ]
     }
   ]
