@@ -1,7 +1,4 @@
-#[path = "common/mod.rs"]
-mod common;
-
-use common::TempProject;
+use crate::common::TempProject;
 use opencode_core::Session;
 use opencode_storage::database::StoragePool;
 use opencode_storage::migration::MigrationManager;

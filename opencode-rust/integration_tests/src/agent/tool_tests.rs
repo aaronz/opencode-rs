@@ -1,5 +1,4 @@
-mod common;
-use common::TempProject;
+use crate::common::TempProject;
 use opencode_tools::{read::ReadTool, register_custom_tools, write::WriteTool, Tool, ToolRegistry};
 
 #[tokio::test]

@@ -1,6 +1,5 @@
 use opencode_agent::{
-    runtime::{AgentRuntime, PrimaryAgentState},
-    Agent, AgentType,
+    AgentRuntime, Agent, AgentType, PrimaryAgentState,
 };
 use opencode_core::{Message, Session};
 use opencode_llm::Provider;
@@ -77,7 +76,7 @@ impl MockVisibleAgent {
     }
 }
 
-impl opencode_agent::agent::sealed::Sealed for MockVisibleAgent {}
+impl opencode_agent::Sealed for MockVisibleAgent {}
 
 #[async_trait::async_trait]
 impl Agent for MockVisibleAgent {
@@ -303,7 +302,7 @@ async fn test_agent_switch_reject_duplicate_activation() {
     assert!(result.is_err());
 
     match result.unwrap_err() {
-        opencode_agent::runtime::RuntimeError::MultiplePrimaryAgents { current, attempted } => {
+        opencode_agent::RuntimeError::MultiplePrimaryAgents { current, attempted } => {
             assert_eq!(current, AgentType::Build);
             assert_eq!(attempted, AgentType::Build);
         }

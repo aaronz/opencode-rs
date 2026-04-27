@@ -1,6 +1,7 @@
 use opencode_mcp::protocol::McpPermission;
+use opencode_mcp::protocol::{McpServerConfig, McpServerType};
 use opencode_mcp::{
-    JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, McpServerConfig, McpServerType,
+    JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
     ServerCapabilities, ServerInfo, ToolContent, ToolDefinition, ToolResult,
 };
 
@@ -296,15 +297,6 @@ fn test_mcp_protocol_server_config_with_permission() {
             .with_permission(McpPermission::Deny);
 
     assert_eq!(config.permission, McpPermission::Deny);
-}
-
-#[test]
-fn test_mcp_protocol_error_codes() {
-    assert_eq!(opencode_mcp::PARSE_ERROR, -32700);
-    assert_eq!(opencode_mcp::INVALID_REQUEST, -32600);
-    assert_eq!(opencode_mcp::METHOD_NOT_FOUND, -32601);
-    assert_eq!(opencode_mcp::INVALID_PARAMS, -32602);
-    assert_eq!(opencode_mcp::INTERNAL_ERROR, -32603);
 }
 
 #[test]

@@ -23,7 +23,7 @@ members = [
     "crates/sdk",
     "crates/util",
     "crates/acp",
-    "tests",
+    "integration_tests",
     "opencode-benches",
     "ratatui-testing",
 ]

@@ -32,20 +32,20 @@ mod tests {
     }
 
     #[test]
-    fn cross_crate_tests_live_under_tests_dir() {
-        let tests_dir = workspace_root().join("tests");
+    fn cross_crate_tests_live_under_integration_tests_dir() {
+        let tests_dir = workspace_root().join("integration_tests");
         assert!(
             tests_dir.exists(),
-            "Cross-crate integration tests must live under opencode-rust/tests/ per convention"
+            "Cross-crate integration tests must live under opencode-rust/integration_tests/ per convention"
         );
     }
 
     #[test]
     fn convention_tests_live_in_conventions_dir() {
-        let conventions_dir = workspace_root().join("tests/src/conventions");
+        let conventions_dir = workspace_root().join("integration_tests/src/conventions");
         assert!(
             conventions_dir.exists(),
-            "Convention tests must live in tests/src/conventions/ per README"
+            "Convention tests must live in integration_tests/src/conventions/ per README"
         );
         let entries = std::fs::read_dir(conventions_dir).unwrap();
         let rs_files: Vec<_> = entries
@@ -56,13 +56,13 @@ mod tests {
             .collect();
         assert!(
             !rs_files.is_empty(),
-            "tests/src/conventions/ must contain actual test .rs files"
+            "integration_tests/src/conventions/ must contain actual test .rs files"
         );
     }
 
     #[test]
     fn integration_tests_use_common_helpers() {
-        let tests_dir = workspace_root().join("tests/src/common");
+        let tests_dir = workspace_root().join("integration_tests/src/common");
         if !tests_dir.exists() {
             return;
         }
@@ -79,7 +79,7 @@ mod tests {
             helpers
                 .iter()
                 .any(|h| h.contains("temp_project") || h.contains("TempProject")),
-            "Integration tests should use TempProject helper from tests/src/common/"
+            "Integration tests should use TempProject helper from integration_tests/src/common/"
         );
     }
 

@@ -1,6 +1,5 @@
-mod common;
-
-use common::{TempProject, MockServer, MockLLMProvider, TestConfig};
+use crate::common::{TempProject, MockServer, MockLLMProvider, TestConfig};
+use opencode_llm::Provider;
 
 #[test]
 fn test_infrastructure_temp_project() {

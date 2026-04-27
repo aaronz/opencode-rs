@@ -1,5 +1,4 @@
-mod common;
-use common::MockServer;
+use crate::common::MockServer;
 use opencode_llm::{BrowserAuthModelInfo, GoogleOAuthSession};
 use opencode_tui::{App, AppMode};
 
