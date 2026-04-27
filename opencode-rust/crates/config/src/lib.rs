@@ -64,7 +64,7 @@ pub struct Config {
     pub watcher: Option<WatcherConfig>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub plugin: Option<Vec<String>>,
+    pub plugin: Option<Vec<PluginConfig>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snapshot: Option<bool>,
@@ -365,6 +365,63 @@ mod crate_default {
 pub struct WatcherConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ignore: Option<Vec<String>>,
+}
+
+/// Plugin configuration supporting both string path and [path, config] tuple format.
+/// Matches official opencode plugin config format.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub enum PluginConfig {
+    Simple(String),
+    WithConfig {
+        path: String,
+        #[serde(default)]
+        config: serde_json::Value,
+    },
+}
+
+impl<'de> Deserialize<'de> for PluginConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Intermediate {
+            Simple(String),
+            TupleArray(Vec<serde_json::Value>),
+        }
+
+        let intermediate = Intermediate::deserialize(deserializer)?;
+
+        match intermediate {
+            Intermediate::Simple(s) => Ok(PluginConfig::Simple(s)),
+            Intermediate::TupleArray(arr) => {
+                if arr.is_empty() {
+                    return Err(serde::de::Error::custom(
+                        "Plugin tuple must have at least a path element",
+                    ));
+                }
+                let path = arr[0]
+                    .as_str()
+                    .ok_or_else(|| {
+                        serde::de::Error::custom("Plugin path must be a string")
+                    })?
+                    .to_string();
+                let config = arr.get(1).cloned().unwrap_or(serde_json::json!({}));
+                Ok(PluginConfig::WithConfig { path, config })
+            }
+        }
+    }
+}
+
+impl PluginConfig {
+    /// Returns the path for this plugin configuration.
+    pub fn path(&self) -> &str {
+        match self {
+            PluginConfig::Simple(path) => path,
+            PluginConfig::WithConfig { path, .. } => path,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -2413,8 +2470,8 @@ impl Config {
             let plugins = config.plugin.get_or_insert_with(Vec::new);
             for plugin_info in scan.plugins {
                 if let Some(path_str) = plugin_info.path.to_str() {
-                    if !plugins.iter().any(|p| p == path_str) {
-                        plugins.push(path_str.to_string());
+                    if !plugins.iter().any(|p| p.path() == path_str) {
+                        plugins.push(PluginConfig::Simple(path_str.to_string()));
                     }
                 }
             }

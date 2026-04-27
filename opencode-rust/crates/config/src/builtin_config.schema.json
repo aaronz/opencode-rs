@@ -46,8 +46,19 @@
     },
     "plugin": {
       "type": "array",
-      "items": { "type": "string" },
-      "description": "Plugin paths to load"
+      "items": {
+        "anyOf": [
+          { "type": "string" },
+          {
+            "type": "array",
+            "prefixItems": [
+              { "type": "string" },
+              { "type": "object", "additionalProperties": {} }
+            ]
+          }
+        ]
+      },
+      "description": "Plugin paths to load (string or [path, config] tuple)"
     },
     "plugins": {
       "type": "array",

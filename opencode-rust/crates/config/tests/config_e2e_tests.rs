@@ -1,4 +1,4 @@
-use opencode_config::{deep_merge, Config, DirectoryScanner, SecretStorage};
+use opencode_config::{deep_merge, Config, DirectoryScanner, PluginConfig, SecretStorage};
 use serde_json::json;
 use tempfile::TempDir;
 
@@ -563,4 +563,65 @@ fn config_e2e_003_config_file_unchanged_after_keychain_resolution() {
         !result.contains("{keychain:"),
         "Keychain placeholder should be replaced"
     );
+}
+
+#[test]
+fn test_plugin_tuple_parses() {
+    let json = r#"{
+        "plugin": [
+            "/path/to/plugin.wasm",
+            ["/path/to/plugin2.wasm", {"option": "value"}]
+        ]
+    }"#;
+    let config: Config = serde_json::from_str(json).unwrap();
+    assert_eq!(config.plugin.as_ref().unwrap().len(), 2);
+
+    // First plugin should be simple string
+    match &config.plugin.as_ref().unwrap()[0] {
+        PluginConfig::Simple(path) => {
+            assert_eq!(path, "/path/to/plugin.wasm");
+        }
+        _ => panic!("Expected simple string format for first plugin"),
+    }
+
+    // Second plugin should be tuple format
+    match &config.plugin.as_ref().unwrap()[1] {
+        PluginConfig::WithConfig { path, config: _ } => {
+            assert_eq!(path, "/path/to/plugin2.wasm");
+        }
+        _ => panic!("Expected tuple format for second plugin"),
+    }
+}
+
+#[test]
+fn test_plugin_simple_string() {
+    let json = r#"{
+        "plugin": ["/path/to/plugin.wasm"]
+    }"#;
+    let config: Config = serde_json::from_str(json).unwrap();
+    assert_eq!(config.plugin.as_ref().unwrap().len(), 1);
+
+    match &config.plugin.as_ref().unwrap()[0] {
+        PluginConfig::Simple(path) => {
+            assert_eq!(path, "/path/to/plugin.wasm");
+        }
+        _ => panic!("Expected simple string format"),
+    }
+}
+
+#[test]
+fn test_plugin_tuple_with_empty_config() {
+    let json = r#"{
+        "plugin": [["/path/to/plugin.wasm", {}]]
+    }"#;
+    let config: Config = serde_json::from_str(json).unwrap();
+    assert_eq!(config.plugin.as_ref().unwrap().len(), 1);
+
+    match &config.plugin.as_ref().unwrap()[0] {
+        PluginConfig::WithConfig { path, config } => {
+            assert_eq!(path, "/path/to/plugin.wasm");
+            assert_eq!(config, &serde_json::json!({}));
+        }
+        _ => panic!("Expected tuple format"),
+    }
 }
