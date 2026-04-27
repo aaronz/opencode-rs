@@ -2,6 +2,7 @@ use crate::sealed;
 use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
+use opencode_llm::provider::{EventCallback, LlmEvent};
 use opencode_llm::provider_abstraction::ReasoningBudget;
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
@@ -149,6 +150,41 @@ impl Agent for BuildAgent {
 
         Ok(AgentResponse {
             content: response.content,
+            tool_calls: Vec::new(),
+        })
+    }
+
+    async fn run_streaming(
+        &self,
+        session: &mut Session,
+        provider: &dyn Provider,
+        _tools: &ToolRegistry,
+        mut events: EventCallback,
+    ) -> Result<AgentResponse, OpenCodeError> {
+        let mut all_messages: Vec<ChatMessage> = vec![ChatMessage {
+            role: "system".to_string(),
+            content: self.composed_system_prompt(),
+        }];
+
+        let prompt_messages =
+            session.prepare_messages_for_prompt(TokenBudget::default().main_context_tokens());
+        all_messages.extend(messages_to_llm_format(&prompt_messages));
+
+        let prompt = all_messages
+            .iter()
+            .map(|m| format!("{}: {}", m.role, m.content))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let final_content = provider
+            .complete_with_events(&prompt, None, events)
+            .await?;
+
+        let content = final_content.unwrap_or_default();
+        session.add_message(Message::assistant(content.clone()));
+
+        Ok(AgentResponse {
+            content,
             tool_calls: Vec::new(),
         })
     }

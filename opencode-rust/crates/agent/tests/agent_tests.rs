@@ -708,10 +708,12 @@ async fn test_agent_e2e_013_parallel_tool_calls_handling() {
 
     let tool_calls = vec![
         ToolCall {
+            id: "call-1".to_string(),
             name: "read".to_string(),
             arguments: serde_json::json!({"path": "/tmp/file1.txt"}),
         },
         ToolCall {
+            id: "call-2".to_string(),
             name: "read".to_string(),
             arguments: serde_json::json!({"path": "/tmp/file2.txt"}),
         },
