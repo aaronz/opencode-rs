@@ -4,7 +4,7 @@ This document describes the architecture of the opencode-rs project, a Rust impl
 
 ## Overview
 
-OpenCode RS is organized as a **Cargo workspace** with 24 crates. The project implements an AI coding agent with support for:
+OpenCode RS is organized as a **Cargo workspace** with 23 crates. The project implements an AI coding agent with support for:
 - Terminal UI (TUI) and web interfaces
 - Multiple LLM provider integrations (OpenAI, Anthropic, Google, Azure, etc.)
 - Tool execution and file operations
@@ -21,25 +21,25 @@ opencode-rust/
 │   ├── acp/           # Agent Communication Protocol client
 │   ├── agent/         # Agent implementations (BuildAgent, DebugAgent, etc.)
 │   ├── auth/          # Authentication (JWT, OAuth, password hashing)
-│   ├── cli/           # CLI binary and commands (42 subcommands)
+│   ├── cli/           # CLI binary and commands
 │   ├── config/        # Configuration loading and schema
 │   ├── control-plane/ # Control plane client integration
-│   ├── core/          # Core types and abstractions (⚠️ large, see below)
+│   ├── core/          # Core types and abstractions (see below)
 │   ├── file/          # File operations service
 │   ├── format/        # Code formatting service (25+ formatters)
 │   ├── git/           # Git operations (branch, merge, push, pull, etc.)
-│   ├── llm/          # LLM provider integrations
+│   ├── llm/           # LLM provider integrations
 │   ├── logging/       # Structured logging infrastructure
-│   ├── lsp/          # Language Server Protocol integration
-│   ├── mcp/          # MCP protocol implementation
-│   ├── permission/   # Permission system and audit logging
+│   ├── lsp/           # Language Server Protocol integration
+│   ├── mcp/           # MCP protocol implementation
+│   ├── permission/    # Permission system and audit logging
 │   ├── plugin/        # Plugin system (WASM-based)
-│   ├── sdk/          # SDK for external consumers
+│   ├── sdk/           # SDK for external consumers
 │   ├── server/        # HTTP server (Actix-web)
 │   ├── storage/       # SQLite-based persistence
 │   ├── tools/         # Tool implementations (read, write, grep, etc.)
-│   ├── tui/          # Terminal UI (ratatui-based)
-│   └── util/          # Utilities
+│   ├── tui/           # Terminal UI (ratatui-based)
+│   └── util/           # Utilities
 ├── integration_tests/  # Integration tests
 ├── opencode-benches/  # Benchmarks
 └── ratatui-testing/   # TUI testing framework
@@ -51,7 +51,7 @@ opencode-rust/
 
 | Crate | Responsibility | Public API |
 |-------|---------------|------------|
-| `opencode-cli` | CLI binary entry point, 42 subcommands | Binary |
+| `opencode-cli` | CLI binary entry point | Binary |
 | `opencode-tui` | Terminal user interface | `App`, dialogs, widgets |
 | `opencode-server` | HTTP REST API server | Actix-web routes |
 
@@ -60,10 +60,6 @@ opencode-rust/
 | Crate | Responsibility | Key Types |
 |-------|---------------|-----------|
 | `opencode-agent` | Agent implementations | `Agent`, `Task`, `TaskDelegate` |
-| `opencode-session` | Session management | `Session`, `SessionState` |
-| `opencode-project` | Project/workspace management | `ProjectManager` |
-| `opencode-skill` | Skill system | `Skill`, `SkillManager` |
-| `opencode-tool-core` | Tool infrastructure | `Tool`, `ToolRegistry`, `ToolCall` |
 | `opencode-tools` | Tool implementations | `BashTool`, `ReadTool`, `WriteTool`, etc. |
 | `opencode-git` | Git operations | `GitManager` |
 
@@ -101,67 +97,85 @@ Logging, Util (infrastructure layer)
 
 **Rule**: Domain logic must NOT depend on application layers (CLI, TUI, Server).
 
-## Core Crate (⚠️ Attention)
+## Core Crate Structure
 
-The `opencode-core` crate is currently **too large** with 64 modules and ~25K lines of code. It contains:
+The `opencode-core` crate contains 53 subdirectories, each following a consistent pattern:
 
-- Session management (session.rs - 2461 lines)
-- Project management (project.rs - 2203 lines)
-- Skill system (skill.rs - 1485 lines)
-- Tool infrastructure (tool.rs - 1088 lines)
-- Command system (command.rs - 1196 lines)
+```
+crates/core/src/
+├── session/           # Session management
+│   ├── mod.rs         # Session implementation + tests
+│   ├── types.rs       # Session types
+│   ├── fork.rs        # Fork logic
+│   ├── history.rs     # History management
+│   ├── session_info.rs
+│   ├── share.rs       # Session sharing
+│   └── tool_invocation.rs
+├── message/           # Message types
+│   ├── mod.rs
+│   └── types.rs
+├── tool/             # Tool infrastructure
+│   ├── mod.rs
+│   ├── types.rs
+│   └── registry.rs
+├── skill/            # Skill system
+│   ├── mod.rs
+│   ├── types.rs
+│   └── match.rs
+├── checkpoint/       # Session checkpointing
+│   ├── mod.rs
+│   ├── types.rs
+│   └── manager.rs
+└── [45+ more modules...]
+```
 
-### Future Extraction Plan
+### Module Naming Convention
 
-The following extractions are planned (not yet implemented):
+- **Types module** (`types.rs`): Data structures, enums, constants
+- **Implementation module** (`mod.rs`): Methods, business logic, tests
+- **Additional submodules**: Split by concern when a module grows large
 
-1. `opencode-session` - Extract session, session_state, snapshot
-2. `opencode-project` - Extract project, filesystem, directory
-3. `opencode-skill-core` - Extract skill, skill_integration
-4. `opencode-tool-core` - Extract tool trait, ToolCall, ToolResult
+## Large Files (Still Present)
 
-## Large Files
+These files exceed 1000 lines and could benefit from future refactoring:
 
-The following files exceed 1000 lines and should be split:
-
-| File | Lines | Domain |
-|------|-------|--------|
-| `crates/core/src/session.rs` | 2461 | Session management |
-| `crates/core/src/project.rs` | 2203 | Project management |
-| `crates/core/src/skill.rs` | 1485 | Skill system |
-| `crates/core/src/command.rs` | 1196 | Command execution |
-| `crates/core/src/tool.rs` | 1088 | Tool infrastructure |
-| `crates/tools/src/registry.rs` | 2640 | Tool registry |
-| `crates/tools/src/lsp_tool.rs` | 1660 | LSP tool |
+| File | Lines | Crate |
+|------|-------|-------|
+| `runtime.rs` | 1856 | agent |
+| `provider_abstraction.rs` | 1502 | llm |
+| `auth.rs` | 941 | llm |
+| `bedrock.rs` | 760 | llm |
+| `openai.rs` | 737 | llm |
+| `budget.rs` | 602 | llm |
 
 ## Adding New Features
 
 ### Adding a New Tool
 
-1. Create tool module in `crates/tools/src/`
+1. Create tool module in `crates/tools/src/` (e.g., `my_tool.rs`)
 2. Implement the `Tool` trait
 3. Register in `build_default_registry()` in `crates/tools/src/discovery.rs`
 4. Add tests
 
-### Adding a New CLI Command
+### Adding a New Module to Core
 
-1. Create command module in `crates/cli/src/cmd/`
-2. Add module and `run()` function
-3. Register in `main.rs` command dispatch
-4. Add subcommand to `Commands` enum
+1. Create new directory `crates/core/src/<module_name>/`
+2. Create `types.rs` for data structures
+3. Create `mod.rs` for implementation and tests
+4. Add `pub mod <module_name>;` to `crates/core/src/lib.rs`
 
 ### Adding a New LLM Provider
 
-1. Implement `LLMProvider` trait in `crates/llm/src/`
-2. Add provider to `crates/llm/src/provider_registry.rs`
-3. Add model catalog entry if needed
+1. Create provider file in `crates/llm/src/` (e.g., `new_provider.rs`)
+2. Implement `LLMProvider` trait
+3. Add provider to `crates/llm/src/provider_registry.rs`
 
 ### Adding a New TUI Dialog
 
 1. Create dialog in `crates/tui/src/dialogs/`
 2. Implement `Dialog` trait
-3. Add to appropriate screen/component
-4. Add rendering tests using `ratatui-testing`
+3. Add rendering tests using `ratatui-testing`
+4. Handle empty state, keyboard navigation, edge cases
 
 ## Testing Strategy
 
@@ -174,21 +188,17 @@ The following files exceed 1000 lines and should be split:
 
 The CI workflow runs on push to main/dev and PRs:
 
-1. **fmt-clippy** - Formatting and linting
-2. **test** - Cross-platform tests (Ubuntu, macOS, Windows)
-3. **feature-matrix** - No-default-features and all-features tests
-4. **coverage** - 80% line coverage requirement
-5. **build** - Release build
-6. **benchmarks** - Benchmark compilation
-7. **fuzz-smoke** - Nightly fuzzing smoke test
-
-## Known Issues
-
-1. **Core crate is monolithic** - Needs refactoring into smaller domain crates
-2. **Large files** - Several files exceed 1000 lines
-3. **CLI has 42 commands** - Could be grouped into submodules
-4. **Logging crate has TUI code** - `logging/src/tui/` should move to TUI crate
+1. **fmt** - `cargo fmt --all`
+2. **clippy** - `cargo clippy --all -- -D warnings`
+3. **test** - `cargo test --all-features`
+4. **build** - Release build verification
 
 ## Contributing
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for development guidelines and plugin development documentation.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for development guidelines.
+
+## Known Issues
+
+1. ~~Core crate was monolithic~~ - ✅ Refactored into 53 subdirectories (2026-04-27)
+2. Large files in `agent` and `llm` crates still need refactoring
+3. Some providers in `llm/` are quite large (1500+ lines)
