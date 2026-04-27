@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use crate::provider::{Provider, StreamingCallback};
+use crate::provider::{EventCallback, LlmEvent, Provider, StreamingCallback};
 use crate::{OpenAiBrowserAuthStore, OpenAiBrowserSession};
 use opencode_core::OpenCodeError;
 
