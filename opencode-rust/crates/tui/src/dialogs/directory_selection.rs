@@ -15,6 +15,7 @@ pub struct DirectorySelectionDialog {
     current_dir: PathBuf,
     entries: Vec<DirEntry>,
     selected_index: usize,
+    scroll_offset: usize,
     theme: Theme,
 }
 
@@ -32,6 +33,7 @@ impl DirectorySelectionDialog {
             current_dir,
             entries,
             selected_index: 0,
+            scroll_offset: 0,
             theme,
         }
     }
@@ -107,7 +109,8 @@ impl Dialog for DirectorySelectionDialog {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         let mut state = ratatui::widgets::ListState::default();
-        state.select(Some(self.selected_index));
+        state = state.with_selected(Some(self.selected_index));
+        state = state.with_offset(self.scroll_offset);
         f.render_stateful_widget(list, chunks[0], &mut state);
 
         let help_text = Paragraph::new("↑↓: Navigate | Enter: Open | Space: Select | Esc: Cancel")
@@ -116,6 +119,8 @@ impl Dialog for DirectorySelectionDialog {
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
+        let visible_height = 18usize;
+
         match key.code {
             KeyCode::Esc => DialogAction::Close,
             KeyCode::Enter => {
@@ -131,6 +136,7 @@ impl Dialog for DirectorySelectionDialog {
                     self.current_dir = new_path;
                     self.entries = Self::read_dir(&self.current_dir);
                     self.selected_index = 0;
+                    self.scroll_offset = 0;
                 }
                 DialogAction::None
             }
@@ -141,11 +147,17 @@ impl Dialog for DirectorySelectionDialog {
                 if self.selected_index > 0 {
                     self.selected_index -= 1;
                 }
+                self.scroll_offset = self
+                    .scroll_offset
+                    .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
                 DialogAction::None
             }
             KeyCode::Down => {
                 if self.selected_index < self.entries.len().saturating_sub(1) {
                     self.selected_index += 1;
+                }
+                if self.selected_index >= self.scroll_offset + visible_height {
+                    self.scroll_offset = (self.selected_index + 1).saturating_sub(visible_height);
                 }
                 DialogAction::None
             }

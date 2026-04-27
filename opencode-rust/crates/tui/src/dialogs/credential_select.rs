@@ -16,6 +16,7 @@ pub struct CredentialSelectDialog {
     provider_id: String,
     credentials: Vec<CredentialEntry>,
     selected_index: usize,
+    scroll_offset: usize,
     theme: Theme,
 }
 
@@ -31,6 +32,7 @@ impl CredentialSelectDialog {
             provider_id,
             credentials: Vec::new(),
             selected_index: 0,
+            scroll_offset: 0,
             theme,
         }
     }
@@ -38,6 +40,7 @@ impl CredentialSelectDialog {
     pub fn set_credentials(&mut self, credentials: Vec<CredentialEntry>) {
         self.credentials = credentials;
         self.selected_index = 0;
+        self.scroll_offset = 0;
     }
 
     pub fn credentials(&self) -> &[CredentialEntry] {
@@ -109,12 +112,15 @@ impl Dialog for CredentialSelectDialog {
                 .collect();
 
             let mut state = ListState::default();
-            state.select(Some(self.selected_index));
+            state = state.with_selected(Some(self.selected_index));
+            state = state.with_offset(self.scroll_offset);
             f.render_stateful_widget(List::new(items), inner, &mut state);
         }
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
+        let visible_height = 10usize;
+
         match key.code {
             KeyCode::Esc => DialogAction::Close,
             KeyCode::Up => {
@@ -124,12 +130,18 @@ impl Dialog for CredentialSelectDialog {
                     } else {
                         self.selected_index -= 1;
                     }
+                    self.scroll_offset = self
+                        .scroll_offset
+                        .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
                 }
                 DialogAction::None
             }
             KeyCode::Down => {
                 if self.has_credentials() {
                     self.selected_index = (self.selected_index + 1) % self.credentials.len().max(1);
+                    if self.selected_index >= self.scroll_offset + visible_height {
+                        self.scroll_offset = (self.selected_index + 1).saturating_sub(visible_height);
+                    }
                 }
                 DialogAction::None
             }

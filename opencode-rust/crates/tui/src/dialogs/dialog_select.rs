@@ -15,6 +15,7 @@ pub struct DialogSelect {
     message: String,
     options: Vec<String>,
     selected_index: usize,
+    scroll_offset: usize,
     theme: Theme,
 }
 
@@ -30,6 +31,7 @@ impl DialogSelect {
             message: message.into(),
             options,
             selected_index: 0,
+            scroll_offset: 0,
             theme,
         }
     }
@@ -95,7 +97,8 @@ impl Dialog for DialogSelect {
             );
 
         let mut state = ratatui::widgets::ListState::default();
-        state.select(Some(self.selected_index));
+        state = state.with_selected(Some(self.selected_index));
+        state = state.with_offset(self.scroll_offset);
         f.render_stateful_widget(list, list_area, &mut state);
 
         let hint = Line::from(vec![
@@ -124,6 +127,8 @@ impl Dialog for DialogSelect {
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
+        let visible_height = 10usize;
+
         match key.code {
             KeyCode::Esc => DialogAction::Close,
             KeyCode::Enter => {
@@ -137,6 +142,9 @@ impl Dialog for DialogSelect {
                 if self.selected_index > 0 {
                     self.selected_index -= 1;
                 }
+                self.scroll_offset = self
+                    .scroll_offset
+                    .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
                 DialogAction::None
             }
             KeyCode::Down => {
@@ -144,14 +152,21 @@ impl Dialog for DialogSelect {
                 if self.selected_index < max {
                     self.selected_index += 1;
                 }
+                if self.selected_index >= self.scroll_offset + visible_height {
+                    self.scroll_offset = (self.selected_index + 1).saturating_sub(visible_height);
+                }
                 DialogAction::None
             }
             KeyCode::Home => {
                 self.selected_index = 0;
+                self.scroll_offset = 0;
                 DialogAction::None
             }
             KeyCode::End => {
                 self.selected_index = self.options.len().saturating_sub(1);
+                if self.selected_index >= self.scroll_offset + visible_height {
+                    self.scroll_offset = (self.selected_index + 1).saturating_sub(visible_height);
+                }
                 DialogAction::None
             }
             _ => DialogAction::None,

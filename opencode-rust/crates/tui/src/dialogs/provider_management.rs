@@ -27,6 +27,7 @@ pub enum ProviderStatus {
 pub struct ProviderManagementDialog {
     providers: Vec<ProviderInfo>,
     selected_index: usize,
+    scroll_offset: usize,
     theme: Theme,
 }
 
@@ -35,6 +36,7 @@ impl ProviderManagementDialog {
         Self {
             providers: Vec::new(),
             selected_index: 0,
+            scroll_offset: 0,
             theme,
         }
     }
@@ -42,6 +44,7 @@ impl ProviderManagementDialog {
     pub fn set_providers(&mut self, providers: Vec<ProviderInfo>) {
         self.providers = providers;
         self.selected_index = 0;
+        self.scroll_offset = 0;
     }
 
     pub fn providers(&self) -> &[ProviderInfo] {
@@ -113,7 +116,8 @@ impl Dialog for ProviderManagementDialog {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         let mut state = ratatui::widgets::ListState::default();
-        state.select(Some(self.selected_index));
+        state = state.with_selected(Some(self.selected_index));
+        state = state.with_offset(self.scroll_offset);
         f.render_stateful_widget(list, chunks[0], &mut state);
 
         let help_text = Paragraph::new("↑↓: Navigate | Enter: Configure | Esc: Close")
@@ -122,6 +126,8 @@ impl Dialog for ProviderManagementDialog {
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
+        let visible_height = 11usize;
+
         match key.code {
             KeyCode::Esc => DialogAction::Close,
             KeyCode::Enter => {
@@ -135,11 +141,17 @@ impl Dialog for ProviderManagementDialog {
                 if self.selected_index > 0 {
                     self.selected_index -= 1;
                 }
+                self.scroll_offset = self
+                    .scroll_offset
+                    .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
                 DialogAction::None
             }
             KeyCode::Down => {
                 if self.selected_index < self.providers.len().saturating_sub(1) {
                     self.selected_index += 1;
+                }
+                if self.selected_index >= self.scroll_offset + visible_height {
+                    self.scroll_offset = (self.selected_index + 1).saturating_sub(visible_height);
                 }
                 DialogAction::None
             }
