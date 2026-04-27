@@ -63,7 +63,7 @@ impl Logger {
         Self {
             level: LogLevel::Info,
             file_path: None,
-            console: true,
+            console: false,
         }
     }
 
@@ -71,7 +71,7 @@ impl Logger {
         Self {
             level,
             file_path: None,
-            console: true,
+            console: false,
         }
     }
 
@@ -82,6 +82,11 @@ impl Logger {
 
     pub fn with_no_console(&mut self) -> &mut Self {
         self.console = false;
+        self
+    }
+
+    pub fn with_console(&mut self) -> &mut Self {
+        self.console = true;
         self
     }
 
