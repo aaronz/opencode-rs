@@ -1,23 +1,676 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenCode config fallback schema",
+  "title": "OpenCode-RS Configuration Schema",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON schema URL for validation"
+    },
+    "log_level": {
+      "type": "string",
+      "enum": ["trace", "debug", "info", "warn", "error"],
+      "description": "Logging level"
+    },
+    "logLevel": {
+      "type": "string",
+      "enum": ["trace", "debug", "info", "warn", "error"],
+      "description": "Logging level (legacy camelCase)"
+    },
     "server": {
+      "$ref": "#/definitions/ServerConfig"
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/CommandConfig"
+      },
+      "description": "Custom command templates"
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/CommandConfig"
+      },
+      "description": "Custom command templates (alias)"
+    },
+    "skills": {
+      "$ref": "#/definitions/SkillsConfig"
+    },
+    "watcher": {
+      "$ref": "#/definitions/WatcherConfig"
+    },
+    "plugin": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Plugin paths to load"
+    },
+    "plugins": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Plugin paths to load (alias)"
+    },
+    "snapshot": {
+      "type": "boolean",
+      "description": "Enable session snapshots"
+    },
+    "share": {
+      "type": "string",
+      "enum": ["manual", "auto", "disabled", "read_only", "collaborative", "controlled"],
+      "description": "Session sharing mode"
+    },
+    "autoshare": {
+      "type": "boolean",
+      "description": "Auto-share completed sessions"
+    },
+    "autoupdate": {
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "string" }
+      ],
+      "description": "Auto-update behavior"
+    },
+    "disabled_providers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Disabled provider IDs"
+    },
+    "disabledProviders": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Disabled provider IDs (legacy)"
+    },
+    "enabled_providers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Enabled provider IDs (if set, only these are enabled)"
+    },
+    "enabledProviders": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Enabled provider IDs (legacy)"
+    },
+    "model": {
+      "type": "string",
+      "description": "Default model (format: provider/model)"
+    },
+    "small_model": {
+      "type": "string",
+      "description": "Small model for fast tasks"
+    },
+    "smallModel": {
+      "type": "string",
+      "description": "Small model (legacy)"
+    },
+    "default_agent": {
+      "type": "string",
+      "description": "Default agent name"
+    },
+    "defaultAgent": {
+      "type": "string",
+      "description": "Default agent name (legacy)"
+    },
+    "username": {
+      "type": "string",
+      "description": "Username for session metadata"
+    },
+    "agent": {
+      "$ref": "#/definitions/AgentMapConfig"
+    },
+    "agents": {
+      "$ref": "#/definitions/AgentMapConfig"
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/ProviderConfig"
+      },
+      "description": "Provider configurations"
+    },
+    "providers": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/ProviderConfig"
+      },
+      "description": "Provider configurations (alias)"
+    },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/McpConfig"
+      },
+      "description": "MCP server configurations"
+    },
+    "formatter": {
+      "$ref": "#/definitions/FormatterConfig"
+    },
+    "lsp": {
+      "$ref": "#/definitions/LspConfig"
+    },
+    "instructions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "System instructions"
+    },
+    "agents_md": {
+      "$ref": "#/definitions/AgentsMdConfig"
+    },
+    "agentsMd": {
+      "$ref": "#/definitions/AgentsMdConfig"
+    },
+    "permission": {
+      "$ref": "#/definitions/PermissionConfig"
+    },
+    "permissions": {
+      "$ref": "#/definitions/PermissionConfig"
+    },
+    "enterprise": {
+      "$ref": "#/definitions/EnterpriseConfig"
+    },
+    "compaction": {
+      "$ref": "#/definitions/CompactionConfig"
+    },
+    "experimental": {
+      "$ref": "#/definitions/ExperimentalConfig"
+    },
+    "tui": {
+      "$ref": "#/definitions/TuiConfig"
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key (deprecated, use provider config)"
+    },
+    "apiKey": {
+      "type": "string",
+      "description": "API key (legacy)"
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2,
+      "description": "Sampling temperature"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Max tokens per response"
+    },
+    "maxTokens": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Max tokens (legacy)"
+    },
+    "hidden_models": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Models to hide from picker"
+    },
+    "github": {
+      "$ref": "#/definitions/GitHubConfig"
+    }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "ServerConfig": {
       "type": "object",
       "properties": {
         "port": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 65535
+          "maximum": 65535,
+          "description": "Server port"
+        },
+        "hostname": {
+          "type": "string",
+          "description": "Server hostname"
+        },
+        "mdns": {
+          "type": "boolean",
+          "description": "Enable mDNS discovery"
+        },
+        "mdns_domain": {
+          "type": "string",
+          "description": "mDNS domain"
+        },
+        "cors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "CORS allowed origins"
+        },
+        "desktop": {
+          "$ref": "#/definitions/DesktopConfig"
+        },
+        "acp": {
+          "$ref": "#/definitions/AcpConfig"
+        },
+        "password": {
+          "type": "string",
+          "description": "Server password"
         }
       }
     },
-    "temperature": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 2
+    "DesktopConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "auto_open_browser": { "type": "boolean" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "hostname": { "type": "string" }
+      }
+    },
+    "AcpConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "server_id": { "type": "string" },
+        "version": { "type": "string" },
+        "session": { "$ref": "#/definitions/AcpSession" }
+      }
+    },
+    "AcpSession": {
+      "type": "object",
+      "required": ["session_id", "server_id", "server_url", "client_id", "version", "created_at"],
+      "properties": {
+        "session_id": { "type": "string" },
+        "server_id": { "type": "string" },
+        "server_url": { "type": "string", "format": "uri" },
+        "client_id": { "type": "string" },
+        "version": { "type": "string" },
+        "capabilities": { "type": "array", "items": { "type": "string" } },
+        "created_at": { "type": "string", "format": "date-time" },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CommandConfig": {
+      "type": "object",
+      "required": ["template"],
+      "properties": {
+        "template": { "type": "string" },
+        "description": { "type": "string" },
+        "agent": { "type": "string" },
+        "model": { "type": "string" },
+        "subtask": { "type": "boolean" }
+      }
+    },
+    "SkillsConfig": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "urls": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" }
+        }
+      }
+    },
+    "AgentsMdConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "stop_at_worktree_root": { "type": "boolean" },
+        "include_hidden": { "type": "boolean" }
+      }
+    },
+    "WatcherConfig": {
+      "type": "object",
+      "properties": {
+        "ignore": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "AgentMapConfig": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "agents": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/definitions/AgentConfig" }
+            },
+            "defaultAgent": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/AgentConfig" }
+        }
+      ]
+    },
+    "AgentConfig": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "variant": { "type": "string" },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "top_p": { "type": "number", "minimum": 0, "maximum": 1 },
+        "prompt": { "type": "string" },
+        "disable": { "type": "boolean" },
+        "description": { "type": "string" },
+        "hidden": { "type": "boolean" },
+        "options": { "type": "object" },
+        "color": { "type": "string" },
+        "steps": { "type": "integer", "minimum": 1 },
+        "max_steps": { "type": "integer", "minimum": 1 },
+        "permission": { "$ref": "#/definitions/PermissionConfig" }
+      }
+    },
+    "ProviderConfig": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "whitelist": { "type": "array", "items": { "type": "string" } },
+        "blacklist": { "type": "array", "items": { "type": "string" } },
+        "models": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/ModelConfig" }
+        },
+        "options": { "$ref": "#/definitions/ProviderOptions" }
+      }
+    },
+    "ModelConfig": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "variants": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/VariantConfig" }
+        },
+        "visible": { "type": "boolean" }
+      }
+    },
+    "VariantConfig": {
+      "type": "object",
+      "properties": {
+        "disabled": { "type": "boolean" }
+      }
+    },
+    "ProviderOptions": {
+      "type": "object",
+      "properties": {
+        "api_key": { "type": "string" },
+        "base_url": { "type": "string" },
+        "enterprise_url": { "type": "string" },
+        "set_cache_key": { "type": "boolean" },
+        "timeout": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "$ref": "#/definitions/TimeoutConfig" }
+          ]
+        },
+        "chunk_timeout": { "type": "integer", "minimum": 0 },
+        "aws_region": { "type": "string" },
+        "aws_profile": { "type": "string" },
+        "aws_endpoint": { "type": "string" },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "TimeoutConfig": {
+      "description": "Timeout in milliseconds (integer) or no-timeout flag (boolean)",
+      "oneOf": [
+        { "type": "integer", "minimum": 0, "description": "Timeout in milliseconds" },
+        { "type": "boolean", "description": "true = no timeout, false = use default" }
+      ]
+    },
+    "McpConfig": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string", "const": "local" },
+            "command": { "type": "array", "items": { "type": "string" } },
+            "environment": { "type": "object", "additionalProperties": { "type": "string" } },
+            "enabled": { "type": "boolean" },
+            "timeout": { "type": "integer", "minimum": 0 },
+            "max_tokens": { "type": "integer", "minimum": 1 },
+            "cost_warning_threshold": { "type": "number", "minimum": 0 },
+            "cost_limit_threshold": { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string", "const": "remote" },
+            "url": { "type": "string", "format": "uri" },
+            "enabled": { "type": "boolean" },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "oauth": { "$ref": "#/definitions/McpOAuthUnion" },
+            "timeout": { "type": "integer", "minimum": 0 },
+            "max_tokens": { "type": "integer", "minimum": 1 },
+            "cost_warning_threshold": { "type": "number", "minimum": 0 },
+            "cost_limit_threshold": { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string", "const": "simple" },
+            "enabled": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "McpOAuthUnion": {
+      "oneOf": [
+        { "$ref": "#/definitions/McpOAuthConfig" },
+        { "type": "boolean" }
+      ]
+    },
+    "McpOAuthConfig": {
+      "type": "object",
+      "properties": {
+        "client_id": { "type": "string" },
+        "client_secret": { "type": "string" },
+        "scope": { "type": "string" }
+      }
+    },
+    "FormatterConfig": {
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/FormatterEntry" }
+        }
+      ]
+    },
+    "FormatterEntry": {
+      "type": "object",
+      "properties": {
+        "disabled": { "type": "boolean" },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "environment": { "type": "object", "additionalProperties": { "type": "string" } },
+        "extensions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "LspConfig": {
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/LspEntry" }
+        }
+      ]
+    },
+    "LspEntry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "disabled": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["command"],
+          "properties": {
+            "command": { "type": "array", "items": { "type": "string" } },
+            "extensions": { "type": "array", "items": { "type": "string" } },
+            "disabled": { "type": "boolean" },
+            "env": { "type": "object", "additionalProperties": { "type": "string" } },
+            "initialization": { "type": "object" }
+          }
+        }
+      ]
+    },
+    "PermissionConfig": {
+      "type": "object",
+      "properties": {
+        "read": { "$ref": "#/definitions/PermissionRule" },
+        "edit": { "$ref": "#/definitions/PermissionRule" },
+        "glob": { "$ref": "#/definitions/PermissionRule" },
+        "grep": { "$ref": "#/definitions/PermissionRule" },
+        "list": { "$ref": "#/definitions/PermissionRule" },
+        "bash": { "$ref": "#/definitions/PermissionRule" },
+        "task": { "$ref": "#/definitions/PermissionRule" },
+        "external_directory": { "$ref": "#/definitions/PermissionRule" },
+        "todowrite": { "$ref": "#/definitions/PermissionAction" },
+        "question": { "$ref": "#/definitions/PermissionAction" },
+        "webfetch": { "$ref": "#/definitions/PermissionAction" },
+        "websearch": { "$ref": "#/definitions/PermissionAction" },
+        "codesearch": { "$ref": "#/definitions/PermissionAction" },
+        "lsp": { "$ref": "#/definitions/PermissionRule" },
+        "doom_loop": { "$ref": "#/definitions/PermissionAction" },
+        "skill": { "$ref": "#/definitions/PermissionRule" }
+      }
+    },
+    "PermissionAction": {
+      "type": "string",
+      "enum": ["ask", "allow", "deny"]
+    },
+    "PermissionRule": {
+      "oneOf": [
+        { "$ref": "#/definitions/PermissionAction" },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/PermissionAction" }
+        }
+      ]
+    },
+    "EnterpriseConfig": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "remote_config_domain": { "type": "string" }
+      }
+    },
+    "GitHubConfig": {
+      "type": "object",
+      "properties": {
+        "api_url": { "type": "string", "format": "uri" },
+        "installs": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/GitHubInstall" }
+        }
+      }
+    },
+    "GitHubInstall": {
+      "type": "object",
+      "required": ["owner", "repo", "branch", "workflow_path", "commit_sha", "installed_at"],
+      "properties": {
+        "owner": { "type": "string" },
+        "repo": { "type": "string" },
+        "branch": { "type": "string" },
+        "workflow_path": { "type": "string" },
+        "commit_sha": { "type": "string" },
+        "installed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CompactionConfig": {
+      "type": "object",
+      "properties": {
+        "auto": { "type": "boolean" },
+        "prune": { "type": "boolean" },
+        "reserved": { "type": "integer", "minimum": 0 },
+        "warning_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "compact_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "continuation_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "preserve_recent_messages": { "type": "integer", "minimum": 0 },
+        "preserve_system_messages": { "type": "boolean" },
+        "summary_prefix": { "type": "string" }
+      }
+    },
+    "ExperimentalConfig": {
+      "type": "object",
+      "properties": {
+        "disable_paste_summary": { "type": "boolean" },
+        "batch_tool": { "type": "boolean" },
+        "open_telemetry": { "type": "boolean" },
+        "primary_tools": { "type": "array", "items": { "type": "string" } },
+        "continue_loop_on_deny": { "type": "boolean" },
+        "mcp_timeout": { "type": "integer", "minimum": 0 },
+        "enable_exa": { "type": "boolean" }
+      }
+    },
+    "TuiConfig": {
+      "type": "object",
+      "properties": {
+        "$schema": { "type": "string" },
+        "scroll_speed": { "type": "integer", "minimum": 1 },
+        "scroll_acceleration": { "$ref": "#/definitions/ScrollAccelerationConfig" },
+        "diff_style": {
+          "type": "string",
+          "enum": ["side-by-side", "inline", "unified", "auto", "stacked"]
+        },
+        "theme": { "$ref": "#/definitions/ThemeConfig" },
+        "keybinds": { "$ref": "#/definitions/KeybindConfig" },
+        "plugins": { "$ref": "#/definitions/TuiPluginConfig" }
+      }
+    },
+    "ScrollAccelerationConfig": {
+      "oneOf": [
+        { "type": "number", "minimum": 0 },
+        {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "speed": { "type": "number", "minimum": 0 }
+          }
+        }
+      ]
+    },
+    "ThemeConfig": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "path": { "type": "string" },
+        "scan_dirs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "KeybindConfig": {
+      "type": "object",
+      "properties": {
+        "commands": { "type": "string" },
+        "timeline": { "type": "string" },
+        "settings": { "type": "string" },
+        "models": { "type": "string" },
+        "files": { "type": "string" },
+        "terminal": { "type": "string" },
+        "custom": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "TuiPluginConfig": {
+      "type": "object",
+      "properties": {
+        "plugin_enabled": { "type": "boolean" },
+        "plugins": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        }
+      }
     }
-  },
-  "additionalProperties": true
+  }
 }
