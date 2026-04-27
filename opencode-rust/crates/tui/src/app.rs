@@ -26,8 +26,9 @@ use crossterm::{
     },
 };
 use opencode_auth::CredentialStore;
+use opencode_agent::{AgentRuntime, AgentType, BuildAgent, RuntimeConfig};
 use opencode_core::{
-    AgentExecutor, CostCalculator, SessionSharing, SkillResolver, SkillState, TokenCounter,
+    AgentExecutor, CostCalculator, Session, SessionSharing, SkillResolver, SkillState, TokenCounter,
     ToolRegistry,
 };
 use opencode_llm::{
@@ -55,6 +56,8 @@ use std::time::{Duration, Instant};
 
 pub enum LlmEvent {
     Chunk(String),
+    ToolCall { name: String, arguments: serde_json::Value, id: String },
+    ToolResult { id: String, output: String },
     Done,
     Error(String),
 }
@@ -2609,6 +2612,19 @@ impl App {
                         self.pending_input_tokens = 0;
                         self.llm_rx = None;
                     }
+                    LlmEvent::ToolCall { name, arguments, id } => {
+                        let args_str = serde_json::to_string_pretty(&arguments).unwrap_or_default();
+                        self.add_message(
+                            format!("[Tool Call: {} ({})]\nArguments: {}", name, id, args_str),
+                            false,
+                        );
+                    }
+                    LlmEvent::ToolResult { id, output } => {
+                        self.add_message(
+                            format!("[Tool Result for {}]\n{}", id, output),
+                            false,
+                        );
+                    }
                 }
             }
         }
@@ -4363,16 +4379,30 @@ OpenCode Agent Configuration
                                         .expect("failed to create Tokio runtime");
                                     rt.block_on(async {
                                         let tx_callback = tx.clone();
-                                        let callback = move |chunk: String| {
-                                            let _ = tx_callback.send(LlmEvent::Chunk(chunk));
-                                        };
+                                        let callback: opencode_llm::EventCallback = Box::new(move |event| {
+                                            match event {
+                                                opencode_llm::LlmEvent::TextChunk(text) => {
+                                                    let _ = tx_callback.send(LlmEvent::Chunk(text));
+                                                }
+                                                opencode_llm::LlmEvent::ToolCall { name, arguments, id } => {
+                                                    let _ = tx_callback.send(LlmEvent::ToolCall { name, arguments, id });
+                                                }
+                                                opencode_llm::LlmEvent::Done => {
+                                                    let _ = tx_callback.send(LlmEvent::Done);
+                                                }
+                                                opencode_llm::LlmEvent::Error(e) => {
+                                                    let _ = tx_callback.send(LlmEvent::Error(e));
+                                                }
+                                                opencode_llm::LlmEvent::ToolResult { id, output } => {
+                                                    let _ = tx_callback.send(LlmEvent::ToolResult { id, output });
+                                                }
+                                            }
+                                        });
                                         match provider_clone
-                                            .complete_streaming(&llm_input, Box::new(callback))
+                                            .complete_with_events(&llm_input, None, callback)
                                             .await
                                         {
-                                            Ok(_) => {
-                                                let _ = tx.send(LlmEvent::Done);
-                                            }
+                                            Ok(_) => {}
                                             Err(e) => {
                                                 let _ = tx.send(LlmEvent::Error(e.to_string()));
                                             }

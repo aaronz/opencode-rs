@@ -5242,6 +5242,7 @@ dependencies = [
  "futures",
  "fuzzy-matcher",
  "ignore",
+ "opencode-agent",
  "opencode-auth",
  "opencode-core",
  "opencode-llm",
