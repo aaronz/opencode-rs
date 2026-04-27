@@ -194,6 +194,7 @@ pub const KNOWN_CONFIG_FIELDS: &[&str] = &[
     "schema",
     "logLevel",
     "log_level",
+    "shell",
     "server",
     "command",
     "commands",

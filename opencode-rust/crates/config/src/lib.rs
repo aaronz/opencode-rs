@@ -49,6 +49,9 @@ pub struct Config {
     pub log_level: Option<LogLevel>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub shell: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub server: Option<ServerConfig>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -4813,5 +4816,12 @@ mod tests {
         let json = r#"{"logLevel": "debug"}"#;
         let config: Config = serde_json::from_str(json).unwrap();
         assert_eq!(config.log_level, Some(LogLevel::Debug));
+    }
+
+    #[test]
+    fn test_shell_field_parses() {
+        let json = r#"{"shell": "/bin/zsh"}"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert_eq!(config.shell, Some("/bin/zsh".to_string()));
     }
 }

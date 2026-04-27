@@ -17,6 +17,10 @@
       "enum": ["trace", "debug", "info", "warn", "error", "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "WARNING"],
       "description": "Logging level (legacy camelCase)"
     },
+    "shell": {
+      "type": "string",
+      "description": "Default shell to use for terminal and bash tool"
+    },
     "server": {
       "$ref": "#/definitions/ServerConfig"
     },
