@@ -99,6 +99,9 @@ pub struct Config {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent: Option<AgentMapConfig>,
 
+    #[serde(alias = "mode", skip_serializing)]
+    pub mode: Option<ModeConfig>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<HashMap<String, ProviderConfig>>,
 
@@ -380,6 +383,17 @@ pub enum ShareMode {
 pub enum AutoUpdate {
     Bool(bool),
     Notify(String),
+}
+
+/// Mode configuration for compatibility with official opencode config format.
+/// The "mode" field uses "build" and "plan" as primary agent names.
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ModeConfig {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build: Option<AgentConfig>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan: Option<AgentConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -1253,7 +1267,6 @@ impl Config {
     fn check_and_migrate_deprecated_fields(value: &mut serde_json::Value) {
         if let Some(obj) = value.as_object_mut() {
             let deprecated_fields = [
-                ("mode", "Use 'agent[].permission' instead. Will be removed in v4.0."),
                 ("tools", "Use 'permission' field instead. Will be removed in v4.0."),
                 ("theme", "Theme configuration has moved to 'tui.json'. Will be removed from opencode.json in v4.0."),
                 ("keybinds", "Keybinds configuration has moved to 'tui.json'. Will be removed from opencode.json in v4.0."),
@@ -1267,6 +1280,19 @@ impl Config {
                         field,
                         message
                     );
+                }
+            }
+
+            // Check for old string format "mode": "agent" (deprecated)
+            // The new format "mode": { "build": {...}, "plan": {...} } is valid and should not warn
+            // Remove the deprecated string value so serde doesn't fail on it
+            if let Some(mode_value) = obj.get("mode") {
+                if mode_value.is_string() {
+                    tracing::warn!(
+                        "Deprecated config field 'mode' detected: Use 'agent[].permission' instead. Will be removed in v4.0. \
+                        See https://docs.opencode.ai/config/migration for migration guide."
+                    );
+                    obj.remove("mode");
                 }
             }
 
@@ -4823,5 +4849,95 @@ mod tests {
         let json = r#"{"shell": "/bin/zsh"}"#;
         let config: Config = serde_json::from_str(json).unwrap();
         assert_eq!(config.shell, Some("/bin/zsh".to_string()));
+    }
+
+    // ModeConfig tests for compatibility with official opencode config format
+
+    #[test]
+    fn test_mode_build_deserializes() {
+        let json = r#"{
+            "mode": {
+                "build": {
+                    "model": "openai/gpt-4o",
+                    "temperature": 0.2
+                }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(config.mode.is_some());
+        let mode = config.mode.as_ref().unwrap();
+        assert!(mode.build.is_some());
+        let build = mode.build.as_ref().unwrap();
+        assert_eq!(build.model.as_ref().unwrap(), "openai/gpt-4o");
+        assert_eq!(build.temperature.unwrap(), 0.2);
+    }
+
+    #[test]
+    fn test_mode_plan_deserializes() {
+        let json = r#"{
+            "mode": {
+                "plan": {
+                    "model": "anthropic/claude-3"
+                }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(config.mode.is_some());
+        let mode = config.mode.as_ref().unwrap();
+        assert!(mode.plan.is_some());
+        let plan = mode.plan.as_ref().unwrap();
+        assert_eq!(plan.model.as_ref().unwrap(), "anthropic/claude-3");
+    }
+
+    #[test]
+    fn test_mode_both_build_and_plan_deserialize() {
+        let json = r#"{
+            "mode": {
+                "build": {
+                    "model": "openai/gpt-4o",
+                    "temperature": 0.2
+                },
+                "plan": {
+                    "model": "anthropic/claude-3",
+                    "temperature": 0.0
+                }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(config.mode.is_some());
+        let mode = config.mode.as_ref().unwrap();
+        assert!(mode.build.is_some());
+        assert!(mode.plan.is_some());
+        assert_eq!(mode.build.as_ref().unwrap().model.as_ref().unwrap(), "openai/gpt-4o");
+        assert_eq!(mode.plan.as_ref().unwrap().model.as_ref().unwrap(), "anthropic/claude-3");
+    }
+
+    #[test]
+    fn test_mode_field_not_serialized_back() {
+        let json = r#"{
+            "mode": {
+                "build": {
+                    "model": "openai/gpt-4o"
+                }
+            }
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        let serialized = serde_json::to_string(&config).unwrap();
+        // mode field should not appear in output since it's skip_serializing
+        assert!(!serialized.contains("\"mode\""));
+        // but the data should have been parsed
+        assert!(config.mode.is_some());
+    }
+
+    #[test]
+    fn test_mode_null_build_and_plan() {
+        let json = r#"{
+            "mode": {}
+        }"#;
+        let config: Config = serde_json::from_str(json).unwrap();
+        assert!(config.mode.is_some());
+        let mode = config.mode.as_ref().unwrap();
+        assert!(mode.build.is_none());
+        assert!(mode.plan.is_none());
     }
 }

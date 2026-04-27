@@ -124,6 +124,10 @@
     "agents": {
       "$ref": "#/definitions/AgentMapConfig"
     },
+    "mode": {
+      "$ref": "#/definitions/ModeConfig",
+      "description": "Mode configuration (alias for agent.agents with build/plan keys)"
+    },
     "provider": {
       "type": "object",
       "additionalProperties": {
@@ -343,6 +347,14 @@
           "additionalProperties": { "$ref": "#/definitions/AgentConfig" }
         }
       ]
+    },
+    "ModeConfig": {
+      "type": "object",
+      "properties": {
+        "build": { "$ref": "#/definitions/AgentConfig" },
+        "plan": { "$ref": "#/definitions/AgentConfig" }
+      },
+      "description": "Mode configuration for compatibility with official opencode config format"
     },
     "AgentConfig": {
       "type": "object",
