@@ -167,7 +167,7 @@ pub(crate) use executor::build_default_executor;
 pub(crate) use filesystem::AppFileSystem;
 
 // flag
-pub(crate) use flag::FlagManager;
+pub(crate) use flag::types::FlagManager;
 
 // format
 pub(crate) use format::FormatUtils;
