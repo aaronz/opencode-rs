@@ -5248,6 +5248,7 @@ dependencies = [
  "opencode-llm",
  "opencode-lsp",
  "opencode-mcp",
+ "opencode-tools",
  "pulldown-cmark",
  "ratatui 0.30.0",
  "regex",

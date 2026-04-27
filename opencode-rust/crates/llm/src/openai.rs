@@ -78,9 +78,31 @@ struct StreamChoice {
     delta: StreamDelta,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct StreamDelta {
     content: Option<String>,
+    #[serde(default)]
+    tool_calls: Vec<StreamToolCallDelta>,
+}
+
+#[derive(Deserialize, Default)]
+struct StreamToolCallDelta {
+    index: usize,
+    id: Option<String>,
+    function: Option<StreamFunctionDelta>,
+}
+
+#[derive(Deserialize, Default)]
+struct StreamFunctionDelta {
+    name: Option<String>,
+    arguments: Option<String>,
+}
+
+#[derive(Default)]
+struct PendingToolCall {
+    id: String,
+    name: String,
+    arguments: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -527,6 +549,130 @@ impl Provider for OpenAiProvider {
         }
 
         Ok(())
+    }
+
+    async fn complete_with_events(
+        &self,
+        prompt: &str,
+        _context: Option<&str>,
+        mut callback: EventCallback,
+    ) -> Result<Option<String>, OpenCodeError> {
+        if self.uses_browser_auth() {
+            let content = self.complete_browser_auth(prompt).await?;
+            callback(LlmEvent::TextChunk(content.clone()));
+            callback(LlmEvent::Done);
+            return Ok(Some(content));
+        }
+
+        let messages = vec![Message {
+            role: "user".to_string(),
+            content: prompt.to_string(),
+        }];
+
+        let reasoning = self
+            .reasoning_effort
+            .as_ref()
+            .map(|e| ReasoningRequest { effort: e.clone() });
+
+        let request = ChatRequest {
+            model: self.model.clone(),
+            messages,
+            stream: true,
+            reasoning,
+        };
+
+        let mut req = self
+            .client
+            .post(format!("{}/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&request);
+
+        for (key, value) in &self.headers {
+            req = req.header(key, value);
+        }
+
+        let response = req
+            .send()
+            .await
+            .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(OpenCodeError::Llm(format!(
+                "OpenAI API error {}: {}",
+                status, error_text
+            )));
+        }
+
+        let mut full_content = String::new();
+        let mut pending_tool_calls: Vec<PendingToolCall> = Vec::new();
+        let mut lines = response.bytes_stream();
+
+        use futures_util::StreamExt;
+        while let Some(item) = lines.next().await {
+            match item {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    for line in text.lines() {
+                        if !line.starts_with("data: ") {
+                            continue;
+                        }
+
+                        let data = line.strip_prefix("data: ").unwrap_or("");
+                        if data == "[DONE]" {
+                            for tool_call in pending_tool_calls {
+                                let arguments = serde_json::from_str(&tool_call.arguments)
+                                    .unwrap_or_else(|_| serde_json::Value::String(tool_call.arguments));
+                                callback(LlmEvent::ToolCall {
+                                    name: tool_call.name,
+                                    arguments,
+                                    id: tool_call.id,
+                                });
+                            }
+                            callback(LlmEvent::Done);
+                            return Ok(Some(full_content));
+                        }
+
+                        if let Ok(chunk) = serde_json::from_str::<StreamChunk>(data) {
+                            if let Some(choice) = chunk.choices.first() {
+                                if let Some(content) = choice.delta.content.clone() {
+                                    full_content.push_str(&content);
+                                    callback(LlmEvent::TextChunk(content));
+                                }
+
+                                for tool_delta in &choice.delta.tool_calls {
+                                    while pending_tool_calls.len() <= tool_delta.index {
+                                        pending_tool_calls.push(PendingToolCall::default());
+                                    }
+
+                                    let pending = &mut pending_tool_calls[tool_delta.index];
+                                    if let Some(id) = &tool_delta.id {
+                                        pending.id = id.clone();
+                                    }
+                                    if let Some(function) = &tool_delta.function {
+                                        if let Some(name) = &function.name {
+                                            pending.name.push_str(name);
+                                        }
+                                        if let Some(arguments) = &function.arguments {
+                                            pending.arguments.push_str(arguments);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    callback(LlmEvent::Error(format!("Stream error: {}", e)));
+                    return Err(OpenCodeError::Llm(format!("Stream error: {}", e)));
+                }
+            }
+        }
+
+        callback(LlmEvent::Done);
+        Ok(Some(full_content))
     }
 }
 

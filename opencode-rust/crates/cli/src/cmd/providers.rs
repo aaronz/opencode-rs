@@ -319,7 +319,13 @@ fn provider_enabled(config: &Config, id: &str) -> bool {
 }
 
 pub(crate) fn run(args: ProvidersArgs) -> Result<(), String> {
-    let config = load_config_result()?;
+    let config = match load_config_result() {
+        Ok(config) => config,
+        Err(err) => {
+            tracing::warn!("{}; falling back to default provider config", err);
+            Config::default()
+        }
+    };
     let registry = ModelRegistry::default();
     let provider_ids = registry.list_providers();
     let providers = provider_ids

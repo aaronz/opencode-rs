@@ -57,6 +57,32 @@ fn test_settings_providers() {
 }
 
 #[test]
+fn test_providers_json_falls_back_when_config_is_malformed() {
+    let harness = TestHarness::setup();
+    let config_dir = harness.temp_dir.path().join("config");
+    std::fs::create_dir_all(&config_dir).unwrap();
+    let config_path = config_dir.join("config.json");
+
+    std::fs::write(&config_path, "{\"model\":\"gpt-4o\"} trailing").unwrap();
+
+    let output = harness.run_cli(&["providers", "--json"]);
+
+    assert!(
+        output.status.success(),
+        "providers --json should fall back to defaults on malformed config: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let providers = parsed
+        .get("providers")
+        .and_then(|v| v.as_array())
+        .expect("providers array should be present");
+    assert!(!providers.is_empty(), "providers list should not be empty");
+}
+
+#[test]
 fn test_settings_validation() {
     let harness = TestHarness::setup();
     let result = harness.run_cli(&["config", "--set", "invalid-key", "invalid-value"]);

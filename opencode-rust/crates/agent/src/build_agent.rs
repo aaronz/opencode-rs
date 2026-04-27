@@ -2,7 +2,7 @@ use crate::sealed;
 use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
-use opencode_llm::provider::{EventCallback, LlmEvent};
+use opencode_llm::provider::EventCallback;
 use opencode_llm::provider_abstraction::ReasoningBudget;
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
@@ -159,7 +159,7 @@ impl Agent for BuildAgent {
         session: &mut Session,
         provider: &dyn Provider,
         _tools: &ToolRegistry,
-        mut events: EventCallback,
+        events: EventCallback,
     ) -> Result<AgentResponse, OpenCodeError> {
         let mut all_messages: Vec<ChatMessage> = vec![ChatMessage {
             role: "system".to_string(),
@@ -181,7 +181,6 @@ impl Agent for BuildAgent {
             .await?;
 
         let content = final_content.unwrap_or_default();
-        session.add_message(Message::assistant(content.clone()));
 
         Ok(AgentResponse {
             content,

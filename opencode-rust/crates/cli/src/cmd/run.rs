@@ -407,6 +407,21 @@ mod tests {
         let model = get_default_model(&args, &config);
         assert_eq!(model, "claude-3-5-sonnet");
     }
+
+    #[test]
+    fn test_text_format_uses_noninteractive_llm_path() {
+        assert!(uses_noninteractive_llm(&OutputFormat::Text));
+    }
+
+    #[test]
+    fn test_json_format_uses_noninteractive_llm_path() {
+        assert!(uses_noninteractive_llm(&OutputFormat::Json));
+    }
+
+    #[test]
+    fn test_ndjson_format_uses_noninteractive_llm_path() {
+        assert!(uses_noninteractive_llm(&OutputFormat::Ndjson));
+    }
 }
 
 fn get_default_model(args: &RunArgs, config: &Config) -> String {
@@ -417,21 +432,22 @@ fn get_default_model(args: &RunArgs, config: &Config) -> String {
         .unwrap_or_else(|| "gpt-4o".to_string())
 }
 
+fn uses_noninteractive_llm(format: &OutputFormat) -> bool {
+    matches!(format, OutputFormat::Text | OutputFormat::Json | OutputFormat::Ndjson)
+}
+
 pub(crate) fn run(args: RunArgs) {
     if let Some(prompt) = args.prompt.clone() {
         let config = load_config();
         let model = get_default_model(&args, &config);
 
-        match args.format {
-            OutputFormat::Ndjson | OutputFormat::Json => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(run_llm(&config, &model, &prompt, args.format));
-            }
-            _ => {
-                println!("Mode: non-interactive");
-                println!("Model: {}", model);
-                println!("Prompt: {}", prompt);
-            }
+        if uses_noninteractive_llm(&args.format) {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(run_llm(&config, &model, &prompt, args.format));
+        } else {
+            println!("Mode: non-interactive");
+            println!("Model: {}", model);
+            println!("Prompt: {}", prompt);
         }
         return;
     }
@@ -528,7 +544,9 @@ async fn run_llm(config: &Config, model: &str, prompt: &str, format: OutputForma
                 .complete_streaming(
                     prompt,
                     Box::new(move |chunk| {
-                        chunks_clone.lock().unwrap().push(chunk);
+                        if !chunk.is_empty() {
+                            chunks_clone.lock().unwrap().push(chunk);
+                        }
                     }),
                 )
                 .await;
@@ -563,7 +581,9 @@ async fn run_llm(config: &Config, model: &str, prompt: &str, format: OutputForma
                 .complete_streaming(
                     prompt,
                     Box::new(move |chunk| {
-                        serializer_clone.lock().unwrap().write_chunk(&chunk).ok();
+                        if !chunk.is_empty() {
+                            serializer_clone.lock().unwrap().write_chunk(&chunk).ok();
+                        }
                     }),
                 )
                 .await;
@@ -584,7 +604,9 @@ async fn run_llm(config: &Config, model: &str, prompt: &str, format: OutputForma
                 .complete_streaming(
                     prompt,
                     Box::new(|chunk| {
-                        print!("{}", chunk);
+                        if !chunk.is_empty() {
+                            print!("{}", chunk);
+                        }
                     }),
                 )
                 .await;

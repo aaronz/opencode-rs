@@ -143,7 +143,6 @@ impl Agent for GeneralAgent {
         let final_content = provider.complete_with_events(&prompt, None, events).await?;
 
         let content = final_content.unwrap_or_default();
-        session.add_message(Message::assistant(content.clone()));
 
         Ok(AgentResponse {
             content,

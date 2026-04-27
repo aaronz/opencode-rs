@@ -26,10 +26,10 @@ use crossterm::{
     },
 };
 use opencode_auth::CredentialStore;
-use opencode_agent::{AgentRuntime, AgentType, BuildAgent, RuntimeConfig};
+use opencode_agent::{AgentRuntime, AgentType, BuildAgent};
 use opencode_core::{
-    AgentExecutor, CostCalculator, Session, SessionSharing, SkillResolver, SkillState, TokenCounter,
-    ToolRegistry,
+    AgentExecutor, CostCalculator, Message, Session, SessionSharing, SkillResolver, SkillState,
+    TokenCounter,
 };
 use opencode_llm::{
     BrowserAuthModelInfo, CopilotOAuthService, CopilotOAuthSession, CopilotOAuthStore,
@@ -40,6 +40,7 @@ use opencode_llm::{
 use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
 use opencode_mcp::McpManager;
+use opencode_tools::{build_default_registry, ToolRegistry as ToolsToolRegistry};
 use ratatui::{
     backend::CrosstermBackend,
     layout::Rect,
@@ -52,12 +53,14 @@ use serde::Deserialize;
 use std::io;
 use std::io::Write;
 use std::sync::mpsc;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub enum LlmEvent {
     Chunk(String),
     ToolCall { name: String, arguments: serde_json::Value, id: String },
     ToolResult { id: String, output: String },
+    SessionComplete(Session),
     Done,
     Error(String),
 }
@@ -540,8 +543,8 @@ pub struct App {
     #[allow(dead_code)]
     file_ref_handler: FileRefHandler,
     pub config: Config,
-    #[allow(dead_code)]
-    tool_registry: ToolRegistry,
+    tool_registry: Arc<ToolsToolRegistry>,
+    session: Option<Session>,
     #[allow(dead_code)]
     agent_executor: AgentExecutor,
     #[allow(dead_code)]
@@ -1272,18 +1275,15 @@ impl App {
             shell_handler: ShellHandler::new(),
             file_ref_handler: FileRefHandler::new(),
             config: Config::load_from_default_path().unwrap_or_else(|_| Config::default_config()),
-            tool_registry: {
-                let mut registry = ToolRegistry::new();
-                let mcp_manager = McpManager::global();
-                if let Ok(rt) = tokio::runtime::Handle::try_current() {
-                    rt.block_on(async {
-                        mcp_manager.bridge_to_tool_registry(&mut registry).await;
-                    });
-                }
-                registry
-            },
+            tool_registry: Arc::new(if let Ok(rt) = tokio::runtime::Handle::try_current() {
+                rt.block_on(async { build_default_registry(None).await })
+            } else {
+                tokio::runtime::Runtime::new()
+                    .expect("failed to create Tokio runtime for tool registry")
+                    .block_on(async { build_default_registry(None).await })
+            }),
             agent_executor: {
-                let mut registry = ToolRegistry::new();
+                let mut registry = opencode_core::ToolRegistry::new();
                 let mcp_manager = McpManager::global();
                 if let Ok(rt) = tokio::runtime::Handle::try_current() {
                     rt.block_on(async {
@@ -1302,6 +1302,7 @@ impl App {
                 std::fs::create_dir_all(&cache_dir).ok();
                 ProviderCatalogFetcher::new(cache_dir.join("models_dev_catalog.json"))
             },
+            session: None,
         }
     }
 
@@ -2625,9 +2626,18 @@ impl App {
                             false,
                         );
                     }
+                    LlmEvent::SessionComplete(session) => {
+                        self.session = Some(session);
+                    }
                 }
             }
         }
+    }
+
+    fn runtime_session_for_input(&self, llm_input: &str) -> Session {
+        let mut session = self.session.clone().unwrap_or_default();
+        session.add_message(Message::user(llm_input.to_string()));
+        session
     }
 
     pub fn check_connect_events_for_testing(&mut self) {
@@ -4349,6 +4359,10 @@ OpenCode Agent Configuration
                                 self.is_llm_generating = true;
                                 self.partial_response.clear();
 
+                                if self.session.is_none() {
+                                    self.session = Some(Session::new());
+                                }
+
                                 let (tx, rx) = mpsc::channel();
                                 self.llm_rx = Some(rx);
                                 #[expect(clippy::expect_used)]
@@ -4372,12 +4386,16 @@ OpenCode Agent Configuration
                                         skill_prompt, base_input
                                     )
                                 };
+                                let session = self.runtime_session_for_input(&llm_input);
+                                let tools: Arc<ToolsToolRegistry> = Arc::clone(&self.tool_registry);
 
                                 std::thread::spawn(move || {
                                     #[expect(clippy::expect_used)]
                                     let rt = tokio::runtime::Runtime::new()
                                         .expect("failed to create Tokio runtime");
                                     rt.block_on(async {
+                                        let runtime = AgentRuntime::new(session, AgentType::Build);
+                                        let agent = BuildAgent::new();
                                         let tx_callback = tx.clone();
                                         let callback: opencode_llm::EventCallback = Box::new(move |event| {
                                             match event {
@@ -4387,22 +4405,30 @@ OpenCode Agent Configuration
                                                 opencode_llm::LlmEvent::ToolCall { name, arguments, id } => {
                                                     let _ = tx_callback.send(LlmEvent::ToolCall { name, arguments, id });
                                                 }
+                                                opencode_llm::LlmEvent::ToolResult { id, output } => {
+                                                    let _ = tx_callback.send(LlmEvent::ToolResult { id, output });
+                                                }
                                                 opencode_llm::LlmEvent::Done => {
                                                     let _ = tx_callback.send(LlmEvent::Done);
                                                 }
                                                 opencode_llm::LlmEvent::Error(e) => {
                                                     let _ = tx_callback.send(LlmEvent::Error(e));
                                                 }
-                                                opencode_llm::LlmEvent::ToolResult { id, output } => {
-                                                    let _ = tx_callback.send(LlmEvent::ToolResult { id, output });
-                                                }
                                             }
                                         });
-                                        match provider_clone
-                                            .complete_with_events(&llm_input, None, callback)
+                                        match runtime
+                                            .run_loop_streaming(
+                                                &agent,
+                                                provider_clone.as_ref(),
+                                                tools.as_ref(),
+                                                Some(callback),
+                                            )
                                             .await
                                         {
-                                            Ok(_) => {}
+                                            Ok(_) => {
+                                                let updated_session = runtime.session().await;
+                                                let _ = tx.send(LlmEvent::SessionComplete(updated_session));
+                                            }
                                             Err(e) => {
                                                 let _ = tx.send(LlmEvent::Error(e.to_string()));
                                             }
@@ -6359,6 +6385,48 @@ mod tests {
         app.sync_resolver_from_skills_panel();
         let prompt = app.skill_resolver.build_skill_prompt();
         assert!(prompt.contains("debugger"));
+    }
+
+    #[test]
+    fn session_complete_event_updates_app_session() {
+        let mut app = App::new();
+        let (tx, rx) = mpsc::channel();
+        let mut session = Session::new();
+        session.add_message(Message::user("persist me"));
+
+        app.llm_rx = Some(rx);
+        tx.send(LlmEvent::SessionComplete(session.clone())).unwrap();
+        app.check_llm_events();
+
+        let stored = app.session.expect("session should be updated from event");
+        assert_eq!(stored.messages.len(), 1);
+        assert_eq!(stored.messages[0].content, "persist me");
+    }
+
+    #[test]
+    fn runtime_session_for_input_reuses_persisted_session_context() {
+        let mut app = App::new();
+        let mut persisted = Session::new();
+        persisted.add_message(Message::user("first turn"));
+        persisted.add_message(Message::assistant("first reply"));
+        app.session = Some(persisted);
+
+        let session = app.runtime_session_for_input("second turn");
+
+        assert_eq!(session.messages.len(), 3);
+        assert_eq!(session.messages[0].content, "first turn");
+        assert_eq!(session.messages[1].content, "first reply");
+        assert_eq!(session.messages[2].content, "second turn");
+    }
+
+    #[test]
+    fn runtime_session_for_input_creates_first_turn_when_session_missing() {
+        let app = App::new();
+
+        let session = app.runtime_session_for_input("first turn");
+
+        assert_eq!(session.messages.len(), 1);
+        assert_eq!(session.messages[0].content, "first turn");
     }
 
     #[test]

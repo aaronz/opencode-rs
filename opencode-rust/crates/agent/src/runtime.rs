@@ -396,6 +396,7 @@ impl AgentRuntime {
         agent: &A,
         provider: &dyn Provider,
         tools: &ToolRegistry,
+        external_events: Option<EventCallback>,
     ) -> Result<AgentResponse, RuntimeError> {
         if !self.primary_tracker.is_active() {
             tracing::error!("No active primary agent");
@@ -417,60 +418,75 @@ impl AgentRuntime {
             tool_calls: Vec::new(),
         };
 
+        let ext_events_arc = external_events.map(|e| Arc::new(std::sync::Mutex::new(e)));
+
         loop {
-            iteration += 1;
-            if iteration > self.config.max_iterations {
-                tracing::warn!(session_id = %session_id, iteration = iteration, limit = self.config.max_iterations, "Max iterations exceeded");
-                return Err(RuntimeError::MaxIterationsExceeded {
-                    limit: self.config.max_iterations,
-                });
-            }
-
-            tracing::debug!(session_id = %session_id, iteration = iteration, "Agent streaming iteration starting");
-
-            let content_buffer = Arc::new(std::sync::Mutex::new(String::new()));
-            let tool_calls_buffer = Arc::new(std::sync::Mutex::new(Vec::new()));
-            let cb_clone = content_buffer.clone();
-            let tc_clone = tool_calls_buffer.clone();
-
-            let events_callback: EventCallback = Box::new(move |event| {
-                match event {
-                    LlmEvent::TextChunk(text) => {
-                        if let Ok(mut guard) = cb_clone.lock() {
-                            guard.push_str(&text);
-                        }
-                    }
-                    LlmEvent::ToolCall { name, arguments, id } => {
-                        if let Ok(mut guard) = tc_clone.lock() {
-                            guard.push(ToolCall { id, name, arguments });
-                        }
-                    }
-                    _ => {}
+                iteration += 1;
+                if iteration > self.config.max_iterations {
+                    tracing::warn!(session_id = %session_id, iteration = iteration, limit = self.config.max_iterations, "Max iterations exceeded");
+                    return Err(RuntimeError::MaxIterationsExceeded {
+                        limit: self.config.max_iterations,
+                    });
                 }
-            });
 
-            agent
-                .run_streaming(&mut *self.session.write().await, provider, tools, events_callback)
-                .await
-                .map_err(|e| {
-                    tracing::error!(session_id = %session_id, error = %e, "Agent run_streaming failed");
-                    RuntimeError::ToolExecutionFailed {
-                        tool: "agent".to_string(),
-                        reason: e.to_string(),
+                tracing::debug!(session_id = %session_id, iteration = iteration, "Agent streaming iteration starting");
+
+                let content_buffer = Arc::new(std::sync::Mutex::new(String::new()));
+                let tool_calls_buffer = Arc::new(std::sync::Mutex::new(Vec::new()));
+                let cb_clone = content_buffer.clone();
+                let tc_clone = tool_calls_buffer.clone();
+                let ext_clone = ext_events_arc.clone();
+
+                let events_callback: EventCallback = Box::new(move |event| {
+                    match event {
+                        LlmEvent::TextChunk(text) => {
+                            if let Ok(mut guard) = cb_clone.lock() {
+                                guard.push_str(&text);
+                            }
+                            if let Some(ref ext) = ext_clone {
+                                if let Ok(mut guard) = ext.lock() {
+                                    let callback = &mut *guard;
+                                    callback(LlmEvent::TextChunk(text));
+                                }
+                            }
+                        }
+                        LlmEvent::ToolCall { name, arguments, id } => {
+                            if let Ok(mut guard) = tc_clone.lock() {
+                                guard.push(ToolCall { id: id.clone(), name: name.clone(), arguments: arguments.clone() });
+                            }
+                            if let Some(ref ext) = ext_clone {
+                                if let Ok(mut guard) = ext.lock() {
+                                    let callback = &mut *guard;
+                                    callback(LlmEvent::ToolCall { name, arguments, id });
+                                }
+                            }
+                        }
+                        _ => {}
                     }
-                })?;
+                });
 
-            if let Ok(mut guard) = content_buffer.lock() {
-                final_response.content = guard.clone();
-            }
-            final_response.tool_calls = tool_calls_buffer.lock().unwrap().clone();
+                agent
+                    .run_streaming(&mut *self.session.write().await, provider, tools, events_callback)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(session_id = %session_id, error = %e, "Agent run_streaming failed");
+                        RuntimeError::ToolExecutionFailed {
+                            tool: "agent".to_string(),
+                            reason: e.to_string(),
+                        }
+                    })?;
 
-            if final_response.tool_calls.is_empty() {
-                tracing::info!(session_id = %session_id, iteration = iteration, response_len = final_response.content.len(), "Agent completed successfully");
-                break;
-            }
+                if let Ok(guard) = content_buffer.lock() {
+                    final_response.content = guard.clone();
+                }
+                final_response.tool_calls = tool_calls_buffer.lock().unwrap().clone();
 
-            tracing::debug!(session_id = %session_id, iteration = iteration, tool_count = final_response.tool_calls.len(), "Processing tool calls");
+                if final_response.tool_calls.is_empty() {
+                    tracing::info!(session_id = %session_id, iteration = iteration, response_len = final_response.content.len(), "Agent completed successfully");
+                    break;
+                }
+
+                tracing::debug!(session_id = %session_id, iteration = iteration, tool_count = final_response.tool_calls.len(), "Processing tool calls");
 
             for call in final_response
                 .tool_calls
@@ -511,6 +527,16 @@ impl AgentRuntime {
                     tracing::warn!(session_id = %session_id, tool = %call.name, error = ?result.error, "Tool execution returned error");
                     format!("Error: {}", result.error.clone().unwrap_or_default())
                 };
+
+                if let Some(ref ext) = ext_events_arc {
+                    if let Ok(mut guard) = ext.lock() {
+                        let callback = &mut *guard;
+                        callback(LlmEvent::ToolResult {
+                            id: call.id.clone(),
+                            output: result_text.clone(),
+                        });
+                    }
+                }
 
                 let result_message =
                     Message::user(format!("Tool '{}' result:\n{}", call.name, result_text));
@@ -637,6 +663,8 @@ mod tests {
     use super::*;
     use crate::sealed;
     use opencode_core::OpenCodeError;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc as StdArc, Mutex as StdMutex};
 
     #[test]
     fn test_primary_agent_tracker_new_is_inactive() {
@@ -1170,6 +1198,172 @@ mod tests {
                 tool_calls: Vec::new(),
             })
         }
+    }
+
+    #[derive(Clone)]
+    struct MockRuntimeTool;
+
+    impl opencode_tools::sealed::Sealed for MockRuntimeTool {}
+
+    #[async_trait::async_trait]
+    impl opencode_tools::Tool for MockRuntimeTool {
+        fn name(&self) -> &str {
+            "mock_runtime_tool"
+        }
+
+        fn description(&self) -> &str {
+            "Mock runtime tool"
+        }
+
+        fn clone_tool(&self) -> Box<dyn opencode_tools::Tool> {
+            Box::new(self.clone())
+        }
+
+        async fn execute(
+            &self,
+            args: serde_json::Value,
+            _ctx: Option<opencode_tools::ToolContext>,
+        ) -> Result<opencode_tools::ToolResult, OpenCodeError> {
+            Ok(opencode_tools::ToolResult::ok(format!("tool-ok:{args}")))
+        }
+    }
+
+    struct MockStreamingAgent {
+        calls: AtomicUsize,
+    }
+
+    impl MockStreamingAgent {
+        fn new() -> Self {
+            Self {
+                calls: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl sealed::Sealed for MockStreamingAgent {}
+
+    #[async_trait::async_trait]
+    impl Agent for MockStreamingAgent {
+        fn agent_type(&self) -> AgentType {
+            AgentType::Build
+        }
+
+        fn name(&self) -> &str {
+            "mock_streaming_agent"
+        }
+
+        fn description(&self) -> &str {
+            "Mock streaming agent"
+        }
+
+        fn can_execute_tools(&self) -> bool {
+            true
+        }
+
+        fn can_write_files(&self) -> bool {
+            false
+        }
+
+        fn can_run_commands(&self) -> bool {
+            false
+        }
+
+        async fn run(
+            &self,
+            _session: &mut Session,
+            _provider: &dyn Provider,
+            _tools: &ToolRegistry,
+        ) -> Result<AgentResponse, OpenCodeError> {
+            Ok(AgentResponse {
+                content: String::new(),
+                tool_calls: Vec::new(),
+            })
+        }
+
+        async fn run_streaming(
+            &self,
+            session: &mut Session,
+            _provider: &dyn Provider,
+            _tools: &ToolRegistry,
+            mut events: EventCallback,
+        ) -> Result<AgentResponse, OpenCodeError> {
+            let call_index = self.calls.fetch_add(1, Ordering::SeqCst);
+            if call_index == 0 {
+                events(LlmEvent::TextChunk("thinking ".to_string()));
+                events(LlmEvent::ToolCall {
+                    id: "tool-1".to_string(),
+                    name: "mock_runtime_tool".to_string(),
+                    arguments: serde_json::json!({"value": 1}),
+                });
+                return Ok(AgentResponse {
+                    content: String::new(),
+                    tool_calls: Vec::new(),
+                });
+            }
+
+            let saw_tool_result = session
+                .messages
+                .iter()
+                .any(|message| message.content.contains("Tool 'mock_runtime_tool' result:"));
+            assert!(saw_tool_result, "tool result should be added before second iteration");
+
+            events(LlmEvent::TextChunk("done".to_string()));
+            Ok(AgentResponse {
+                content: String::new(),
+                tool_calls: Vec::new(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_run_loop_streaming_forwards_text_tool_call_and_tool_result_events() {
+        let runtime = AgentRuntime::new(Session::default(), AgentType::Build);
+        let agent = MockStreamingAgent::new();
+        let provider = MockProvider;
+        let tools = ToolRegistry::new();
+        tools.register(MockRuntimeTool).await;
+
+        let events = StdArc::new(StdMutex::new(Vec::<String>::new()));
+        let events_clone = StdArc::clone(&events);
+        let callback: EventCallback = Box::new(move |event| {
+            let label = match event {
+                LlmEvent::TextChunk(text) => format!("text:{text}"),
+                LlmEvent::ToolCall { name, id, .. } => format!("tool_call:{name}:{id}"),
+                LlmEvent::ToolResult { id, output } => format!("tool_result:{id}:{output}"),
+                LlmEvent::Done => "done".to_string(),
+                LlmEvent::Error(err) => format!("error:{err}"),
+            };
+            events_clone.lock().unwrap().push(label);
+        });
+
+        let response = runtime
+            .run_loop_streaming(&agent, &provider, &tools, Some(callback))
+            .await
+            .unwrap();
+
+        assert_eq!(response.content, "done");
+        assert!(response.tool_calls.is_empty());
+
+        let collected = events.lock().unwrap().clone();
+        assert_eq!(
+            collected,
+            vec![
+                "text:thinking ".to_string(),
+                "tool_call:mock_runtime_tool:tool-1".to_string(),
+                "tool_result:tool-1:tool-ok:{\"value\":1}".to_string(),
+                "text:done".to_string(),
+            ]
+        );
+
+        let session = runtime.session().await;
+        assert!(session
+            .messages
+            .iter()
+            .any(|message| message.content.contains("Tool 'mock_runtime_tool' result:")));
+        assert_eq!(
+            session.messages.last().map(|message| message.content.as_str()),
+            Some("done")
+        );
     }
 
     #[tokio::test]
