@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session};
 use opencode_llm::provider_abstraction::ReasoningBudget;
+use opencode_llm::provider::{EventCallback, LlmEvent};
 use opencode_llm::Provider;
 use opencode_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
@@ -43,6 +44,7 @@ impl std::fmt::Display for AgentType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
+    pub id: String,
     pub name: String,
     pub arguments: serde_json::Value,
 }
@@ -73,6 +75,19 @@ pub trait Agent: Send + Sync + sealed::Sealed {
         provider: &dyn Provider,
         tools: &ToolRegistry,
     ) -> Result<AgentResponse, OpenCodeError>;
+
+    async fn run_streaming(
+        &self,
+        session: &mut Session,
+        provider: &dyn Provider,
+        tools: &ToolRegistry,
+        mut events: EventCallback,
+    ) -> Result<AgentResponse, OpenCodeError> {
+        let response = self.run(session, provider, tools).await?;
+        events(LlmEvent::TextChunk(response.content.clone()));
+        events(LlmEvent::Done);
+        Ok(response)
+    }
 
     fn preferred_model(&self) -> Option<String> {
         None
@@ -124,6 +139,7 @@ mod tests {
     #[test]
     fn test_tool_call_serialization() {
         let tool_call = ToolCall {
+            id: "test-id".to_string(),
             name: "read".to_string(),
             arguments: serde_json::json!({"path": "/test"}),
         };
@@ -138,6 +154,7 @@ mod tests {
         let response = AgentResponse {
             content: "Hello".to_string(),
             tool_calls: vec![ToolCall {
+                id: "test-id".to_string(),
                 name: "test".to_string(),
                 arguments: serde_json::json!({}),
             }],
@@ -152,6 +169,7 @@ mod tests {
     #[test]
     fn test_tool_call_clone() {
         let tool_call = ToolCall {
+            id: "test-id".to_string(),
             name: "read".to_string(),
             arguments: serde_json::json!({"path": "/test"}),
         };
