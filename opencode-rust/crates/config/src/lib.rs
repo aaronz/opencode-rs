@@ -430,9 +430,18 @@ pub enum ShareMode {
     Manual,
     Auto,
     Disabled,
+    #[serde(rename = "read_only")]
     ReadOnly,
     Collaborative,
     Controlled,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentMode {
+    Subagent,
+    Primary,
+    All,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -551,6 +560,9 @@ pub struct AgentConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permission: Option<PermissionConfig>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<AgentMode>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -1353,16 +1365,21 @@ impl Config {
                 }
             }
 
-            if let Some(agents) = obj.get("agent").and_then(|v| v.as_object()) {
+            if let Some(agents) = obj.get_mut("agent").and_then(|v| v.as_object_mut()) {
                 for (agent_name, agent_value) in agents {
-                    if let Some(agent_obj) = agent_value.as_object() {
-                        if agent_obj.contains_key("mode") {
-                            tracing::warn!(
-                                "Deprecated config field 'agent.{}.mode' detected: \
-                                Use 'permission' field instead. Will be removed in v4.0. \
-                                See https://docs.opencode.ai/config/migration for migration guide.",
-                                agent_name
-                            );
+                    if let Some(mode_value) = agent_value.get("mode") {
+                        if mode_value.is_string() {
+                            if let Some(mode_str) = mode_value.as_str() {
+                                if mode_str == "agent" {
+                                    tracing::warn!(
+                                        "Deprecated config field 'agent.{}.mode' detected: \
+                                        Use 'permission' field instead. Will be removed in v4.0. \
+                                        See https://docs.opencode.ai/config/migration for migration guide.",
+                                        agent_name
+                                    );
+                                    agent_value.as_object_mut().unwrap().remove("mode");
+                                }
+                            }
                         }
                     }
                 }
@@ -3103,6 +3120,18 @@ impl Config {
                     "manual" => Some(ShareMode::Manual),
                     "auto" => Some(ShareMode::Auto),
                     "disabled" => Some(ShareMode::Disabled),
+                    "read_only" => {
+                        tracing::warn!("ShareMode 'read_only' is an opencode-rs extended value");
+                        Some(ShareMode::ReadOnly)
+                    }
+                    "collaborative" => {
+                        tracing::warn!("ShareMode 'collaborative' is an opencode-rs extended value");
+                        Some(ShareMode::Collaborative)
+                    }
+                    "controlled" => {
+                        tracing::warn!("ShareMode 'controlled' is an opencode-rs extended value");
+                        Some(ShareMode::Controlled)
+                    }
                     _ => None,
                 };
             }
@@ -4282,6 +4311,21 @@ mod tests {
     }
 
     #[test]
+    fn test_config_migrate_share_extended_values() {
+        let json = r#"{"share": "read_only"}"#;
+        let config = Config::migrate_from_ts_format(json).unwrap();
+        assert_eq!(config.share, Some(ShareMode::ReadOnly));
+
+        let json = r#"{"share": "collaborative"}"#;
+        let config = Config::migrate_from_ts_format(json).unwrap();
+        assert_eq!(config.share, Some(ShareMode::Collaborative));
+
+        let json = r#"{"share": "controlled"}"#;
+        let config = Config::migrate_from_ts_format(json).unwrap();
+        assert_eq!(config.share, Some(ShareMode::Controlled));
+    }
+
+    #[test]
     fn test_agents_md_config_to_scan_config() {
         let config = AgentsMdConfig {
             enabled: Some(false),
@@ -4504,6 +4548,33 @@ mod tests {
         let json = serde_json::json!("collaborative");
         let mode: ShareMode = serde_json::from_value(json).unwrap();
         assert!(matches!(mode, ShareMode::Collaborative));
+    }
+
+    #[test]
+    fn test_share_official_values_parse() {
+        for json_val in &["manual", "auto", "disabled"] {
+            let json = serde_json::json!(json_val);
+            let mode: ShareMode = serde_json::from_value(json).unwrap();
+            assert!(matches!(
+                mode,
+                ShareMode::Manual | ShareMode::Auto | ShareMode::Disabled
+            ));
+        }
+    }
+
+    #[test]
+    fn test_share_extended_values_parse() {
+        let json = serde_json::json!("read_only");
+        let mode: ShareMode = serde_json::from_value(json).unwrap();
+        assert!(matches!(mode, ShareMode::ReadOnly));
+
+        let json = serde_json::json!("collaborative");
+        let mode: ShareMode = serde_json::from_value(json).unwrap();
+        assert!(matches!(mode, ShareMode::Collaborative));
+
+        let json = serde_json::json!("controlled");
+        let mode: ShareMode = serde_json::from_value(json).unwrap();
+        assert!(matches!(mode, ShareMode::Controlled));
     }
 
     #[test]

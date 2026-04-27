@@ -382,7 +382,12 @@
         "color": { "type": "string" },
         "steps": { "type": "integer", "minimum": 1 },
         "max_steps": { "type": "integer", "minimum": 1 },
-        "permission": { "$ref": "#/definitions/PermissionConfig" }
+        "permission": { "$ref": "#/definitions/PermissionConfig" },
+        "mode": {
+          "type": "string",
+          "enum": ["subagent", "primary", "all"],
+          "description": "Agent execution mode"
+        }
       }
     },
     "ProviderConfig": {
