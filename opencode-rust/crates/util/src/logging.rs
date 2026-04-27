@@ -5,7 +5,7 @@ use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_appender::rolling::{RollingFileAppender, Rotation as LogRotation};
 use tracing_subscriber::{
-    fmt::{self, format::FmtSpan},
+    fmt::{format::FmtSpan, writer::MakeWriterExt},
     layer::SubscriberExt,
     util::SubscriberInitExt,
     EnvFilter,
@@ -89,14 +89,6 @@ impl Logger {
         let env_filter =
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-        let fmt_layer = fmt::layer()
-            .with_target(true)
-            .with_thread_ids(false)
-            .with_file(true)
-            .with_line_number(true)
-            .with_span_events(FmtSpan::CLOSE)
-            .with_writer(std::io::stderr);
-
         if let Some(file_path) = &self.file_path {
             if let Some(parent) = file_path.parent() {
                 std::fs::create_dir_all(parent)?;
@@ -106,25 +98,43 @@ impl Logger {
                 RollingFileAppender::new(LogRotation::DAILY, file_path, "opencode.log");
             let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
-            let file_layer = fmt::layer()
+            let _ = FILE_LOG_GUARD.set(guard);
+
+            if self.console {
+                let writer = std::io::stderr.and(non_blocking);
+                tracing_subscriber::fmt()
+                    .with_env_filter(env_filter)
+                    .with_target(true)
+                    .with_thread_ids(false)
+                    .with_file(true)
+                    .with_line_number(true)
+                    .with_span_events(FmtSpan::CLOSE)
+                    .with_writer(writer)
+                    .try_init()?;
+            } else {
+                tracing_subscriber::fmt()
+                    .with_env_filter(env_filter)
+                    .with_target(true)
+                    .with_thread_ids(false)
+                    .with_file(true)
+                    .with_line_number(true)
+                    .with_span_events(FmtSpan::CLOSE)
+                    .with_writer(non_blocking)
+                    .try_init()?;
+            }
+        } else if self.console {
+            tracing_subscriber::fmt()
+                .with_env_filter(env_filter)
                 .with_target(true)
                 .with_thread_ids(false)
                 .with_file(true)
                 .with_line_number(true)
                 .with_span_events(FmtSpan::CLOSE)
-                .with_writer(non_blocking);
-
-            let _ = FILE_LOG_GUARD.set(guard);
-
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .with(fmt_layer)
-                .with(file_layer)
+                .with_writer(std::io::stderr)
                 .try_init()?;
         } else {
             tracing_subscriber::registry()
                 .with(env_filter)
-                .with(fmt_layer)
                 .try_init()?;
         }
         Ok(())

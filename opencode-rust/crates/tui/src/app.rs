@@ -2323,6 +2323,7 @@ impl App {
     fn cleanup_terminal() -> io::Result<()> {
         use crossterm::{cursor, terminal::LeaveAlternateScreen};
         execute!(io::stdout(), LeaveAlternateScreen, cursor::Show)?;
+        io::stdout().flush()?;
         disable_raw_mode()
     }
 
