@@ -30,6 +30,7 @@ pub struct ModelInfo {
 pub struct ModelSelectionDialog {
     models: Vec<ModelInfo>,
     selected_index: usize,
+    scroll_offset: usize,
     selected_variant_index: usize,
     in_variant_selection: bool,
     filter: String,
@@ -41,6 +42,7 @@ impl ModelSelectionDialog {
         Self {
             models: Vec::new(),
             selected_index: 0,
+            scroll_offset: 0,
             selected_variant_index: 0,
             in_variant_selection: false,
             filter: String::new(),
@@ -51,6 +53,7 @@ impl ModelSelectionDialog {
     pub fn set_models(&mut self, models: Vec<ModelInfo>) {
         self.models = models;
         self.selected_index = 0;
+        self.scroll_offset = 0;
         self.selected_variant_index = 0;
         self.in_variant_selection = false;
         self.filter.clear();
@@ -161,13 +164,16 @@ impl Dialog for ModelSelectionDialog {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         let mut state = ratatui::widgets::ListState::default();
-        state.select(Some(
+        state = state.with_selected(Some(
             self.selected_index.min(filtered.len().saturating_sub(1)),
         ));
+        state = state.with_offset(self.scroll_offset);
         f.render_stateful_widget(list, chunks[1], &mut state);
     }
 
     fn handle_input(&mut self, key: KeyEvent) -> DialogAction {
+        let visible_height = 13usize;
+
         match key.code {
             KeyCode::Esc => {
                 if self.in_variant_selection {
@@ -222,6 +228,9 @@ impl Dialog for ModelSelectionDialog {
                     }
                 } else if self.selected_index > 0 {
                     self.selected_index -= 1;
+                    self.scroll_offset = self
+                        .scroll_offset
+                        .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
                 }
                 DialogAction::None
             }
@@ -237,6 +246,9 @@ impl Dialog for ModelSelectionDialog {
                     let max = self.filtered_models().len().saturating_sub(1);
                     if self.selected_index < max {
                         self.selected_index += 1;
+                        if self.selected_index >= self.scroll_offset + visible_height {
+                            self.scroll_offset = (self.selected_index + 1).saturating_sub(visible_height);
+                        }
                     }
                 }
                 DialogAction::None
@@ -245,6 +257,7 @@ impl Dialog for ModelSelectionDialog {
                 if !self.in_variant_selection {
                     self.filter.push(c);
                     self.selected_index = 0;
+                    self.scroll_offset = 0;
                 }
                 DialogAction::None
             }
@@ -252,6 +265,7 @@ impl Dialog for ModelSelectionDialog {
                 if !self.in_variant_selection {
                     self.filter.pop();
                     self.selected_index = 0;
+                    self.scroll_offset = 0;
                 }
                 DialogAction::None
             }

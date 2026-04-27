@@ -15,6 +15,7 @@ pub struct FileSelectionDialog {
     current_dir: PathBuf,
     entries: Vec<FileEntry>,
     selected_index: usize,
+    scroll_offset: usize,
     selected_indices: Vec<usize>,
     filter: String,
     theme: Theme,
@@ -31,6 +32,7 @@ impl FileSelectionDialog {
     pub fn clear_filter(&mut self) {
         self.filter.clear();
         self.selected_index = 0;
+        self.scroll_offset = 0;
     }
 
     pub fn new(theme: Theme) -> Self {
@@ -41,6 +43,7 @@ impl FileSelectionDialog {
             current_dir,
             entries,
             selected_index: 0,
+            scroll_offset: 0,
             selected_indices: Vec::new(),
             filter: String::new(),
             theme,
@@ -65,6 +68,7 @@ impl FileSelectionDialog {
             current_dir: PathBuf::from("."),
             entries: file_entries,
             selected_index: 0,
+            scroll_offset: 0,
             selected_indices: Vec::new(),
             filter: String::new(),
             theme,
@@ -223,7 +227,8 @@ impl Dialog for FileSelectionDialog {
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         let mut state = ratatui::widgets::ListState::default();
-        state.select(Some(self.selected_index));
+        state = state.with_selected(Some(self.selected_index));
+        state = state.with_offset(self.scroll_offset);
         f.render_stateful_widget(list, chunks[1], &mut state);
     }
 
@@ -268,6 +273,7 @@ impl Dialog for FileSelectionDialog {
                         self.current_dir = new_path;
                         self.entries = Self::read_dir(&self.current_dir);
                         self.selected_index = 0;
+                        self.scroll_offset = 0;
                         DialogAction::None
                     } else if self.selected_indices.contains(&self.selected_index) {
                         let selected = self.selected_paths();
@@ -327,6 +333,9 @@ impl Dialog for FileSelectionDialog {
             KeyCode::Up => {
                 if self.selected_index > 0 {
                     self.selected_index -= 1;
+                    self.scroll_offset = self
+                        .scroll_offset
+                        .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
                 }
                 DialogAction::None
             }
@@ -334,17 +343,22 @@ impl Dialog for FileSelectionDialog {
                 let max = self.filtered_entries().len().saturating_sub(1);
                 if self.selected_index < max {
                     self.selected_index += 1;
+                    if self.selected_index >= self.scroll_offset + 18 {
+                        self.scroll_offset = (self.selected_index + 1).saturating_sub(18);
+                    }
                 }
                 DialogAction::None
             }
             KeyCode::Char(c) => {
                 self.filter.push(c);
                 self.selected_index = 0;
+                self.scroll_offset = 0;
                 DialogAction::None
             }
             KeyCode::Backspace => {
                 self.filter.pop();
                 self.selected_index = 0;
+                self.scroll_offset = 0;
                 DialogAction::None
             }
             _ => DialogAction::None,
