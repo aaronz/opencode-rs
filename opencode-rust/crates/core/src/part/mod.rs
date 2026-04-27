@@ -162,8 +162,7 @@ mod tests {
 
     #[test]
     fn test_part_deserialization_file_reference() {
-        let json =
-            r#"{"type":"FileReference","data":{"path":"/tmp/test.rs","line_start":1,"line_end":10}}"#;
+        let json = r#"{"type":"FileReference","data":{"path":"/tmp/test.rs","line_start":1,"line_end":10}}"#;
         let part: Part = serde_json::from_str(json).unwrap();
         assert!(matches!(part, Part::FileReference(_)));
     }

@@ -134,11 +134,7 @@ impl CheckpointManager {
         }
     }
 
-    pub fn delete(
-        &self,
-        session_id: &Uuid,
-        sequence_number: usize,
-    ) -> Result<(), OpenCodeError> {
+    pub fn delete(&self, session_id: &Uuid, sequence_number: usize) -> Result<(), OpenCodeError> {
         let path = self.checkpoint_path(session_id, sequence_number);
         if path.exists() {
             fs::remove_file(path)?;

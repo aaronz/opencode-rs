@@ -68,5 +68,4 @@ pub struct ToolCall {
     pub arguments: serde_json::Value,
 }
 
-pub type ToolExecutor =
-    Arc<dyn Fn(serde_json::Value) -> Result<String, String> + Send + Sync>;
+pub type ToolExecutor = Arc<dyn Fn(serde_json::Value) -> Result<String, String> + Send + Sync>;

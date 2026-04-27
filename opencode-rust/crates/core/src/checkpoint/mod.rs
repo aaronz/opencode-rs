@@ -1,8 +1,8 @@
 mod manager;
 mod types;
 
-pub use types::{Checkpoint, CheckpointMetadata};
 pub use manager::{create_checkpoint, restore_checkpoint, CheckpointManager};
+pub use types::{Checkpoint, CheckpointMetadata};
 
 #[cfg(test)]
 mod tests {

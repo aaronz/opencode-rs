@@ -1,8 +1,8 @@
 use opencode_mcp::protocol::McpPermission;
 use opencode_mcp::protocol::{McpServerConfig, McpServerType};
 use opencode_mcp::{
-    JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
-    ServerCapabilities, ServerInfo, ToolContent, ToolDefinition, ToolResult,
+    JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, ServerCapabilities, ServerInfo,
+    ToolContent, ToolDefinition, ToolResult,
 };
 
 #[test]

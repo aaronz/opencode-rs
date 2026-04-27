@@ -292,10 +292,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 .get("pattern")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing required parameter: pattern")?;
-            let path = args
-                .get("path")
-                .and_then(|v| v.as_str())
-                .unwrap_or(".");
+            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or(".");
 
             let output = std::process::Command::new("grep")
                 .args(["-r", "-n", pattern, path])
@@ -319,10 +316,7 @@ pub fn build_default_registry() -> ToolRegistry {
             ..Default::default()
         },
         Arc::new(|args| {
-            let path = args
-                .get("path")
-                .and_then(|v| v.as_str())
-                .unwrap_or(".");
+            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or(".");
             let entries = std::fs::read_dir(path)
                 .map_err(|e| format!("Failed to read directory: {}", e))?
                 .filter_map(|e| e.ok())
@@ -368,7 +362,11 @@ pub fn build_default_registry() -> ToolRegistry {
             let stderr = String::from_utf8_lossy(&output.stderr);
 
             if output.status.success() {
-                Ok(format!("{}{}", stdout, if stderr.is_empty() { "" } else { "\nSTDERR:\n" }))
+                Ok(format!(
+                    "{}{}",
+                    stdout,
+                    if stderr.is_empty() { "" } else { "\nSTDERR:\n" }
+                ))
             } else {
                 Err(format!(
                     "Command failed with exit code: {}{}{}",
@@ -520,7 +518,11 @@ pub fn build_default_registry() -> ToolRegistry {
             let stderr = String::from_utf8_lossy(&output.stderr);
 
             if output.status.success() {
-                Ok(format!("{}{}", stdout, if stderr.is_empty() { "" } else { "\nSTDERR:\n" }))
+                Ok(format!(
+                    "{}{}",
+                    stdout,
+                    if stderr.is_empty() { "" } else { "\nSTDERR:\n" }
+                ))
             } else {
                 Err(format!(
                     "Command failed with exit code: {}{}{}",

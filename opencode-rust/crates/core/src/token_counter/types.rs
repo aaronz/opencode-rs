@@ -76,9 +76,10 @@ impl std::fmt::Debug for TokenCounter {
 
 impl Clone for TokenCounter {
     fn clone(&self) -> Self {
-        let encoder = self.encoder.as_ref().and_then(|_| {
-            Self::load_encoder(EncodingKind::from_model(&self.model)).ok()
-        });
+        let encoder = self
+            .encoder
+            .as_ref()
+            .and_then(|_| Self::load_encoder(EncodingKind::from_model(&self.model)).ok());
         Self {
             model: self.model.clone(),
             encoder,

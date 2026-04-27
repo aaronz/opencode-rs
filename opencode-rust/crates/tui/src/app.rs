@@ -25,7 +25,6 @@ use crossterm::{
         disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, LeaveAlternateScreen,
     },
 };
-use std::io::Write;
 use opencode_auth::CredentialStore;
 use opencode_core::{
     AgentExecutor, CostCalculator, SessionSharing, SkillResolver, SkillState, TokenCounter,
@@ -50,6 +49,7 @@ use ratatui::{
 };
 use serde::Deserialize;
 use std::io;
+use std::io::Write;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -2713,8 +2713,10 @@ impl App {
                                         providers.iter_mut().find(|p| p.name == provider_id)
                                     {
                                         existing.api_key = Some(api_key);
-                                        existing.default_model =
-                                            self.pending_api_key_models.first().map(|m| m.id.clone());
+                                        existing.default_model = self
+                                            .pending_api_key_models
+                                            .first()
+                                            .map(|m| m.id.clone());
                                     } else {
                                         let provider_config = crate::config::ProviderConfig {
                                             name: provider_id.clone(),

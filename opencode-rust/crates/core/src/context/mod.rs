@@ -3,7 +3,10 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use crate::compaction::{CompactionConfig, Compactor, TokenBudget, COMPACTION_FORCE_THRESHOLD, COMPACTION_START_THRESHOLD, COMPACTION_WARN_THRESHOLD};
+use crate::compaction::{
+    CompactionConfig, Compactor, TokenBudget, COMPACTION_FORCE_THRESHOLD,
+    COMPACTION_START_THRESHOLD, COMPACTION_WARN_THRESHOLD,
+};
 use crate::message::{Message, Role};
 use crate::token_counter::TokenCounter;
 use crate::tool::ToolRegistry;
@@ -13,7 +16,10 @@ const PRESERVE_LAST_MESSAGES: usize = 3;
 
 static FILE_PATH_REGEX: OnceLock<Regex> = OnceLock::new();
 
-#[expect(clippy::expect_used, reason = "Regex pattern is hardcoded and validated at compile time")]
+#[expect(
+    clippy::expect_used,
+    reason = "Regex pattern is hardcoded and validated at compile time"
+)]
 fn get_file_path_regex() -> &'static Regex {
     FILE_PATH_REGEX.get_or_init(|| Regex::new(r"([\w./-]+\.[\w]+)").expect("valid file path regex"))
 }

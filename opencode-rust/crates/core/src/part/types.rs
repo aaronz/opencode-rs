@@ -70,53 +70,44 @@ impl<'de> Visitor<'de> for PartVisitor {
             }
         }
 
-        let type_variant =
-            type_variant.ok_or_else(|| de::Error::custom("missing 'type' field"))?;
+        let type_variant = type_variant.ok_or_else(|| de::Error::custom("missing 'type' field"))?;
         let data = data.ok_or_else(|| de::Error::custom("missing 'data' field"))?;
 
         let deserializer = data.into_deserializer();
         match type_variant.as_str() {
             "Text" => {
-                let part: TextPart =
-                    de::Deserialize::deserialize(deserializer)
-                        .map_err(|e| de::Error::custom(format!("invalid Text data: {}", e)))?;
+                let part: TextPart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid Text data: {}", e)))?;
                 Ok(Part::Text(part))
             }
             "Code" => {
-                let part: CodePart =
-                    de::Deserialize::deserialize(deserializer)
-                        .map_err(|e| de::Error::custom(format!("invalid Code data: {}", e)))?;
+                let part: CodePart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid Code data: {}", e)))?;
                 Ok(Part::Code(part))
             }
             "ToolUse" => {
-                let part: ToolUsePart =
-                    de::Deserialize::deserialize(deserializer)
-                        .map_err(|e| de::Error::custom(format!("invalid ToolUse data: {}", e)))?;
+                let part: ToolUsePart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid ToolUse data: {}", e)))?;
                 Ok(Part::ToolUse(part))
             }
             "ToolResult" => {
-                let part: ToolResultPart =
-                    de::Deserialize::deserialize(deserializer)
-                        .map_err(|e| de::Error::custom(format!("invalid ToolResult data: {}", e)))?;
+                let part: ToolResultPart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid ToolResult data: {}", e)))?;
                 Ok(Part::ToolResult(part))
             }
             "FileReference" => {
-                let part: FileReferencePart =
-                    de::Deserialize::deserialize(deserializer).map_err(|e| {
-                        de::Error::custom(format!("invalid FileReference data: {}", e))
-                    })?;
+                let part: FileReferencePart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid FileReference data: {}", e)))?;
                 Ok(Part::FileReference(part))
             }
             "Image" => {
-                let part: ImagePart =
-                    de::Deserialize::deserialize(deserializer)
-                        .map_err(|e| de::Error::custom(format!("invalid Image data: {}", e)))?;
+                let part: ImagePart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid Image data: {}", e)))?;
                 Ok(Part::Image(part))
             }
             "Reasoning" => {
-                let part: ReasoningPart =
-                    de::Deserialize::deserialize(deserializer)
-                        .map_err(|e| de::Error::custom(format!("invalid Reasoning data: {}", e)))?;
+                let part: ReasoningPart = de::Deserialize::deserialize(deserializer)
+                    .map_err(|e| de::Error::custom(format!("invalid Reasoning data: {}", e)))?;
                 Ok(Part::Reasoning(part))
             }
             _ => Err(de::Error::custom(format!(
@@ -174,9 +165,7 @@ pub struct ReasoningPart {
 
 impl Part {
     pub fn text<S: Into<String>>(text: S) -> Self {
-        Part::Text(TextPart {
-            text: text.into(),
-        })
+        Part::Text(TextPart { text: text.into() })
     }
 
     pub fn code<S: Into<String>>(code: S, language: Option<&str>) -> Self {

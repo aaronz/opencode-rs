@@ -169,7 +169,11 @@ mod tests {
     async fn test_builtin_help_command_executes() {
         let cmd = HelpCommand;
         let out = cmd
-            .execute(CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string()))
+            .execute(CommandContext::new(
+                vec![],
+                std::collections::HashMap::new(),
+                ".".to_string(),
+            ))
             .await
             .unwrap();
         assert!(out.contains("Available commands"));
@@ -193,7 +197,11 @@ mod tests {
     async fn test_builtin_debug_command_executes() {
         let cmd = DebugCommand;
         let out = cmd
-            .execute(CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string()))
+            .execute(CommandContext::new(
+                vec![],
+                std::collections::HashMap::new(),
+                ".".to_string(),
+            ))
             .await
             .unwrap();
         assert!(out.contains("all"));
@@ -203,7 +211,11 @@ mod tests {
     async fn test_builtin_clear_command_executes() {
         let cmd = ClearCommand;
         let out = cmd
-            .execute(CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string()))
+            .execute(CommandContext::new(
+                vec![],
+                std::collections::HashMap::new(),
+                ".".to_string(),
+            ))
             .await
             .unwrap();
         assert_eq!(out, "Session context cleared");
@@ -213,7 +225,11 @@ mod tests {
     async fn test_builtin_models_command_executes() {
         let cmd = ModelsCommand;
         let out = cmd
-            .execute(CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string()))
+            .execute(CommandContext::new(
+                vec![],
+                std::collections::HashMap::new(),
+                ".".to_string(),
+            ))
             .await
             .unwrap();
         assert!(out.contains("models"));
@@ -223,7 +239,11 @@ mod tests {
     async fn test_builtin_agents_command_executes() {
         let cmd = AgentsCommand;
         let out = cmd
-            .execute(CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string()))
+            .execute(CommandContext::new(
+                vec![],
+                std::collections::HashMap::new(),
+                ".".to_string(),
+            ))
             .await
             .unwrap();
         assert!(out.contains("agents"));
@@ -233,7 +253,11 @@ mod tests {
     async fn test_builtin_share_command_executes() {
         let cmd = ShareCommand;
         let out = cmd
-            .execute(CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string()))
+            .execute(CommandContext::new(
+                vec![],
+                std::collections::HashMap::new(),
+                ".".to_string(),
+            ))
             .await
             .unwrap();
         assert_eq!(out, "Session shared");
@@ -243,7 +267,11 @@ mod tests {
     async fn test_builtin_compact_command_executes() {
         let cmd = CompactCommand;
         let out = cmd
-            .execute(CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string()))
+            .execute(CommandContext::new(
+                vec![],
+                std::collections::HashMap::new(),
+                ".".to_string(),
+            ))
             .await
             .unwrap();
         assert_eq!(out, "Context compaction triggered");
@@ -279,7 +307,8 @@ mod tests {
         }
 
         let session_for_clear = Arc::clone(&session);
-        let mut ctx = CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string());
+        let mut ctx =
+            CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string());
         ctx.on_clear_session = Some(Box::new(move || {
             let mut lock = session_for_clear.lock().unwrap();
             let cleared = lock.messages.len();
@@ -376,7 +405,8 @@ mod tests {
 
         let session = Arc::new(Mutex::new(crate::Session::new()));
         let session_for_share = Arc::clone(&session);
-        let mut ctx = CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string());
+        let mut ctx =
+            CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string());
         ctx.on_share_session = Some(Box::new(move || {
             let mut lock = session_for_share.lock().unwrap();
             lock.generate_share_link().map_err(|e| e.to_string())
@@ -401,7 +431,11 @@ mod tests {
         }
 
         let session_for_compact = Arc::clone(&session);
-        let mut ctx = CommandContext::new(vec!["50".to_string()], std::collections::HashMap::new(), ".".to_string());
+        let mut ctx = CommandContext::new(
+            vec!["50".to_string()],
+            std::collections::HashMap::new(),
+            ".".to_string(),
+        );
         ctx.on_compact = Some(Box::new(move |max_tokens| {
             let mut lock = session_for_compact.lock().unwrap();
             let result = lock.compact_messages(max_tokens);
@@ -418,13 +452,12 @@ mod tests {
 
     #[test]
     fn test_substitute_command_variables_input_and_selection() {
-        let ctx = CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string()).with_variables(
-            CommandVariables {
+        let ctx = CommandContext::new(vec![], std::collections::HashMap::new(), ".".to_string())
+            .with_variables(CommandVariables {
                 input: "do thing".to_string(),
                 selection: "line 1".to_string(),
                 ..CommandVariables::default()
-            },
-        );
+            });
         let output = substitute_command_variables("Run: {input} // {selection}", &ctx).unwrap();
         assert_eq!(output, "Run: do thing // line 1");
     }
@@ -436,7 +469,11 @@ mod tests {
         std::fs::write(&file_path, "file-content").unwrap();
         let file_name = file_path.file_name().unwrap().to_str().unwrap();
 
-        let ctx = CommandContext::new(vec![], std::collections::HashMap::new(), dir.path().display().to_string());
+        let ctx = CommandContext::new(
+            vec![],
+            std::collections::HashMap::new(),
+            dir.path().display().to_string(),
+        );
         let output =
             substitute_command_variables(&format!("before {{file:{}}} after", file_name), &ctx)
                 .unwrap();

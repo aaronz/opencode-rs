@@ -114,46 +114,44 @@ impl FormatterEngine {
             }
 
             match cmd.spawn() {
-                Ok(mut child) => {
-                    match timeout(self.timeout, child.wait()).await {
-                        Ok(Ok(status)) if status.success() => {
-                            info!(
-                                file_path,
-                                formatter = formatter_name,
-                                executable,
-                                "formatter executed successfully"
-                            );
-                        }
-                        Ok(Ok(status)) => {
-                            warn!(
-                                file_path,
-                                formatter = formatter_name,
-                                executable,
-                                status = %status,
-                                "formatter failed with non-zero status; continuing"
-                            );
-                        }
-                        Ok(Err(err)) => {
-                            warn!(
-                                file_path,
-                                formatter = formatter_name,
-                                executable,
-                                error = %err,
-                                "formatter process wait failed; continuing"
-                            );
-                        }
-                        Err(_) => {
-                            let _ = child.kill().await;
-                            warn!(
-                                file_path,
-                                formatter = formatter_name,
-                                executable,
-                                timeout = ?self.timeout,
-                                "formatter timed out; continuing"
-                            );
-                        }
+                Ok(mut child) => match timeout(self.timeout, child.wait()).await {
+                    Ok(Ok(status)) if status.success() => {
+                        info!(
+                            file_path,
+                            formatter = formatter_name,
+                            executable,
+                            "formatter executed successfully"
+                        );
                     }
-                }
+                    Ok(Ok(status)) => {
+                        warn!(
+                            file_path,
+                            formatter = formatter_name,
+                            executable,
+                            status = %status,
+                            "formatter failed with non-zero status; continuing"
+                        );
+                    }
+                    Ok(Err(err)) => {
+                        warn!(
+                            file_path,
+                            formatter = formatter_name,
+                            executable,
+                            error = %err,
+                            "formatter process wait failed; continuing"
+                        );
+                    }
+                    Err(_) => {
+                        let _ = child.kill().await;
+                        warn!(
+                            file_path,
+                            formatter = formatter_name,
+                            executable,
+                            timeout = ?self.timeout,
+                            "formatter timed out; continuing"
+                        );
+                    }
+                },
                 Err(err) => {
                     warn!(
                         file_path,

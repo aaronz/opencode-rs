@@ -1,6 +1,4 @@
-use opencode_agent::{
-    AgentRuntime, Agent, AgentType, PrimaryAgentState,
-};
+use opencode_agent::{Agent, AgentRuntime, AgentType, PrimaryAgentState};
 use opencode_core::{Message, Session};
 use opencode_llm::Provider;
 use opencode_tools::ToolRegistry;

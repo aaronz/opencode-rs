@@ -1,7 +1,7 @@
 //! Skill matching types.
 
-use serde::{Deserialize, Serialize};
 use crate::skill::Skill;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum MatchType {

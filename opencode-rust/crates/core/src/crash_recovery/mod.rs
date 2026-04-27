@@ -25,7 +25,7 @@
 
 pub mod types;
 
-use crate::{message::Role, message::Message, Session, ToolInvocationRecord};
+use crate::{message::Message, message::Role, Session, ToolInvocationRecord};
 use chrono::Utc;
 use std::fs;
 use std::panic::{set_hook, take_hook, PanicHookInfo};

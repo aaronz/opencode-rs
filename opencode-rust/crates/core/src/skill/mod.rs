@@ -68,7 +68,10 @@ const BUILTIN_SKILLS: &[(&str, &str)] = &[
         "data-analyst/SKILL.md",
         include_str!("../../skills/data-analyst/SKILL.md"),
     ),
-    ("devops/SKILL.md", include_str!("../../skills/devops/SKILL.md")),
+    (
+        "devops/SKILL.md",
+        include_str!("../../skills/devops/SKILL.md"),
+    ),
 ];
 
 #[allow(dead_code)]

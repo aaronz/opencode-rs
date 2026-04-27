@@ -28,8 +28,7 @@ impl McpTool {
         if let Some(properties) = schema.get("properties").and_then(|p| p.as_object()) {
             for (field, field_schema) in properties {
                 if let Some(value) = args.get(field) {
-                    if let Some(expected_type) = field_schema.get("type").and_then(|t| t.as_str())
-                    {
+                    if let Some(expected_type) = field_schema.get("type").and_then(|t| t.as_str()) {
                         let actual_type = json_type_name(value);
                         if actual_type != expected_type && value != &serde_json::Value::Null {
                             return Err(format!(

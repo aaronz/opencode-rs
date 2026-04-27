@@ -1040,8 +1040,14 @@ mod tests {
 
         let link = session.generate_share_link().unwrap();
 
-        assert!(link.contains("/share/"), "Share link must contain /share/ path");
-        assert!(session.shared_id.is_some(), "shared_id must be set after generating link");
+        assert!(
+            link.contains("/share/"),
+            "Share link must contain /share/ path"
+        );
+        assert!(
+            session.shared_id.is_some(),
+            "shared_id must be set after generating link"
+        );
         assert_eq!(
             session.share_mode,
             Some(ShareMode::Manual),
@@ -1070,9 +1076,15 @@ mod tests {
 
         let result = session.generate_share_link();
 
-        assert!(result.is_err(), "Share link generation must fail when disabled");
+        assert!(
+            result.is_err(),
+            "Share link generation must fail when disabled"
+        );
         assert_eq!(result.unwrap_err(), ShareError::SharingDisabled);
-        assert!(!session.is_shared(), "Session must not be shared when disabled");
+        assert!(
+            !session.is_shared(),
+            "Session must not be shared when disabled"
+        );
     }
 
     #[test]
@@ -1089,10 +1101,16 @@ mod tests {
 
         session.set_share_mode(ShareMode::Disabled);
         assert!(!session.is_shared());
-        assert!(session.shared_id.is_none(), "shared_id must be cleared when disabled");
+        assert!(
+            session.shared_id.is_none(),
+            "shared_id must be cleared when disabled"
+        );
 
         session.set_share_mode(ShareMode::Manual);
-        assert!(session.generate_share_link().is_ok(), "Share link generation should work after re-enabling");
+        assert!(
+            session.generate_share_link().is_ok(),
+            "Share link generation should work after re-enabling"
+        );
         assert!(session.is_shared());
     }
 
@@ -1107,7 +1125,10 @@ mod tests {
         session.set_share_expiry(Some(Utc::now() - chrono::Duration::minutes(1)));
 
         assert!(!session.is_shared(), "Expired session must not be shared");
-        assert!(session.get_share_id().is_none(), "Expired session must not return share_id");
+        assert!(
+            session.get_share_id().is_none(),
+            "Expired session must not return share_id"
+        );
 
         let mut session2 = Session::new();
         session2.generate_share_link().unwrap();
@@ -1128,7 +1149,10 @@ mod tests {
         let share_id1 = session1.get_share_id();
         let share_id2 = session2.get_share_id();
 
-        assert_ne!(share_id1, share_id2, "Each session must have unique share_id");
+        assert_ne!(
+            share_id1, share_id2,
+            "Each session must have unique share_id"
+        );
         assert_ne!(link1, link2);
     }
 
@@ -1141,12 +1165,21 @@ mod tests {
 
         let mut child = parent.fork(Uuid::new_v4());
 
-        assert_eq!(child.share_mode, parent.share_mode, "Child must inherit parent's share_mode");
-        assert!(child.shared_id.is_none(), "Child must NOT inherit parent's shared_id");
+        assert_eq!(
+            child.share_mode, parent.share_mode,
+            "Child must inherit parent's share_mode"
+        );
+        assert!(
+            child.shared_id.is_none(),
+            "Child must NOT inherit parent's shared_id"
+        );
         assert!(!child.is_shared());
 
         child.generate_share_link().unwrap();
-        assert_ne!(child.shared_id, parent_share_id, "Child must generate its own unique share_id");
+        assert_ne!(
+            child.shared_id, parent_share_id,
+            "Child must generate its own unique share_id"
+        );
     }
 
     #[test]
@@ -1164,9 +1197,20 @@ mod tests {
         child.save(&path).unwrap();
         let loaded = Session::load(&path).unwrap();
 
-        assert_eq!(loaded.lineage_path, child_lineage, "Lineage must survive serialization");
-        assert_eq!(loaded.compute_lineage_path(), Some(format!("{}/{}", grandparent_id, parent_id)), "Computed lineage must be preserved");
-        assert_eq!(loaded.parent_session_id.as_deref(), Some(parent_id.as_str()), "Parent reference must be preserved");
+        assert_eq!(
+            loaded.lineage_path, child_lineage,
+            "Lineage must survive serialization"
+        );
+        assert_eq!(
+            loaded.compute_lineage_path(),
+            Some(format!("{}/{}", grandparent_id, parent_id)),
+            "Computed lineage must be preserved"
+        );
+        assert_eq!(
+            loaded.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Parent reference must be preserved"
+        );
     }
 
     #[test]
@@ -1181,10 +1225,21 @@ mod tests {
         session.save(&path).unwrap();
         let loaded = Session::load(&path).unwrap();
 
-        assert_eq!(loaded.shared_id, original_share_id, "shared_id must be preserved");
-        assert_eq!(loaded.share_mode, Some(ShareMode::Manual), "share_mode must be preserved");
+        assert_eq!(
+            loaded.shared_id, original_share_id,
+            "shared_id must be preserved"
+        );
+        assert_eq!(
+            loaded.share_mode,
+            Some(ShareMode::Manual),
+            "share_mode must be preserved"
+        );
         assert!(loaded.is_shared(), "Loaded session must still be shared");
-        assert_eq!(loaded.get_share_id(), original_share_id.as_deref(), "get_share_id() must return same value");
+        assert_eq!(
+            loaded.get_share_id(),
+            original_share_id.as_deref(),
+            "get_share_id() must return same value"
+        );
     }
 
     #[test]
@@ -1198,8 +1253,15 @@ mod tests {
 
         child.messages[0] = Message::assistant("modified by child");
 
-        assert_eq!(parent.messages[0].content, "original", "Parent messages must not be affected by child modifications");
-        assert_eq!(parent.messages[0].role, Role::User, "Parent message role must not be affected");
+        assert_eq!(
+            parent.messages[0].content, "original",
+            "Parent messages must not be affected by child modifications"
+        );
+        assert_eq!(
+            parent.messages[0].role,
+            Role::User,
+            "Parent message role must not be affected"
+        );
     }
 
     #[test]
@@ -1211,33 +1273,70 @@ mod tests {
         let child1 = parent.fork(Uuid::new_v4());
         let child2 = parent.fork(Uuid::new_v4());
 
-        assert_eq!(child1.parent_session_id.as_deref(), Some(parent_id.as_str()), "First child must reference parent");
-        assert_eq!(child2.parent_session_id.as_deref(), Some(parent_id.as_str()), "Second child must reference parent");
+        assert_eq!(
+            child1.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "First child must reference parent"
+        );
+        assert_eq!(
+            child2.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Second child must reference parent"
+        );
         assert_ne!(child1.id, child2.id, "Children must have unique IDs");
         let mut child1_mut = child1;
         child1_mut.messages[0] = Message::assistant("child1 modified");
-        assert_eq!(parent.messages[0].content, "parent message", "Parent must not be affected by child modifications");
+        assert_eq!(
+            parent.messages[0].content, "parent message",
+            "Parent must not be affected by child modifications"
+        );
     }
 
     #[test]
     fn test_ownership_tree_lineage_path_format_correctness() {
         let session0 = Session::new();
-        assert!(session0.lineage_path.is_none(), "New session must have no lineage_path");
+        assert!(
+            session0.lineage_path.is_none(),
+            "New session must have no lineage_path"
+        );
 
         let session1 = session0.fork(Uuid::new_v4());
         let id0 = session0.id.to_string();
-        assert_eq!(session1.lineage_path, None, "First fork must have lineage_path = None");
-        assert_eq!(session1.compute_lineage_path(), Some(id0.clone()), "compute_lineage_path for first fork must return parent ID");
+        assert_eq!(
+            session1.lineage_path, None,
+            "First fork must have lineage_path = None"
+        );
+        assert_eq!(
+            session1.compute_lineage_path(),
+            Some(id0.clone()),
+            "compute_lineage_path for first fork must return parent ID"
+        );
 
         let session2 = session1.fork(Uuid::new_v4());
         let id1 = session1.id.to_string();
-        assert_eq!(session2.lineage_path, Some(id0.clone()), "Second fork lineage_path must be grandparent ID");
-        assert_eq!(session2.compute_lineage_path(), Some(format!("{}/{}", id0, id1)), "compute_lineage_path must return full path");
+        assert_eq!(
+            session2.lineage_path,
+            Some(id0.clone()),
+            "Second fork lineage_path must be grandparent ID"
+        );
+        assert_eq!(
+            session2.compute_lineage_path(),
+            Some(format!("{}/{}", id0, id1)),
+            "compute_lineage_path must return full path"
+        );
 
         let session3 = session2.fork(Uuid::new_v4());
         let id2 = session2.id.to_string();
-        assert_eq!(session3.lineage_path, Some(format!("{}/{}", id0, id1)), "Third fork lineage_path must be grandparent/parent");
-        assert_eq!(session3.compute_lineage_path(), Some(format!("{}/{}/{}", id0, id1, id2)), "compute_lineage_path must return full 3-level path");
+        assert_eq!(
+            session3.lineage_path,
+            Some(format!("{}/{}", id0, id1)),
+            "Third fork lineage_path must be grandparent/parent"
+        );
+        assert_eq!(
+            session3.compute_lineage_path(),
+            Some(format!("{}/{}/{}", id0, id1, id2)),
+            "compute_lineage_path must return full 3-level path"
+        );
     }
 
     #[test]
@@ -1253,7 +1352,10 @@ mod tests {
         session.set_share_mode(ShareMode::Disabled);
 
         session.set_share_mode(ShareMode::Disabled);
-        assert_eq!(session.generate_share_link().unwrap_err(), ShareError::SharingDisabled);
+        assert_eq!(
+            session.generate_share_link().unwrap_err(),
+            ShareError::SharingDisabled
+        );
     }
 
     #[test]
@@ -1263,7 +1365,11 @@ mod tests {
 
         let child = parent.fork(Uuid::new_v4());
 
-        assert_eq!(child.tool_invocations.len(), parent.tool_invocations.len(), "Child must have same tool_invocations as parent");
+        assert_eq!(
+            child.tool_invocations.len(),
+            parent.tool_invocations.len(),
+            "Child must have same tool_invocations as parent"
+        );
     }
 
     #[test]
@@ -1274,7 +1380,13 @@ mod tests {
         let result = parent.fork_at_message(5);
 
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), ForkError::MessageIndexOutOfBounds { requested: 5, len: 1 });
+        assert_eq!(
+            result.unwrap_err(),
+            ForkError::MessageIndexOutOfBounds {
+                requested: 5,
+                len: 1
+            }
+        );
     }
 
     #[test]
@@ -1284,7 +1396,9 @@ mod tests {
         let link = session.generate_share_link().unwrap();
 
         assert!(link.starts_with("https://opencode-rs.local/share/"));
-        let share_id = link.strip_prefix("https://opencode-rs.local/share/").unwrap();
+        let share_id = link
+            .strip_prefix("https://opencode-rs.local/share/")
+            .unwrap();
         assert!(!share_id.is_empty(), "Share ID must be non-empty");
         assert_eq!(share_id.len(), 36, "Share ID must be UUID format");
     }
@@ -1349,8 +1463,14 @@ mod tests {
 
         let child = parent.fork(Uuid::new_v4());
 
-        assert!(child.fork_history.is_empty(), "Newly forked session must have empty fork_history");
-        assert!(parent.fork_history.is_empty(), "Parent session must have empty fork_history");
+        assert!(
+            child.fork_history.is_empty(),
+            "Newly forked session must have empty fork_history"
+        );
+        assert!(
+            parent.fork_history.is_empty(),
+            "Parent session must have empty fork_history"
+        );
     }
 
     // =========================================================================
@@ -1369,7 +1489,10 @@ mod tests {
         session.save(&path).unwrap();
         let loaded = Session::load(&path).unwrap();
 
-        assert_eq!(loaded.id, original_id, "Session ID must remain stable after save/load cycle");
+        assert_eq!(
+            loaded.id, original_id,
+            "Session ID must remain stable after save/load cycle"
+        );
     }
 
     #[test]
@@ -1389,7 +1512,10 @@ mod tests {
         loaded1.save(&path).unwrap();
 
         let loaded2 = Session::load(&path).unwrap();
-        assert_eq!(loaded2.id, original_id, "Session ID must remain stable across multiple save/load cycles");
+        assert_eq!(
+            loaded2.id, original_id,
+            "Session ID must remain stable across multiple save/load cycles"
+        );
     }
 
     #[test]
@@ -1399,7 +1525,10 @@ mod tests {
 
         let child = parent.fork(Uuid::new_v4());
 
-        assert_ne!(child.id, parent_id, "Forked session must have a new unique ID");
+        assert_ne!(
+            child.id, parent_id,
+            "Forked session must have a new unique ID"
+        );
         assert!(!child.id.is_nil(), "Forked session ID must not be nil");
     }
 
@@ -1410,7 +1539,11 @@ mod tests {
 
         let child = parent.fork(Uuid::new_v4());
 
-        assert_eq!(child.parent_session_id.as_deref(), Some(parent_id.as_str()), "Child must reference parent ID via parent_session_id");
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child must reference parent ID via parent_session_id"
+        );
     }
 
     #[test]
@@ -1419,9 +1552,18 @@ mod tests {
         let session2 = Session::new();
         let session3 = Session::new();
 
-        assert_ne!(session1.id, session2.id, "Each session must have a unique ID");
-        assert_ne!(session2.id, session3.id, "Each session must have a unique ID");
-        assert_ne!(session1.id, session3.id, "Each session must have a unique ID");
+        assert_ne!(
+            session1.id, session2.id,
+            "Each session must have a unique ID"
+        );
+        assert_ne!(
+            session2.id, session3.id,
+            "Each session must have a unique ID"
+        );
+        assert_ne!(
+            session1.id, session3.id,
+            "Each session must have a unique ID"
+        );
     }
 
     #[test]
@@ -1435,7 +1577,11 @@ mod tests {
         let child = parent.fork(Uuid::new_v4());
         let child_lineage = child.compute_lineage_path();
 
-        assert_eq!(child_lineage, Some(format!("{}/{}", grandparent_id, parent_id)), "Lineage path must be grandparent_id/parent_id");
+        assert_eq!(
+            child_lineage,
+            Some(format!("{}/{}", grandparent_id, parent_id)),
+            "Lineage path must be grandparent_id/parent_id"
+        );
     }
 
     #[test]
@@ -1453,8 +1599,16 @@ mod tests {
 
         let loaded = Session::load(&path).unwrap();
 
-        assert_eq!(loaded.lineage_path, Some(grandparent_id.clone()), "Lineage path must survive serialization");
-        assert_eq!(loaded.compute_lineage_path(), Some(format!("{}/{}", grandparent_id, parent_id)), "Computed lineage must be preserved");
+        assert_eq!(
+            loaded.lineage_path,
+            Some(grandparent_id.clone()),
+            "Lineage path must survive serialization"
+        );
+        assert_eq!(
+            loaded.compute_lineage_path(),
+            Some(format!("{}/{}", grandparent_id, parent_id)),
+            "Computed lineage must be preserved"
+        );
     }
 
     #[test]
@@ -1466,8 +1620,14 @@ mod tests {
 
         let child = parent.fork_at_message(0).unwrap();
 
-        assert_ne!(child.id, parent_id, "fork_at_message must create session with new unique ID");
-        assert!(!child.id.is_nil(), "fork_at_message session ID must not be nil");
+        assert_ne!(
+            child.id, parent_id,
+            "fork_at_message must create session with new unique ID"
+        );
+        assert!(
+            !child.id.is_nil(),
+            "fork_at_message session ID must not be nil"
+        );
     }
 
     #[test]
@@ -1491,7 +1651,10 @@ mod tests {
         let session_id = session.id.to_string();
         let share_id = session.get_share_id().unwrap();
 
-        assert_ne!(share_id, session_id, "Share ID must be different from session ID");
+        assert_ne!(
+            share_id, session_id,
+            "Share ID must be different from session ID"
+        );
     }
 
     #[test]
@@ -1509,10 +1672,16 @@ mod tests {
 
         let checkpoint = manager.create(&session, "Test checkpoint").unwrap();
 
-        assert_eq!(checkpoint.session_id, original_session_id, "Checkpoint must preserve the session ID");
+        assert_eq!(
+            checkpoint.session_id, original_session_id,
+            "Checkpoint must preserve the session ID"
+        );
 
         let loaded = manager.load(&session.id, 0).unwrap();
-        assert_eq!(loaded.id, original_session_id, "Loaded session from checkpoint must have same ID");
+        assert_eq!(
+            loaded.id, original_session_id,
+            "Loaded session from checkpoint must have same ID"
+        );
     }
 
     #[test]
@@ -1537,7 +1706,10 @@ mod tests {
         assert_eq!(checkpoints.len(), 2);
 
         for cp in checkpoints {
-            assert_eq!(cp.session_id, original_session_id, "All checkpoints must reference the original session ID");
+            assert_eq!(
+                cp.session_id, original_session_id,
+                "All checkpoints must reference the original session ID"
+            );
         }
     }
 
@@ -1558,7 +1730,10 @@ mod tests {
 
         let loaded = manager.load(&session.id, 0).unwrap();
 
-        assert_eq!(loaded.id, original_id, "Session loaded from checkpoint must have identical ID");
+        assert_eq!(
+            loaded.id, original_id,
+            "Session loaded from checkpoint must have identical ID"
+        );
     }
 
     #[test]
@@ -1581,7 +1756,10 @@ mod tests {
         let parent_cp = parent_manager.create(&parent, "Parent checkpoint").unwrap();
         let child_cp = child_manager.create(&child, "Child checkpoint").unwrap();
 
-        assert_ne!(parent_cp.session_id, child_cp.session_id, "Parent and child sessions must have different IDs");
+        assert_ne!(
+            parent_cp.session_id, child_cp.session_id,
+            "Parent and child sessions must have different IDs"
+        );
 
         assert_eq!(parent_cp.session_id, parent.id);
         assert_eq!(child_cp.session_id, child.id);
@@ -1593,7 +1771,10 @@ mod tests {
         let id_str = session.id.to_string();
 
         assert_eq!(id_str.len(), 36, "UUID must be 36 characters");
-        assert!(id_str.chars().all(|c| c.is_ascii_hexdigit() || c == '-'), "UUID must contain only hex digits and hyphens");
+        assert!(
+            id_str.chars().all(|c| c.is_ascii_hexdigit() || c == '-'),
+            "UUID must contain only hex digits and hyphens"
+        );
     }
 
     #[test]
@@ -1611,7 +1792,10 @@ mod tests {
         session.save(&path).unwrap();
         let loaded = Session::load(&path).unwrap();
 
-        assert_eq!(loaded.id, original_id, "Session ID must remain stable despite timestamp changes");
+        assert_eq!(
+            loaded.id, original_id,
+            "Session ID must remain stable despite timestamp changes"
+        );
         assert!(loaded.updated_at > loaded.created_at);
     }
 
@@ -1620,17 +1804,24 @@ mod tests {
     // =========================================================================
 
     fn build_session_graph(sessions: &[Session]) -> std::collections::HashMap<Uuid, Option<Uuid>> {
-        let mut graph: std::collections::HashMap<Uuid, Option<Uuid>> = std::collections::HashMap::new();
+        let mut graph: std::collections::HashMap<Uuid, Option<Uuid>> =
+            std::collections::HashMap::new();
         for session in sessions {
             graph.insert(
                 session.id,
-                session.parent_session_id.as_ref().and_then(|s| s.parse().ok()),
+                session
+                    .parent_session_id
+                    .as_ref()
+                    .and_then(|s| s.parse().ok()),
             );
         }
         graph
     }
 
-    fn detect_cycle_in_graph(graph: &std::collections::HashMap<Uuid, Option<Uuid>>, start_id: Uuid) -> bool {
+    fn detect_cycle_in_graph(
+        graph: &std::collections::HashMap<Uuid, Option<Uuid>>,
+        start_id: Uuid,
+    ) -> bool {
         let mut visited = std::collections::HashSet::new();
         let mut rec_stack = std::collections::HashSet::new();
 
@@ -1683,10 +1874,16 @@ mod tests {
         let graph = build_session_graph(&sessions);
 
         let child_has_cycle = detect_cycle_in_graph(&graph, child.id);
-        assert!(!child_has_cycle, "Child session in simple fork chain cannot have cycle");
+        assert!(
+            !child_has_cycle,
+            "Child session in simple fork chain cannot have cycle"
+        );
 
         let parent_has_cycle = detect_cycle_in_graph(&graph, parent.id);
-        assert!(!parent_has_cycle, "Parent session in simple fork chain cannot have cycle");
+        assert!(
+            !parent_has_cycle,
+            "Parent session in simple fork chain cannot have cycle"
+        );
     }
 
     #[test]
@@ -1700,10 +1897,17 @@ mod tests {
 
         for session in &[&grandparent, &parent, &child] {
             let has_cycle = detect_cycle_in_graph(&graph, session.id);
-            assert!(!has_cycle, "Session in multi-level fork chain cannot have cycle");
+            assert!(
+                !has_cycle,
+                "Session in multi-level fork chain cannot have cycle"
+            );
         }
 
-        assert_eq!(child.lineage_path, Some(grandparent.id.to_string()), "Child's lineage_path must reference grandparent");
+        assert_eq!(
+            child.lineage_path,
+            Some(grandparent.id.to_string()),
+            "Child's lineage_path must reference grandparent"
+        );
     }
 
     #[test]
@@ -1719,11 +1923,18 @@ mod tests {
 
         for session in &sessions {
             let has_cycle = detect_cycle_in_graph(&graph, session.id);
-            assert!(!has_cycle, "Session in 10-level fork chain cannot have cycle");
+            assert!(
+                !has_cycle,
+                "Session in 10-level fork chain cannot have cycle"
+            );
         }
 
         let final_session = sessions.last().unwrap();
-        let lineage_ids: Vec<Uuid> = final_session.lineage_path.as_ref().map(|p| p.split('/').filter_map(|s| s.parse().ok()).collect()).unwrap_or_default();
+        let lineage_ids: Vec<Uuid> = final_session
+            .lineage_path
+            .as_ref()
+            .map(|p| p.split('/').filter_map(|s| s.parse().ok()).collect())
+            .unwrap_or_default();
         assert_eq!(lineage_ids.len(), 9, "9-level deep lineage expected");
     }
 
@@ -1750,7 +1961,10 @@ mod tests {
         let graph = build_session_graph(&sessions);
 
         let a_has_cycle = detect_cycle_in_graph(&graph, session_a.id);
-        assert!(!a_has_cycle, "Session A pointing to root session B must not have cycle");
+        assert!(
+            !a_has_cycle,
+            "Session A pointing to root session B must not have cycle"
+        );
     }
 
     #[test]
@@ -1780,13 +1994,23 @@ mod tests {
         let parent = Session::new();
         let child = parent.fork(Uuid::new_v4());
 
-        assert_eq!(child.parent_session_id.as_deref(), Some(parent.id.to_string().as_str()), "Child must reference parent");
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent.id.to_string().as_str()),
+            "Child must reference parent"
+        );
 
-        assert!(parent.parent_session_id.is_none(), "Parent must not have parent reference");
+        assert!(
+            parent.parent_session_id.is_none(),
+            "Parent must not have parent reference"
+        );
 
         let child_lineage = child.compute_lineage_path();
         assert!(child_lineage.is_some(), "Child must have lineage path");
-        assert!(!child_lineage.unwrap().contains(&child.id.to_string()), "Lineage path must not contain child's own ID");
+        assert!(
+            !child_lineage.unwrap().contains(&child.id.to_string()),
+            "Lineage path must not contain child's own ID"
+        );
     }
 
     #[test]
@@ -1796,16 +2020,37 @@ mod tests {
         let gen2 = gen1.fork(Uuid::new_v4());
         let gen3 = gen2.fork(Uuid::new_v4());
 
-        assert_eq!(gen3.parent_session_id.as_deref(), Some(gen2.id.to_string().as_str()), "Gen3 must reference Gen2");
-        assert_eq!(gen2.parent_session_id.as_deref(), Some(gen1.id.to_string().as_str()), "Gen2 must reference Gen1");
-        assert_eq!(gen1.parent_session_id.as_deref(), Some(gen0.id.to_string().as_str()), "Gen1 must reference Gen0");
-        assert!(gen0.parent_session_id.is_none(), "Gen0 must be root (no parent)");
+        assert_eq!(
+            gen3.parent_session_id.as_deref(),
+            Some(gen2.id.to_string().as_str()),
+            "Gen3 must reference Gen2"
+        );
+        assert_eq!(
+            gen2.parent_session_id.as_deref(),
+            Some(gen1.id.to_string().as_str()),
+            "Gen2 must reference Gen1"
+        );
+        assert_eq!(
+            gen1.parent_session_id.as_deref(),
+            Some(gen0.id.to_string().as_str()),
+            "Gen1 must reference Gen0"
+        );
+        assert!(
+            gen0.parent_session_id.is_none(),
+            "Gen0 must be root (no parent)"
+        );
 
         let lineage = gen3.lineage_path.as_deref();
         assert!(lineage.is_some(), "Gen3 must have lineage path");
         let lineage_str = lineage.unwrap();
-        assert!(!lineage_str.contains(&gen3.id.to_string()), "Lineage must not contain own ID");
-        assert!(lineage_str.contains(&gen0.id.to_string()), "Lineage must contain root ID");
+        assert!(
+            !lineage_str.contains(&gen3.id.to_string()),
+            "Lineage must not contain own ID"
+        );
+        assert!(
+            lineage_str.contains(&gen0.id.to_string()),
+            "Lineage must contain root ID"
+        );
     }
 
     #[test]
@@ -1819,12 +2064,29 @@ mod tests {
         child.save(&path).unwrap();
         let loaded = Session::load(&path).unwrap();
 
-        assert!(loaded.parent_session_id.is_some(), "Loaded session must have parent reference");
-        assert!(loaded.lineage_path.is_some(), "Loaded session must have lineage path");
-        assert!(!loaded.lineage_path.as_ref().unwrap().contains(&loaded.id.to_string()), "Lineage must not contain own ID");
+        assert!(
+            loaded.parent_session_id.is_some(),
+            "Loaded session must have parent reference"
+        );
+        assert!(
+            loaded.lineage_path.is_some(),
+            "Loaded session must have lineage path"
+        );
+        assert!(
+            !loaded
+                .lineage_path
+                .as_ref()
+                .unwrap()
+                .contains(&loaded.id.to_string()),
+            "Lineage must not contain own ID"
+        );
 
         let grandparent_id = grandparent.id.to_string();
-        assert_eq!(loaded.lineage_path.as_deref(), Some(grandparent_id.as_str()), "Loaded lineage must still reference grandparent");
+        assert_eq!(
+            loaded.lineage_path.as_deref(),
+            Some(grandparent_id.as_str()),
+            "Loaded lineage must still reference grandparent"
+        );
     }
 
     #[test]
@@ -1835,16 +2097,26 @@ mod tests {
 
         let expected_lineage = format!("{}/{}", session0.id, session1.id);
 
-        assert_eq!(session2.compute_lineage_path().as_deref(), Some(expected_lineage.as_str()), "Computed lineage path must be correct");
+        assert_eq!(
+            session2.compute_lineage_path().as_deref(),
+            Some(expected_lineage.as_str()),
+            "Computed lineage path must be correct"
+        );
 
         let full_lineage = session2.compute_lineage_path().unwrap();
         let lineage_parts: Vec<&str> = full_lineage.split('/').collect();
         let mut seen = std::collections::HashSet::new();
         for part in &lineage_parts {
-            assert!(seen.insert(*part), "Duplicate ID in lineage path indicates cycle");
+            assert!(
+                seen.insert(*part),
+                "Duplicate ID in lineage path indicates cycle"
+            );
         }
 
-        assert!(!lineage_parts.contains(&session2.id.to_string().as_str()), "Session's own ID must not appear in its lineage");
+        assert!(
+            !lineage_parts.contains(&session2.id.to_string().as_str()),
+            "Session's own ID must not appear in its lineage"
+        );
     }
 
     #[test]
@@ -1855,11 +2127,28 @@ mod tests {
         let child3 = parent.fork(Uuid::new_v4());
 
         let parent_id = parent.id.to_string();
-        assert_eq!(child1.parent_session_id.as_deref(), Some(parent_id.as_str()), "Child1 must reference parent");
-        assert_eq!(child2.parent_session_id.as_deref(), Some(parent_id.as_str()), "Child2 must reference parent");
-        assert_eq!(child3.parent_session_id.as_deref(), Some(parent_id.as_str()), "Child3 must reference parent");
+        assert_eq!(
+            child1.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child1 must reference parent"
+        );
+        assert_eq!(
+            child2.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child2 must reference parent"
+        );
+        assert_eq!(
+            child3.parent_session_id.as_deref(),
+            Some(parent_id.as_str()),
+            "Child3 must reference parent"
+        );
 
-        let sessions = vec![parent.clone(), child1.clone(), child2.clone(), child3.clone()];
+        let sessions = vec![
+            parent.clone(),
+            child1.clone(),
+            child2.clone(),
+            child3.clone(),
+        ];
         let graph = build_session_graph(&sessions);
 
         for child in &[&child1, &child2, &child3] {
@@ -1877,14 +2166,28 @@ mod tests {
 
         let child = parent.fork_at_message(1).unwrap();
 
-        assert_eq!(child.parent_session_id.as_deref(), Some(parent.id.to_string().as_str()), "Child must reference parent");
+        assert_eq!(
+            child.parent_session_id.as_deref(),
+            Some(parent.id.to_string().as_str()),
+            "Child must reference parent"
+        );
 
-        assert_eq!(child.lineage_path.as_deref(), None, "First fork lineage_path is None (computed path is parent ID)");
+        assert_eq!(
+            child.lineage_path.as_deref(),
+            None,
+            "First fork lineage_path is None (computed path is parent ID)"
+        );
 
         assert_eq!(child.messages.len(), 2, "Child must have messages[0..=1]");
 
         let child_lineage = child.compute_lineage_path();
-        assert!(!child_lineage.as_ref().unwrap_or(&String::new()).contains(&child.id.to_string()), "Lineage must not contain own ID");
+        assert!(
+            !child_lineage
+                .as_ref()
+                .unwrap_or(&String::new())
+                .contains(&child.id.to_string()),
+            "Lineage must not contain own ID"
+        );
     }
 
     #[test]
@@ -1900,7 +2203,11 @@ mod tests {
             if let Some(parent_id_str) = &session.parent_session_id {
                 if let Ok(parent_id) = parent_id_str.parse::<Uuid>() {
                     let parent_exists_before = sessions[..i].iter().any(|s| s.id == parent_id);
-                    assert!(parent_exists_before, "Session at index {} has invalid parent reference", i);
+                    assert!(
+                        parent_exists_before,
+                        "Session at index {} has invalid parent reference",
+                        i
+                    );
 
                     assert_ne!(session.id, parent_id, "Session cannot be its own parent");
                 }
@@ -1918,7 +2225,10 @@ mod tests {
         let child = session.fork(Uuid::new_v4());
         let child_lineage = child.compute_lineage_path();
         if let Some(ref path) = child_lineage {
-            assert!(!path.contains(&child.id.to_string()), "compute_lineage_path must not include own ID");
+            assert!(
+                !path.contains(&child.id.to_string()),
+                "compute_lineage_path must not include own ID"
+            );
         }
     }
 }

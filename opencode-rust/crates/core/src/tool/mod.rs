@@ -63,8 +63,8 @@
 pub mod registry;
 pub mod types;
 
-pub use registry::{build_default_registry, ToolRegistry};
 pub(crate) use registry::register_custom_tool;
+pub use registry::{build_default_registry, ToolRegistry};
 pub use types::{ToolCall, ToolDefinition, ToolExecutor, ToolParameter, ToolResult};
 
 #[cfg(test)]
@@ -160,7 +160,9 @@ mod tests {
         registry.set_disabled(HashSet::from(["echo".to_string()]));
 
         let status = registry.list_with_status();
-        assert!(status.iter().any(|(name, disabled)| *name == "echo" && *disabled));
+        assert!(status
+            .iter()
+            .any(|(name, disabled)| *name == "echo" && *disabled));
     }
 
     #[test]

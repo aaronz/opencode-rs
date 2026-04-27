@@ -1,8 +1,8 @@
 //! Undo/redo history management.
 
+use crate::message::Message;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::message::Message;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {

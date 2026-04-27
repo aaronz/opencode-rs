@@ -104,7 +104,9 @@ impl Default for McpManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp::types::{McpCapabilities, McpPrompt, McpPromptArgument, McpResource, McpServer, McpTool};
+    use crate::mcp::types::{
+        McpCapabilities, McpPrompt, McpPromptArgument, McpResource, McpServer, McpTool,
+    };
     use serde_json::json;
 
     #[test]

@@ -253,9 +253,24 @@ mod connect_flow_regression_tests {
             }]),
         );
 
-        let providers = app.config.providers.as_ref().expect("providers should be set");
-        let minimax_provider = providers.iter().find(|p| p.name == "minimax-cn").expect("minimax-cn should be in providers");
-        assert_eq!(minimax_provider.api_key, Some("test-api-key-12345".to_string()), "API key should be persisted in config");
-        assert_eq!(minimax_provider.default_model, Some("MiniMax-M2.7".to_string()), "default model should be set");
+        let providers = app
+            .config
+            .providers
+            .as_ref()
+            .expect("providers should be set");
+        let minimax_provider = providers
+            .iter()
+            .find(|p| p.name == "minimax-cn")
+            .expect("minimax-cn should be in providers");
+        assert_eq!(
+            minimax_provider.api_key,
+            Some("test-api-key-12345".to_string()),
+            "API key should be persisted in config"
+        );
+        assert_eq!(
+            minimax_provider.default_model,
+            Some("MiniMax-M2.7".to_string()),
+            "default model should be set"
+        );
     }
 }

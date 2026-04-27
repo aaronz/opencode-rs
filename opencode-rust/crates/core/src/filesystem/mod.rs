@@ -126,10 +126,7 @@ impl AppFileSystem {
             }
 
             if relative_path.contains("..") {
-                return Err(format!(
-                    "Path traversal attempt blocked: {}",
-                    relative_path
-                ));
+                return Err(format!("Path traversal attempt blocked: {}", relative_path));
             }
 
             let full_path = Path::new(target_dir).join(relative_path);

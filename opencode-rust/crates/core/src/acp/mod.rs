@@ -1,6 +1,8 @@
 mod types;
 
-pub use types::{AcpHandshakeAck, AcpHandshakeRequest, AcpHandshakeResponse, AcpMessage, AcpProtocol};
+pub use types::{
+    AcpHandshakeAck, AcpHandshakeRequest, AcpHandshakeResponse, AcpMessage, AcpProtocol,
+};
 
 #[cfg(test)]
 mod tests {
