@@ -146,18 +146,16 @@ fn list_files(json: bool, ext_filter: Option<&str>) {
             "{}",
             serde_json::to_string_pretty(&files).expect("failed to serialize JSON output")
         );
-    } else {
-        if files.is_empty() {
-            println!("No files found in current directory");
-            if let Some(ext) = ext_filter {
-                println!("  (filtered by .{})", ext);
-            }
-        } else {
-            for file in &files {
-                println!("  {} ({} bytes) - {}", file.path, file.size, file.file_type);
-            }
-            println!("\n{} files found", files.len());
+    } else if files.is_empty() {
+        println!("No files found in current directory");
+        if let Some(ext) = ext_filter {
+            println!("  (filtered by .{})", ext);
         }
+    } else {
+        for file in &files {
+            println!("  {} ({} bytes) - {}", file.path, file.size, file.file_type);
+        }
+        println!("\n{} files found", files.len());
     }
 }
 
@@ -184,15 +182,13 @@ fn search_files(pattern: &str, json: bool) {
             "{}",
             serde_json::to_string_pretty(&results).expect("failed to serialize JSON output")
         );
+    } else if results.is_empty() {
+        println!("No matches found for '{}'", pattern);
     } else {
-        if results.is_empty() {
-            println!("No matches found for '{}'", pattern);
-        } else {
-            for result in &results {
-                println!("{}:{}: {}", result.path, result.line, result.content);
-            }
-            println!("\n{} matches found", results.len());
+        for result in &results {
+            println!("{}:{}: {}", result.path, result.line, result.content);
         }
+        println!("\n{} matches found", results.len());
     }
 }
 
