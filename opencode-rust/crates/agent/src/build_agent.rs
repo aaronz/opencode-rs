@@ -176,9 +176,7 @@ impl Agent for BuildAgent {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let final_content = provider
-            .complete_with_events(&prompt, None, events)
-            .await?;
+        let final_content = provider.complete_with_events(&prompt, None, events).await?;
 
         let content = final_content.unwrap_or_default();
 

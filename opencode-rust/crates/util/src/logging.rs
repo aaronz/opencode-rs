@@ -138,9 +138,7 @@ impl Logger {
                 .with_writer(std::io::stderr)
                 .try_init()?;
         } else {
-            tracing_subscriber::registry()
-                .with(env_filter)
-                .try_init()?;
+            tracing_subscriber::registry().with(env_filter).try_init()?;
         }
         Ok(())
     }

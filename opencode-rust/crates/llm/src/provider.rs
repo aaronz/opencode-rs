@@ -181,8 +181,15 @@ pub struct StreamChunk {
 #[derive(Debug, Clone)]
 pub enum LlmEvent {
     TextChunk(String),
-    ToolCall { name: String, arguments: serde_json::Value, id: String },
-    ToolResult { id: String, output: String },
+    ToolCall {
+        name: String,
+        arguments: serde_json::Value,
+        id: String,
+    },
+    ToolResult {
+        id: String,
+        output: String,
+    },
     Done,
     Error(String),
 }
@@ -279,7 +286,9 @@ impl<P: Provider> CancellableProvider<'_, P> {
         if self.cancellation_token.is_cancelled() {
             return Err(crate::error::LlmError::Cancelled.into());
         }
-        self.inner.complete_with_events(prompt, context, callback).await
+        self.inner
+            .complete_with_events(prompt, context, callback)
+            .await
     }
 
     pub async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError> {

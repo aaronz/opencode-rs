@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session};
-use opencode_llm::provider_abstraction::ReasoningBudget;
 use opencode_llm::provider::{EventCallback, LlmEvent};
+use opencode_llm::provider_abstraction::ReasoningBudget;
 use opencode_llm::Provider;
 use opencode_tools::ToolRegistry;
 use serde::{Deserialize, Serialize};

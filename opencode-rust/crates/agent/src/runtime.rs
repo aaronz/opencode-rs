@@ -421,51 +421,61 @@ impl AgentRuntime {
         let ext_events_arc = external_events.map(|e| Arc::new(std::sync::Mutex::new(e)));
 
         loop {
-                iteration += 1;
-                if iteration > self.config.max_iterations {
-                    tracing::warn!(session_id = %session_id, iteration = iteration, limit = self.config.max_iterations, "Max iterations exceeded");
-                    return Err(RuntimeError::MaxIterationsExceeded {
-                        limit: self.config.max_iterations,
-                    });
-                }
-
-                tracing::debug!(session_id = %session_id, iteration = iteration, "Agent streaming iteration starting");
-
-                let content_buffer = Arc::new(std::sync::Mutex::new(String::new()));
-                let tool_calls_buffer = Arc::new(std::sync::Mutex::new(Vec::new()));
-                let cb_clone = content_buffer.clone();
-                let tc_clone = tool_calls_buffer.clone();
-                let ext_clone = ext_events_arc.clone();
-
-                let events_callback: EventCallback = Box::new(move |event| {
-                    match event {
-                        LlmEvent::TextChunk(text) => {
-                            if let Ok(mut guard) = cb_clone.lock() {
-                                guard.push_str(&text);
-                            }
-                            if let Some(ref ext) = ext_clone {
-                                if let Ok(mut guard) = ext.lock() {
-                                    let callback = &mut *guard;
-                                    callback(LlmEvent::TextChunk(text));
-                                }
-                            }
-                        }
-                        LlmEvent::ToolCall { name, arguments, id } => {
-                            if let Ok(mut guard) = tc_clone.lock() {
-                                guard.push(ToolCall { id: id.clone(), name: name.clone(), arguments: arguments.clone() });
-                            }
-                            if let Some(ref ext) = ext_clone {
-                                if let Ok(mut guard) = ext.lock() {
-                                    let callback = &mut *guard;
-                                    callback(LlmEvent::ToolCall { name, arguments, id });
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
+            iteration += 1;
+            if iteration > self.config.max_iterations {
+                tracing::warn!(session_id = %session_id, iteration = iteration, limit = self.config.max_iterations, "Max iterations exceeded");
+                return Err(RuntimeError::MaxIterationsExceeded {
+                    limit: self.config.max_iterations,
                 });
+            }
 
-                agent
+            tracing::debug!(session_id = %session_id, iteration = iteration, "Agent streaming iteration starting");
+
+            let content_buffer = Arc::new(std::sync::Mutex::new(String::new()));
+            let tool_calls_buffer = Arc::new(std::sync::Mutex::new(Vec::new()));
+            let cb_clone = content_buffer.clone();
+            let tc_clone = tool_calls_buffer.clone();
+            let ext_clone = ext_events_arc.clone();
+
+            let events_callback: EventCallback = Box::new(move |event| match event {
+                LlmEvent::TextChunk(text) => {
+                    if let Ok(mut guard) = cb_clone.lock() {
+                        guard.push_str(&text);
+                    }
+                    if let Some(ref ext) = ext_clone {
+                        if let Ok(mut guard) = ext.lock() {
+                            let callback = &mut *guard;
+                            callback(LlmEvent::TextChunk(text));
+                        }
+                    }
+                }
+                LlmEvent::ToolCall {
+                    name,
+                    arguments,
+                    id,
+                } => {
+                    if let Ok(mut guard) = tc_clone.lock() {
+                        guard.push(ToolCall {
+                            id: id.clone(),
+                            name: name.clone(),
+                            arguments: arguments.clone(),
+                        });
+                    }
+                    if let Some(ref ext) = ext_clone {
+                        if let Ok(mut guard) = ext.lock() {
+                            let callback = &mut *guard;
+                            callback(LlmEvent::ToolCall {
+                                name,
+                                arguments,
+                                id,
+                            });
+                        }
+                    }
+                }
+                _ => {}
+            });
+
+            agent
                     .run_streaming(&mut *self.session.write().await, provider, tools, events_callback)
                     .await
                     .map_err(|e| {
@@ -476,17 +486,17 @@ impl AgentRuntime {
                         }
                     })?;
 
-                if let Ok(guard) = content_buffer.lock() {
-                    final_response.content = guard.clone();
-                }
-                final_response.tool_calls = tool_calls_buffer.lock().unwrap().clone();
+            if let Ok(guard) = content_buffer.lock() {
+                final_response.content = guard.clone();
+            }
+            final_response.tool_calls = tool_calls_buffer.lock().unwrap().clone();
 
-                if final_response.tool_calls.is_empty() {
-                    tracing::info!(session_id = %session_id, iteration = iteration, response_len = final_response.content.len(), "Agent completed successfully");
-                    break;
-                }
+            if final_response.tool_calls.is_empty() {
+                tracing::info!(session_id = %session_id, iteration = iteration, response_len = final_response.content.len(), "Agent completed successfully");
+                break;
+            }
 
-                tracing::debug!(session_id = %session_id, iteration = iteration, tool_count = final_response.tool_calls.len(), "Processing tool calls");
+            tracing::debug!(session_id = %session_id, iteration = iteration, tool_count = final_response.tool_calls.len(), "Processing tool calls");
 
             for call in final_response
                 .tool_calls
@@ -1305,7 +1315,10 @@ mod tests {
                 .messages
                 .iter()
                 .any(|message| message.content.contains("Tool 'mock_runtime_tool' result:"));
-            assert!(saw_tool_result, "tool result should be added before second iteration");
+            assert!(
+                saw_tool_result,
+                "tool result should be added before second iteration"
+            );
 
             events(LlmEvent::TextChunk("done".to_string()));
             Ok(AgentResponse {
@@ -1361,7 +1374,10 @@ mod tests {
             .iter()
             .any(|message| message.content.contains("Tool 'mock_runtime_tool' result:")));
         assert_eq!(
-            session.messages.last().map(|message| message.content.as_str()),
+            session
+                .messages
+                .last()
+                .map(|message| message.content.as_str()),
             Some("done")
         );
     }

@@ -180,7 +180,9 @@ impl<'de> Deserialize<'de> for LogLevel {
             type Value = LogLevel;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("trace, debug, info, warn, error, TRACE, DEBUG, INFO, WARN, ERROR, WARNING")
+                formatter.write_str(
+                    "trace, debug, info, warn, error, TRACE, DEBUG, INFO, WARN, ERROR, WARNING",
+                )
             }
 
             fn visit_str<E>(self, value: &str) -> Result<LogLevel, E>
@@ -195,7 +197,10 @@ impl<'de> Deserialize<'de> for LogLevel {
                     "ERROR" | "error" => Ok(LogLevel::Error),
                     _ => Err(serde::de::Error::unknown_variant(
                         value,
-                        &["trace", "debug", "info", "warn", "error", "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "WARNING"],
+                        &[
+                            "trace", "debug", "info", "warn", "error", "TRACE", "DEBUG", "INFO",
+                            "WARN", "ERROR", "WARNING",
+                        ],
                     )),
                 }
             }
@@ -403,9 +408,7 @@ impl<'de> Deserialize<'de> for PluginConfig {
                 }
                 let path = arr[0]
                     .as_str()
-                    .ok_or_else(|| {
-                        serde::de::Error::custom("Plugin path must be a string")
-                    })?
+                    .ok_or_else(|| serde::de::Error::custom("Plugin path must be a string"))?
                     .to_string();
                 let config = arr.get(1).cloned().unwrap_or(serde_json::json!({}));
                 Ok(PluginConfig::WithConfig { path, config })
@@ -3125,7 +3128,9 @@ impl Config {
                         Some(ShareMode::ReadOnly)
                     }
                     "collaborative" => {
-                        tracing::warn!("ShareMode 'collaborative' is an opencode-rs extended value");
+                        tracing::warn!(
+                            "ShareMode 'collaborative' is an opencode-rs extended value"
+                        );
                         Some(ShareMode::Collaborative)
                     }
                     "controlled" => {
@@ -5036,8 +5041,14 @@ mod tests {
         let mode = config.mode.as_ref().unwrap();
         assert!(mode.build.is_some());
         assert!(mode.plan.is_some());
-        assert_eq!(mode.build.as_ref().unwrap().model.as_ref().unwrap(), "openai/gpt-4o");
-        assert_eq!(mode.plan.as_ref().unwrap().model.as_ref().unwrap(), "anthropic/claude-3");
+        assert_eq!(
+            mode.build.as_ref().unwrap().model.as_ref().unwrap(),
+            "openai/gpt-4o"
+        );
+        assert_eq!(
+            mode.plan.as_ref().unwrap().model.as_ref().unwrap(),
+            "anthropic/claude-3"
+        );
     }
 
     #[test]
