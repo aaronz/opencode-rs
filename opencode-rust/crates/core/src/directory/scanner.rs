@@ -12,7 +12,7 @@ pub struct DirectoryScanner {
 
 impl DirectoryScanner {
     pub fn new() -> Self {
-        let global_path = directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+        let global_path = directories::ProjectDirs::from("", "", "opencode-rs")
             .map(|dirs| dirs.config_dir().to_path_buf());
 
         Self {

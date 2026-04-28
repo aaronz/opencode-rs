@@ -54,7 +54,7 @@ fn workspace_sessions_path() -> PathBuf {
         return path.join("workspace-sessions.json");
     }
 
-    directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+    directories::ProjectDirs::from("", "", "opencode-rs")
         .map(|dirs| dirs.data_dir().join("workspace-sessions.json"))
         .unwrap_or_else(|| PathBuf::from("./workspace-sessions.json"))
 }

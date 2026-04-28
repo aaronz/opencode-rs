@@ -441,7 +441,7 @@ impl Session {
             let _ = std::fs::create_dir_all(&path);
             return path;
         }
-        directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+        directories::ProjectDirs::from("", "", "opencode-rs")
             .map(|dirs| dirs.data_dir().join("sessions"))
             .unwrap_or_else(|| PathBuf::from("~/.local/share/opencode-rs/sessions"))
     }

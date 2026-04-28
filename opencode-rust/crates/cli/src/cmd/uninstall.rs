@@ -99,11 +99,11 @@ mod tests {
 }
 
 pub(crate) fn run(args: UninstallArgs) {
-    let data_dir = directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+    let data_dir = directories::ProjectDirs::from("", "", "opencode-rs")
         .map(|dirs| dirs.data_dir().to_path_buf())
         .unwrap_or_else(|| PathBuf::from("~/.local/share/opencode-rs"));
 
-    let config_dir = directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+    let config_dir = directories::ProjectDirs::from("", "", "opencode-rs")
         .map(|dirs| dirs.config_dir().to_path_buf())
         .unwrap_or_else(|| PathBuf::from("~/.config/opencode-rs"));
 

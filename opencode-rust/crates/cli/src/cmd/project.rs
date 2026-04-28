@@ -29,7 +29,7 @@ fn project_state_path() -> PathBuf {
         return path.join("projects.json");
     }
 
-    directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+    directories::ProjectDirs::from("", "", "opencode-rs")
         .map(|dirs| dirs.data_dir().join("projects.json"))
         .unwrap_or_else(|| PathBuf::from("./projects.json"))
 }

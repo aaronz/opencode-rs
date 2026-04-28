@@ -23,7 +23,7 @@ pub struct Paths;
 
 impl Paths {
     fn project_dirs() -> Option<directories::ProjectDirs> {
-        directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
+        directories::ProjectDirs::from("", "", "opencode-rs")
     }
 
     fn home_dir() -> Option<PathBuf> {
