@@ -433,6 +433,18 @@ fn test_shortcuts_exec_requires_shortcut() {
 #[test]
 fn test_shortcuts_exec_with_shortcut() {
     let harness = TestHarness::setup();
+    // First set up a shortcut
+    let set_output = harness.run_cli(&[
+        "shortcuts",
+        "set",
+        "--command",
+        "palette.open",
+        "--shortcut",
+        "Ctrl+Shift+P",
+    ]);
+    assert!(set_output.status.success(), "shortcut set should succeed");
+
+    // Now exec the shortcut
     let output = harness.run_cli(&["shortcuts", "exec", "--shortcut", "Ctrl+Shift+P"]);
 
     assert!(

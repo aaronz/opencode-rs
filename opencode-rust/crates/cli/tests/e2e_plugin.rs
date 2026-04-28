@@ -24,10 +24,17 @@ fn test_plugin_install_persists_to_config() {
     let config_content = fs::read_to_string(&config_path).unwrap();
     let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
     let plugins = config.get("plugin").and_then(|p| p.as_array());
+    // Plugin is stored as {"Simple": "test-plugin"} object, not a plain string
+    let has_test_plugin = plugins.map(|p| {
+        p.iter().any(|item| {
+            item.get("Simple")
+                .and_then(|s| s.as_str())
+                .map(|s| s == "test-plugin")
+                .unwrap_or(false)
+        })
+    }).unwrap_or(false);
     assert!(
-        plugins
-            .map(|p| p.contains(&serde_json::json!("test-plugin")))
-            .unwrap_or(false),
+        has_test_plugin,
         "plugin list should contain 'test-plugin' after install, got: {:?}",
         config
     );
@@ -97,13 +104,28 @@ fn test_plugin_remove_removes_from_config() {
     let config_content = fs::read_to_string(&config_path).unwrap();
     let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
     let plugins = config.get("plugin").and_then(|p| p.as_array()).unwrap();
+
+    // Plugin items are stored as {"Simple": "plugin-name"}, not plain strings
+    let contains_removed = plugins.iter().any(|item| {
+        item.get("Simple")
+            .and_then(|s| s.as_str())
+            .map(|s| s == "plugin-to-remove")
+            .unwrap_or(false)
+    });
     assert!(
-        !plugins.contains(&serde_json::json!("plugin-to-remove")),
+        !contains_removed,
         "plugin list should not contain 'plugin-to-remove' after removal, got: {:?}",
         plugins
     );
+
+    let contains_keep_me = plugins.iter().any(|item| {
+        item.get("Simple")
+            .and_then(|s| s.as_str())
+            .map(|s| s == "keep-me")
+            .unwrap_or(false)
+    });
     assert!(
-        plugins.contains(&serde_json::json!("keep-me")),
+        contains_keep_me,
         "plugin list should still contain 'keep-me', got: {:?}",
         plugins
     );

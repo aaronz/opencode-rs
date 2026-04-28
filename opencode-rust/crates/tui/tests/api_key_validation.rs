@@ -174,6 +174,397 @@ fn test_validation_in_progress_set_during_validation() {
 }
 
 #[test]
+fn test_connect_progress_message_mentions_provider_during_api_key_validation() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+
+    assert_eq!(
+        app.get_connect_progress_message_for_testing(),
+        "Validating OpenAI API key...",
+        "progress message should identify the provider while validation is running"
+    );
+}
+
+#[test]
+fn test_connect_progress_message_prompts_for_browser_auth_completion() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("google".to_string());
+    app.validation_in_progress = false;
+    app.mode = AppMode::ConnectProgress;
+
+    assert_eq!(
+        app.get_connect_progress_message_for_testing(),
+        "Complete Google authentication in your browser...",
+        "progress message should explain the current browser-auth step"
+    );
+}
+
+#[test]
+fn test_connect_progress_syncs_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.validation_in_progress = true;
+    app.mode = AppMode::ConnectProgress;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("⏳ Validating OpenAI"),
+        "shared status bar should reflect connect validation progress"
+    );
+    assert_eq!(
+        app.status_bar.connection_status,
+        opencode_tui::components::status_bar::ConnectionStatus::Disconnected,
+        "shared status bar should show disconnected while validation is still in progress"
+    );
+}
+
+#[test]
+fn test_shared_status_bar_activity_shows_ready_when_chat_mode_idle() {
+    let mut app = App::new();
+    app.status_bar.activity_message = Some("⏳ Validating OpenAI".to_string());
+    app.status_bar.connection_status =
+        opencode_tui::components::status_bar::ConnectionStatus::Disconnected;
+    app.mode = AppMode::Chat;
+    app.validation_in_progress = false;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("✓ Ready"),
+        "shared status bar should show 'Ready' when Chat mode with Idle state, not clear the activity"
+    );
+    assert_eq!(
+        app.status_bar.connection_status,
+        opencode_tui::components::status_bar::ConnectionStatus::Connected,
+        "shared status bar should return to connected when connect progress is inactive"
+    );
+}
+
+#[test]
+fn test_validation_error_syncs_shared_status_bar_error_state() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.mode = AppMode::ConnectApiKeyError;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.connection_status,
+        opencode_tui::components::status_bar::ConnectionStatus::Error,
+        "shared status bar should show error when API key validation fails"
+    );
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("⚠ Fix OpenAI API key"),
+        "shared status bar should suggest the next recovery step after validation failure"
+    );
+}
+
+#[test]
+fn test_connect_api_key_mode_keeps_shared_status_bar_disconnected() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("anthropic".to_string());
+    app.mode = AppMode::ConnectApiKey;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.connection_status,
+        opencode_tui::components::status_bar::ConnectionStatus::Disconnected,
+        "shared status bar should stay disconnected while the user is still entering credentials"
+    );
+}
+
+#[test]
+fn test_connect_provider_mode_shows_select_provider_activity() {
+    let mut app = App::new();
+    app.mode = AppMode::ConnectProvider;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🔌 Select provider"),
+        "shared status bar should explain the provider-selection step"
+    );
+}
+
+#[test]
+fn test_connect_method_mode_shows_choose_auth_activity() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.mode = AppMode::ConnectMethod;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🔐 Choose OpenAI auth"),
+        "shared status bar should explain the auth-method selection step"
+    );
+}
+
+#[test]
+fn test_connect_api_key_mode_shows_enter_key_activity() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("anthropic".to_string());
+    app.mode = AppMode::ConnectApiKey;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🔑 Enter Anthropic API key"),
+        "shared status bar should explain the credential-entry step"
+    );
+}
+
+#[test]
+fn test_connect_model_mode_shows_select_model_activity() {
+    let mut app = App::new();
+    app.pending_connect_provider = Some("openai".to_string());
+    app.mode = AppMode::ConnectModel;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🤖 Select OpenAI model"),
+        "shared status bar should explain the model-selection step"
+    );
+}
+
+#[test]
+fn test_reconnecting_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.start_reconnecting();
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🔄 Reconnecting"),
+        "shared status bar should surface reconnecting activity outside the connect wizard"
+    );
+    assert_eq!(
+        app.status_bar.connection_status,
+        opencode_tui::components::status_bar::ConnectionStatus::Disconnected,
+        "shared status bar should show a disconnected indicator while reconnecting"
+    );
+}
+
+#[test]
+fn test_streaming_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.start_llm_generation();
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("✍ Streaming response"),
+        "shared status bar should surface streaming activity during normal chat mode"
+    );
+}
+
+#[test]
+fn test_aborting_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::Aborting);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🛑 Aborting"),
+        "shared status bar should surface aborting activity during cancellation"
+    );
+}
+
+#[test]
+fn test_showing_error_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::ShowingError);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("⚠ Review error"),
+        "shared status bar should surface error review activity outside connect flows"
+    );
+    assert_eq!(
+        app.status_bar.connection_status,
+        opencode_tui::components::status_bar::ConnectionStatus::Error,
+        "shared status bar should switch to error state while reviewing a non-connect error"
+    );
+}
+
+#[test]
+fn test_showing_error_tui_state_prefers_failed_tool_name_when_available() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::ShowingError);
+    app.mode = AppMode::Chat;
+    app.tool_calls
+        .push(opencode_tui::app::ToolCall::new("grep").failed(1, "boom"));
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("⚠ Tool failed: grep"),
+        "shared status bar should prefer the most recent failed tool name during error review"
+    );
+}
+
+#[test]
+fn test_submitting_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::Submitting);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("📤 Submitting prompt"),
+        "shared status bar should surface prompt submission activity"
+    );
+}
+
+#[test]
+fn test_executing_tool_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::ExecutingTool);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🛠 Executing tool"),
+        "shared status bar should surface active tool execution"
+    );
+}
+
+#[test]
+fn test_executing_tool_tui_state_shows_active_tool_name_when_available() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::ExecutingTool);
+    app.mode = AppMode::Chat;
+    app.tool_calls.push(opencode_tui::app::ToolCall::new("grep"));
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🛠 Running grep"),
+        "shared status bar should prefer the active tool name over the generic fallback"
+    );
+}
+
+#[test]
+fn test_executing_tool_tui_state_keeps_generic_message_without_running_tool() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::ExecutingTool);
+    app.mode = AppMode::Chat;
+    app.tool_calls
+        .push(opencode_tui::app::ToolCall::new("read").success("done"));
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🛠 Executing tool"),
+        "shared status bar should fall back to the generic message when no tool is currently running"
+    );
+}
+
+#[test]
+fn test_awaiting_permission_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::AwaitingPermission);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("✋ Awaiting permission"),
+        "shared status bar should surface approval-blocked activity"
+    );
+}
+
+#[test]
+fn test_paused_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::Paused);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("⏸ Paused"),
+        "shared status bar should surface paused activity"
+    );
+}
+
+#[test]
+fn test_showing_diff_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::ShowingDiff);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("🧾 Reviewing diff"),
+        "shared status bar should surface diff review activity"
+    );
+}
+
+#[test]
+fn test_composing_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::Composing);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("✎ Composing"),
+        "shared status bar should surface composing activity"
+    );
+}
+
+#[test]
+fn test_idle_tui_state_shows_shared_status_bar_activity() {
+    let mut app = App::new();
+    app.set_tui_state(opencode_tui::app::TuiState::Idle);
+    app.mode = AppMode::Chat;
+
+    app.sync_status_bar_state_for_testing();
+
+    assert_eq!(
+        app.status_bar.activity_message.as_deref(),
+        Some("✓ Ready"),
+        "shared status bar should surface an explicit idle-ready state"
+    );
+}
+
+#[test]
 fn test_validation_in_progress_clears_after_validation_completes() {
     use opencode_llm::BrowserAuthModelInfo;
 
