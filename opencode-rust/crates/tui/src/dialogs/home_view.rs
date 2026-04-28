@@ -112,6 +112,10 @@ impl HomeView {
         self
     }
 
+    pub fn set_connection_status(&mut self, status: Option<String>) {
+        self.connection_status = status;
+    }
+
     pub fn get_selected_action(&self) -> HomeAction {
         self.selected_action
     }
@@ -241,6 +245,24 @@ impl Dialog for HomeView {
             Rect::new(inner.x, y_offset, inner.width, 1),
         );
         y_offset += 2;
+
+        if let Some(ref status) = self.connection_status {
+            let (status_text, status_color) = match status.as_str() {
+                "Connected" => ("● Connected", theme.success_color()),
+                "Disconnected" => ("● Disconnected", theme.warning_color()),
+                "Error" => ("● Error", theme.error_color()),
+                _ => ("● Unknown", theme.muted_color()),
+            };
+            let status_line = Line::from(vec![
+                Span::styled("Status: ", Style::default().fg(theme.muted_color())),
+                Span::styled(status_text, Style::default().fg(status_color)),
+            ]);
+            f.render_widget(
+                Paragraph::new(vec![status_line]),
+                Rect::new(inner.x, y_offset, inner.width, 1),
+            );
+            y_offset += 2;
+        }
 
         let stats_line = Line::from(vec![
             Span::styled("Sessions: ", Style::default().fg(theme.muted_color())),
