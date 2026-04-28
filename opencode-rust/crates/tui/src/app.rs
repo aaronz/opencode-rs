@@ -5253,6 +5253,7 @@ OpenCode Agent Configuration
     }
 
     fn draw_home_view(&mut self, f: &mut Frame) {
+        self.sync_status_bar_state();
         self.home_view
             .update_from_session_manager(&self.session_manager);
         self.home_view.draw(f, f.area());

@@ -27,6 +27,7 @@ pub struct HomeView {
     directory: String,
     total_sessions: usize,
     total_messages: usize,
+    connection_status: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -82,6 +83,7 @@ impl HomeView {
             directory: String::new(),
             total_sessions: 0,
             total_messages: 0,
+            connection_status: None,
         }
     }
 
@@ -102,6 +104,11 @@ impl HomeView {
 
     pub fn with_directory(mut self, directory: String) -> Self {
         self.directory = directory;
+        self
+    }
+
+    pub fn with_connection_status(mut self, status: Option<String>) -> Self {
+        self.connection_status = status;
         self
     }
 
