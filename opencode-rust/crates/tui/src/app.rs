@@ -1133,34 +1133,48 @@ impl App {
         let theme = theme_manager.current().clone();
         drop(_span);
 
+        let _span = tracing::info_span!("app_init", phase = "config_dir_lookup").entered();
         let config_dir = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
             .join("opencode-rs");
+        drop(_span);
+        let _span = tracing::info_span!("app_init", phase = "create_config_dirs").entered();
         std::fs::create_dir_all(&config_dir).ok();
+        drop(_span);
         let history_file = config_dir.join("history.txt");
 
+        let _span = tracing::info_span!("app_init", phase = "history_layout_sidebar").entered();
+        let _span2 = tracing::info_span!("app_init", phase = "history_read").entered();
         let mut history = Vec::new();
         if let Ok(content) = std::fs::read_to_string(&history_file) {
             history = content.lines().map(|s| s.to_string()).take(100).collect();
         }
+        drop(_span2);
 
         let layout_file = config_dir.join("layout.txt");
+        let _span2 = tracing::info_span!("app_init", phase = "layout_load").entered();
         let layout_manager = LayoutManager::load_from_file(&layout_file).unwrap_or_default();
+        drop(_span2);
 
         let sidebar_file = config_dir.join("sidebar.json");
-        let sidebar = {
-            let mut sidebar = Sidebar::new(theme.clone());
-            let _ = sidebar.load_from_file(&sidebar_file);
-            sidebar
-        };
+        let _span2 = tracing::info_span!("app_init", phase = "sidebar_new").entered();
+        let mut sidebar = Sidebar::new(theme.clone());
+        drop(_span2);
+        let _span2 = tracing::info_span!("app_init", phase = "sidebar_load").entered();
+        let _ = sidebar.load_from_file(&sidebar_file);
+        drop(_span2);
+        drop(_span);
 
+        let _span = tracing::info_span!("app_init", phase = "session_counter_budget").entered();
         let session_token_id = uuid::Uuid::new_v4().to_string();
         let mut token_counter = TokenCounter::new();
         token_counter.set_active_session(session_token_id.clone());
         let budget_limit_usd = std::env::var("OPENCODE_BUDGET_USD")
             .ok()
             .and_then(|v| v.parse::<f64>().ok());
+        drop(_span);
 
+        let _span = tracing::info_span!("app_init", phase = "skills_panel").entered();
         let skill_resolver = SkillResolver::default();
         let mut skills_panel = SkillsPanel::new(theme.clone());
         let skill_infos = skill_resolver
@@ -1174,11 +1188,15 @@ impl App {
             })
             .collect();
         skills_panel.set_skills(skill_infos);
+        drop(_span);
+
+        let _span = tracing::info_span!("app_init", phase = "command_registry").entered();
         let command_registry = CommandRegistry::new();
         let input_box = InputBox::new(
             std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
             &command_registry,
         );
+        drop(_span);
 
         let _span = tracing::info_span!("app_init", phase = "tool_registry").entered();
         let tool_registry = Arc::new(if let Ok(rt) = tokio::runtime::Handle::try_current() {
@@ -1251,7 +1269,7 @@ impl App {
             show_sidebar: true,
             sidebar_file,
             right_panel: RightPanel::new(theme.clone()),
-            patch_preview: PatchPreview::new(),
+            patch_preview: PatchPreview::with_theme(theme.clone()),
             title_bar: TitleBar::new(theme.clone()),
             show_title_bar: true,
             status_bar: StatusBar::new(theme.clone()),
@@ -5256,6 +5274,12 @@ OpenCode Agent Configuration
         self.sync_status_bar_state();
         self.home_view
             .update_from_session_manager(&self.session_manager);
+        let status_label = match self.status_bar.connection_status {
+            crate::components::status_bar::ConnectionStatus::Connected => "Connected",
+            crate::components::status_bar::ConnectionStatus::Disconnected => "Disconnected",
+            crate::components::status_bar::ConnectionStatus::Error => "Error",
+        };
+        self.home_view.set_connection_status(Some(status_label.to_string()));
         self.home_view.draw(f, f.area());
     }
 
@@ -5500,27 +5524,41 @@ OpenCode Agent Configuration
             .skip(self.scroll_offset)
             .take(messages_height as usize)
             .flat_map(|msg| {
-                let prefix = if msg.is_user {
-                    "> "
+                let role_label = if msg.is_user {
+                    "You"
                 } else if msg.is_thinking {
-                    "  "
+                    "Thinking"
                 } else {
-                    "  "
+                    "Assistant"
                 };
+                let prefix = if msg.is_user { "> " } else { "  " };
                 let (color, style) = if msg.is_user {
                     (theme.primary_color(), Modifier::BOLD)
-                } else if msg.is_thinking && self.thinking_mode {
+                } else if msg.is_thinking {
                     (theme.warning_color(), Modifier::ITALIC)
                 } else {
                     (theme.foreground_color(), Modifier::BOLD)
                 };
+                let is_code_like = msg.content.starts_with("```")
+                    || (msg.content.contains('\n') && msg.content.lines().skip(1).any(|l| l.starts_with("    ") || l.starts_with('\t')));
+                let content_style = if is_code_like {
+                    Style::default()
+                        .fg(theme.secondary_color())
+                        .add_modifier(Modifier::ITALIC)
+                } else {
+                    Style::default().fg(color).add_modifier(style)
+                };
                 let mut lines = vec![Line::from(vec![
                     Span::styled(prefix, Style::default().fg(color).add_modifier(style)),
-                    Span::raw(if msg.is_thinking && self.thinking_mode {
-                        format!("[Thinking...] {}", msg.content)
-                    } else {
-                        msg.content.clone()
-                    }),
+                    Span::styled(format!("[{}] ", role_label), Style::default().fg(theme.muted_color()).add_modifier(Modifier::BOLD)),
+                    Span::styled(
+                        if msg.is_thinking && self.thinking_mode {
+                            format!("[Thinking...] {}", msg.content)
+                        } else {
+                            msg.content.clone()
+                        },
+                        content_style,
+                    ),
                 ])];
                 if self.show_metadata {
                     let mut meta_parts = Vec::new();

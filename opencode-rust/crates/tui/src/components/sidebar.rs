@@ -116,6 +116,8 @@ struct SectionDrawInfo {
     file_tree_selected: Option<usize>,
 }
 
+const SIDEBAR_FILE_TREE_MAX_DEPTH: usize = 2;
+
 impl SidebarFileTree {
     pub fn new(root_path: PathBuf) -> Self {
         let mut tree = Self {
@@ -136,6 +138,9 @@ impl SidebarFileTree {
     }
 
     fn collect_items(&mut self, path: &PathBuf, depth: usize) {
+        if depth >= SIDEBAR_FILE_TREE_MAX_DEPTH {
+            return;
+        }
         let name = path
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
