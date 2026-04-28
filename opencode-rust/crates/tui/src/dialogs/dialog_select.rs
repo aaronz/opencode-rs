@@ -142,9 +142,13 @@ impl Dialog for DialogSelect {
                 if self.selected_index > 0 {
                     self.selected_index -= 1;
                 }
-                self.scroll_offset = self
-                    .scroll_offset
-                    .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
+                self.scroll_offset = self.scroll_offset.saturating_sub(
+                    if self.selected_index < self.scroll_offset {
+                        1
+                    } else {
+                        0
+                    },
+                );
                 DialogAction::None
             }
             KeyCode::Down => {

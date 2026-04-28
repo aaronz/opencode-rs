@@ -130,9 +130,13 @@ impl Dialog for CredentialSelectDialog {
                     } else {
                         self.selected_index -= 1;
                     }
-                    self.scroll_offset = self
-                        .scroll_offset
-                        .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
+                    self.scroll_offset = self.scroll_offset.saturating_sub(
+                        if self.selected_index < self.scroll_offset {
+                            1
+                        } else {
+                            0
+                        },
+                    );
                 }
                 DialogAction::None
             }
@@ -140,7 +144,8 @@ impl Dialog for CredentialSelectDialog {
                 if self.has_credentials() {
                     self.selected_index = (self.selected_index + 1) % self.credentials.len().max(1);
                     if self.selected_index >= self.scroll_offset + visible_height {
-                        self.scroll_offset = (self.selected_index + 1).saturating_sub(visible_height);
+                        self.scroll_offset =
+                            (self.selected_index + 1).saturating_sub(visible_height);
                     }
                 }
                 DialogAction::None

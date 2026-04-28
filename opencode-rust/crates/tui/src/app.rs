@@ -25,8 +25,8 @@ use crossterm::{
         disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, LeaveAlternateScreen,
     },
 };
-use opencode_auth::CredentialStore;
 use opencode_agent::{AgentRuntime, AgentType, BuildAgent};
+use opencode_auth::CredentialStore;
 use opencode_core::{
     AgentExecutor, CostCalculator, Message, Session, SessionSharing, SkillResolver, SkillState,
     TokenCounter,
@@ -58,8 +58,15 @@ use std::time::{Duration, Instant};
 
 pub enum LlmEvent {
     Chunk(String),
-    ToolCall { name: String, arguments: serde_json::Value, id: String },
-    ToolResult { id: String, output: String },
+    ToolCall {
+        name: String,
+        arguments: serde_json::Value,
+        id: String,
+    },
+    ToolResult {
+        id: String,
+        output: String,
+    },
     SessionComplete(Session),
     Done,
     Error(String),
@@ -2613,7 +2620,11 @@ impl App {
                         self.pending_input_tokens = 0;
                         self.llm_rx = None;
                     }
-                    LlmEvent::ToolCall { name, arguments, id } => {
+                    LlmEvent::ToolCall {
+                        name,
+                        arguments,
+                        id,
+                    } => {
                         let args_str = serde_json::to_string_pretty(&arguments).unwrap_or_default();
                         self.add_message(
                             format!("[Tool Call: {} ({})]\nArguments: {}", name, id, args_str),
@@ -2621,10 +2632,7 @@ impl App {
                         );
                     }
                     LlmEvent::ToolResult { id, output } => {
-                        self.add_message(
-                            format!("[Tool Result for {}]\n{}", id, output),
-                            false,
-                        );
+                        self.add_message(format!("[Tool Result for {}]\n{}", id, output), false);
                     }
                     LlmEvent::SessionComplete(session) => {
                         self.session = Some(session);
@@ -4397,16 +4405,28 @@ OpenCode Agent Configuration
                                         let runtime = AgentRuntime::new(session, AgentType::Build);
                                         let agent = BuildAgent::new();
                                         let tx_callback = tx.clone();
-                                        let callback: opencode_llm::EventCallback = Box::new(move |event| {
-                                            match event {
+                                        let callback: opencode_llm::EventCallback =
+                                            Box::new(move |event| match event {
                                                 opencode_llm::LlmEvent::TextChunk(text) => {
                                                     let _ = tx_callback.send(LlmEvent::Chunk(text));
                                                 }
-                                                opencode_llm::LlmEvent::ToolCall { name, arguments, id } => {
-                                                    let _ = tx_callback.send(LlmEvent::ToolCall { name, arguments, id });
+                                                opencode_llm::LlmEvent::ToolCall {
+                                                    name,
+                                                    arguments,
+                                                    id,
+                                                } => {
+                                                    let _ = tx_callback.send(LlmEvent::ToolCall {
+                                                        name,
+                                                        arguments,
+                                                        id,
+                                                    });
                                                 }
-                                                opencode_llm::LlmEvent::ToolResult { id, output } => {
-                                                    let _ = tx_callback.send(LlmEvent::ToolResult { id, output });
+                                                opencode_llm::LlmEvent::ToolResult {
+                                                    id,
+                                                    output,
+                                                } => {
+                                                    let _ = tx_callback
+                                                        .send(LlmEvent::ToolResult { id, output });
                                                 }
                                                 opencode_llm::LlmEvent::Done => {
                                                     let _ = tx_callback.send(LlmEvent::Done);
@@ -4414,8 +4434,7 @@ OpenCode Agent Configuration
                                                 opencode_llm::LlmEvent::Error(e) => {
                                                     let _ = tx_callback.send(LlmEvent::Error(e));
                                                 }
-                                            }
-                                        });
+                                            });
                                         match runtime
                                             .run_loop_streaming(
                                                 &agent,
@@ -4427,7 +4446,9 @@ OpenCode Agent Configuration
                                         {
                                             Ok(_) => {
                                                 let updated_session = runtime.session().await;
-                                                let _ = tx.send(LlmEvent::SessionComplete(updated_session));
+                                                let _ = tx.send(LlmEvent::SessionComplete(
+                                                    updated_session,
+                                                ));
                                             }
                                             Err(e) => {
                                                 let _ = tx.send(LlmEvent::Error(e.to_string()));

@@ -117,9 +117,13 @@ impl Dialog for ConnectProviderDialog {
                     } else {
                         self.selected_index -= 1;
                     }
-                    self.scroll_offset = self
-                        .scroll_offset
-                        .saturating_sub(if self.selected_index < self.scroll_offset { 1 } else { 0 });
+                    self.scroll_offset = self.scroll_offset.saturating_sub(
+                        if self.selected_index < self.scroll_offset {
+                            1
+                        } else {
+                            0
+                        },
+                    );
                     DialogAction::None
                 }
             }
@@ -127,7 +131,8 @@ impl Dialog for ConnectProviderDialog {
                 if !self.providers.is_empty() {
                     self.selected_index = (self.selected_index + 1) % self.providers.len();
                     if self.selected_index >= self.scroll_offset + visible_height {
-                        self.scroll_offset = (self.selected_index + 1).saturating_sub(visible_height);
+                        self.scroll_offset =
+                            (self.selected_index + 1).saturating_sub(visible_height);
                     }
                 }
                 DialogAction::None

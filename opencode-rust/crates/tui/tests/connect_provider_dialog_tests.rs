@@ -68,7 +68,10 @@ fn test_connect_provider_dialog_scrolling_with_many_items() {
     let action = dialog.handle_input(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     match action {
         opencode_tui::dialogs::DialogAction::Confirm(provider_id) => {
-            assert_eq!(provider_id, "minimax", "After 18 Down presses from index 0: (0 + 18) % 21 = 18 = minimax");
+            assert_eq!(
+                provider_id, "minimax",
+                "After 18 Down presses from index 0: (0 + 18) % 21 = 18 = minimax"
+            );
         }
         _ => panic!("Expected Confirm action, got {:?}", action),
     }
