@@ -1,5 +1,3 @@
-use std::path::{Path, PathBuf};
-
 #[cfg(test)]
 mod tests {
     use std::path::{Path, PathBuf};
