@@ -489,8 +489,10 @@ model = "gpt-4
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.jsonc");
 
-        let mut config = Config::default();
-        config.model = Some("gpt-4o".to_string());
+        let config = Config {
+            model: Some("gpt-4o".to_string()),
+            ..Default::default()
+        };
         config.save(&config_path).unwrap();
 
         let mut config = Config::load(&config_path).unwrap();
@@ -555,8 +557,10 @@ model = "gpt-4
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.jsonc");
 
-        let mut config = Config::default();
-        config.temperature = Some(0.7);
+        let config = Config {
+            temperature: Some(0.7),
+            ..Default::default()
+        };
         config.save(&config_path).unwrap();
 
         let reloaded = Config::load(&config_path).unwrap();
@@ -578,10 +582,12 @@ model = "gpt-4
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.jsonc");
 
-        let mut config = Config::default();
-        config.model = Some("gpt-4o".to_string());
-        config.temperature = Some(0.5);
-        config.max_tokens = Some(500);
+        let config = Config {
+            model: Some("gpt-4o".to_string()),
+            temperature: Some(0.5),
+            max_tokens: Some(500),
+            ..Default::default()
+        };
         config.save(&config_path).unwrap();
 
         let mut config = Config::load(&config_path).unwrap();

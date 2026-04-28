@@ -301,13 +301,7 @@ fn test_run_command_with_explicit_ollama_model_succeeds_without_config_model() {
     let (base_url, _requests) = start_mock_ollama_server();
     setup_ollama_config(&config_dir, "ollama/unused", &base_url);
 
-    let output = harness.run_cli(&[
-        "run",
-        "--prompt",
-        "test",
-        "--model",
-        "ollama/direct-model",
-    ]);
+    let output = harness.run_cli(&["run", "--prompt", "test", "--model", "ollama/direct-model"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     assert!(
@@ -324,13 +318,7 @@ fn test_run_command_cli_model_overrides_config() {
     let (base_url, _requests) = start_mock_ollama_server();
     setup_ollama_config(&config_dir, "ollama/config-model", &base_url);
 
-    let output = harness.run_cli(&[
-        "run",
-        "--prompt",
-        "test",
-        "--model",
-        "ollama/cli-model",
-    ]);
+    let output = harness.run_cli(&["run", "--prompt", "test", "--model", "ollama/cli-model"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     assert!(

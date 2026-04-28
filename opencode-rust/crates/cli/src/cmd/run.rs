@@ -356,8 +356,10 @@ mod tests {
             title: None,
             format: OutputFormat::Text,
         };
-        let mut config = Config::default();
-        config.model = Some("gpt-4o-mini".to_string());
+        let config = Config {
+            model: Some("gpt-4o-mini".to_string()),
+            ..Default::default()
+        };
         let model = get_default_model(&args, &config);
         assert_eq!(model, "gpt-4o-mini");
     }
@@ -433,7 +435,10 @@ fn get_default_model(args: &RunArgs, config: &Config) -> String {
 }
 
 fn uses_noninteractive_llm(format: &OutputFormat) -> bool {
-    matches!(format, OutputFormat::Text | OutputFormat::Json | OutputFormat::Ndjson)
+    matches!(
+        format,
+        OutputFormat::Text | OutputFormat::Json | OutputFormat::Ndjson
+    )
 }
 
 pub(crate) fn run(args: RunArgs) {
