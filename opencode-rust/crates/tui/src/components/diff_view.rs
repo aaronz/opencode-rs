@@ -2,18 +2,14 @@
 
 use ratatui::{
     layout::Rect,
-    style::{Color, Style},
+    style::{Modifier, Style},
     text::Span,
     widgets::{Block, Borders, Widget},
     Frame,
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiffLine {
-    pub content: String,
-    pub line_type: DiffLineType,
-}
+use crate::theme::Theme;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DiffLineType {
@@ -22,6 +18,12 @@ pub enum DiffLineType {
     Addition,
     Deletion,
     CollapsedHunk,
+}
+
+#[derive(Debug, Clone)]
+pub struct DiffLine {
+    pub content: String,
+    pub line_type: DiffLineType,
 }
 
 impl DiffLine {
@@ -83,6 +85,7 @@ pub struct DiffView {
     pub scroll_offset: usize,
     pub cursor_position: usize,
     pub style: DiffViewStyle,
+    theme: Theme,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -95,6 +98,10 @@ pub enum DiffViewStyle {
 
 impl DiffView {
     pub fn new(old_content: &str, new_content: &str) -> Self {
+        Self::with_theme(old_content, new_content, Theme::default())
+    }
+
+    pub fn with_theme(old_content: &str, new_content: &str, theme: Theme) -> Self {
         let diff_text = Self::generate_unified_diff(old_content, new_content);
         let diff_lines: Vec<DiffLine> = diff_text
             .lines()
@@ -112,7 +119,12 @@ impl DiffView {
             scroll_offset: 0,
             cursor_position: 0,
             style: DiffViewStyle::Auto,
+            theme,
         }
+    }
+
+    fn theme(&self) -> &Theme {
+        &self.theme
     }
 
     fn parse_hunks(diff_lines: &[DiffLine]) -> Vec<DiffHunk> {
@@ -281,14 +293,21 @@ impl DiffView {
     }
 
     fn get_line_style(&self, line_type: DiffLineType) -> Style {
+        let theme = self.theme();
         match line_type {
-            DiffLineType::Header => Style::default().fg(Color::Cyan),
-            DiffLineType::Context => Style::default().fg(Color::White),
-            DiffLineType::Addition => Style::default().fg(Color::Green),
-            DiffLineType::Deletion => Style::default().fg(Color::Red),
+            DiffLineType::Header => Style::default()
+                .fg(theme.primary_color())
+                .add_modifier(Modifier::BOLD),
+            DiffLineType::Context => Style::default().fg(theme.foreground_color()),
+            DiffLineType::Addition => Style::default()
+                .fg(theme.success_color())
+                .add_modifier(Modifier::BOLD),
+            DiffLineType::Deletion => Style::default()
+                .fg(theme.error_color())
+                .add_modifier(Modifier::BOLD),
             DiffLineType::CollapsedHunk => Style::default()
-                .fg(Color::DarkGray)
-                .add_modifier(ratatui::style::Modifier::ITALIC),
+                .fg(theme.muted_color())
+                .add_modifier(Modifier::ITALIC),
         }
     }
 
@@ -318,10 +337,11 @@ impl DiffView {
 
 impl Widget for DiffView {
     fn render(self, area: Rect, buf: &mut ratatui::buffer::Buffer) {
+        let theme = self.theme();
         let block = Block::default()
             .title("Diff View  |  Enter/Space: toggle hunk  |  ↑↓: navigate")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Blue));
+            .border_style(Style::default().fg(theme.primary_color()));
 
         let inner = block.inner(area);
         block.render(area, buf);
@@ -365,7 +385,7 @@ impl Widget for DiffView {
 
             let base_style = self.get_line_style(diff_line.line_type);
             let style = if is_cursor {
-                base_style.bg(Color::Rgb(50, 50, 80))
+                base_style.bg(theme.primary_color()).fg(theme.foreground_color())
             } else if is_collapsed_hunk {
                 base_style
             } else {

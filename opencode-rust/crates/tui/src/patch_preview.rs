@@ -1,11 +1,12 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::Rect,
-    style::{Color, Style},
+    style::Style,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
+use crate::theme::Theme;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PatchDecision {
@@ -18,13 +19,19 @@ pub enum PatchDecision {
 pub struct PatchPreview {
     expanded: bool,
     decision: PatchDecision,
+    theme: Theme,
 }
 
 impl PatchPreview {
     pub fn new() -> Self {
+        Self::with_theme(Theme::default())
+    }
+
+    pub fn with_theme(theme: Theme) -> Self {
         Self {
             expanded: false,
             decision: PatchDecision::Pending,
+            theme,
         }
     }
 
@@ -65,19 +72,29 @@ impl PatchPreview {
         let lines = patch
             .lines()
             .take(if self.expanded { usize::MAX } else { 12 })
-            .map(Self::highlight_diff_line)
+            .map(|line| self.highlight_diff_line(line))
             .collect::<Vec<_>>();
 
         f.render_widget(Paragraph::new(lines), inner);
     }
 
-    fn highlight_diff_line(line: &str) -> Line<'_> {
+    fn highlight_diff_line<'a>(&'a self, line: &'a str) -> Line<'a> {
         if line.starts_with("+++") || line.starts_with("---") || line.starts_with("@@") {
-            Line::from(Span::styled(line, Style::default().fg(Color::Cyan)))
+            Line::from(Span::styled(line, Style::default().fg(self.theme.primary_color())))
         } else if line.starts_with('+') {
-            Line::from(Span::styled(line, Style::default().fg(Color::Green)))
+            Line::from(Span::styled(
+                line,
+                Style::default()
+                    .fg(self.theme.success_color())
+                    .add_modifier(ratatui::style::Modifier::BOLD),
+            ))
         } else if line.starts_with('-') {
-            Line::from(Span::styled(line, Style::default().fg(Color::Red)))
+            Line::from(Span::styled(
+                line,
+                Style::default()
+                    .fg(self.theme.error_color())
+                    .add_modifier(ratatui::style::Modifier::BOLD),
+            ))
         } else {
             Line::from(Span::raw(line))
         }
