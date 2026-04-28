@@ -5,7 +5,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use opencode_llm::ModelVariant;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
@@ -141,7 +141,7 @@ impl Dialog for ModelSelectionDialog {
                     format!(" [{} variants]", model.variants.len())
                 };
                 let style = if !model.is_available {
-                    Style::default().fg(Color::DarkGray)
+                    Style::default().fg(self.theme.muted_color())
                 } else {
                     Style::default()
                 };
@@ -154,7 +154,7 @@ impl Dialog for ModelSelectionDialog {
                         ),
                         style,
                     ),
-                    Span::styled(availability, Style::default().fg(Color::Red)),
+                    Span::styled(availability, Style::default().fg(self.theme.muted_color())),
                 ]))
             })
             .collect();

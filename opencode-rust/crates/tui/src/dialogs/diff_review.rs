@@ -334,12 +334,23 @@ impl DiffReviewOverlay {
 
                 for diff_line in &hunk.lines {
                     let (line_prefix, base_style) = match diff_line.line_type {
-                        DiffLineType::Added => ("+ ", Style::default().fg(Color::Green)),
-                        DiffLineType::Removed => ("- ", Style::default().fg(Color::Red)),
+                        DiffLineType::Added => (
+                            "+ ",
+                            Style::default()
+                                .fg(self.theme.success_color())
+                                .add_modifier(ratatui::style::Modifier::BOLD),
+                        ),
+                        DiffLineType::Removed => (
+                            "- ",
+                            Style::default()
+                                .fg(self.theme.error_color())
+                                .add_modifier(ratatui::style::Modifier::BOLD),
+                        ),
                         DiffLineType::Unchanged => ("  ", Style::default()),
-                        DiffLineType::Context => {
-                            ("  ", Style::default().fg(self.theme.muted_color()))
-                        }
+                        DiffLineType::Context => (
+                            "  ",
+                            Style::default().fg(self.theme.muted_color()),
+                        ),
                     };
 
                     let mut spans = vec![Span::raw("  "), Span::styled(line_prefix, base_style)];
@@ -472,22 +483,22 @@ impl DiffReviewOverlay {
             DiffState::Pending(_) => (
                 "Review Diff - Pending",
                 Style::default().fg(self.theme.warning_color()),
-                Color::Yellow,
+                self.theme.warning_color(),
             ),
             DiffState::Accepted(_) => (
                 "Review Diff - Accepted",
                 Style::default().fg(self.theme.success_color()),
-                Color::Green,
+                self.theme.success_color(),
             ),
             DiffState::Rejected(_) => (
                 "Review Diff - Rejected",
                 Style::default().fg(self.theme.error_color()),
-                Color::Red,
+                self.theme.error_color(),
             ),
             DiffState::Editing(_) => (
                 "Review Diff - Editing",
                 Style::default().fg(self.theme.accent_color()),
-                Color::Blue,
+                self.theme.accent_color(),
             ),
         };
 
@@ -518,19 +529,21 @@ impl DiffReviewOverlay {
                 Span::styled(
                     "[Y]es",
                     Style::default()
-                        .fg(Color::Green)
+                        .fg(self.theme.success_color())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw("  "),
                 Span::styled(
                     "[N]o",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(self.theme.error_color())
+                        .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw("  "),
                 Span::styled(
                     "[E]dit",
                     Style::default()
-                        .fg(Color::Blue)
+                        .fg(self.theme.accent_color())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw("  "),

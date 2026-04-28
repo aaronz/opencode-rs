@@ -1,7 +1,7 @@
 use crate::theme::Theme;
 use ratatui::{
     layout::Rect,
-    style::{Color, Style},
+    style::Style,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
@@ -109,7 +109,7 @@ impl TerminalPanel {
             .range(start_idx..end_idx)
             .map(|line| {
                 let style = if line.is_error {
-                    Style::default().fg(Color::Red)
+                    Style::default().fg(self.theme.error_color())
                 } else {
                     Style::default()
                 };

@@ -4,7 +4,7 @@ use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
     Frame,
@@ -180,14 +180,14 @@ impl Dialog for FileSelectionDialog {
                 };
 
                 let style = if entry.is_hidden {
-                    Style::default().fg(Color::DarkGray)
+                    Style::default().fg(self.theme.muted_color())
                 } else {
                     Style::default()
                 };
 
                 let checkbox_style = if is_selected {
                     Style::default()
-                        .fg(Color::Green)
+                        .fg(self.theme.success_color())
                         .add_modifier(Modifier::BOLD)
                 } else {
                     style
