@@ -1,7 +1,9 @@
 #![allow(unused_assignments)]
 
 use std::sync::Arc;
+use std::time::Instant;
 
+use opencode_core::bus::{InternalEvent, SharedEventBus};
 use opencode_core::{Message, Session};
 use opencode_llm::provider::{EventCallback, LlmEvent};
 use opencode_llm::Provider;
@@ -162,8 +164,33 @@ pub enum PrimaryAgentState {
     Transitioning,
 }
 
-/// Tracks the primary agent and its state.
-/// The invariant is: exactly one primary agent is active at any given time.
+/// PrimaryAgentTracker state machine:
+///
+/// ```text
+///                    ┌─────────────────┐
+///                    │    Inactive     │
+///                    └────────┬────────┘
+///                             │ activate()
+///                             ▼
+///                    ┌─────────────────┐
+///          ┌────────►│     Running     │◄────────┐
+///          │         └────────┬────────┘         │
+///          │                  │                  │
+///          │    begin_transition()                │ activate()
+///          │                  ▼                  │
+///          │         ┌─────────────────┐         │
+///          └─────────│  Transitioning  │─────────┘
+///   deactivate()     └─────────────────┘
+/// ```
+///
+/// Valid transitions:
+/// - Inactive → Running: activate()
+/// - Running → Transitioning: begin_transition()
+/// - Transitioning → Running: complete_transition()
+/// - Running → Inactive: deactivate()
+///
+/// Subagents (via invoke_subagent) run on forked sessions and do not affect
+/// the PrimaryAgentTracker state - they can execute concurrently with the primary agent.
 #[derive(Debug, Clone)]
 pub struct PrimaryAgentTracker {
     pub state: PrimaryAgentState,
@@ -264,6 +291,7 @@ pub struct AgentRuntime {
     session: Arc<RwLock<Session>>,
     config: RuntimeConfig,
     primary_tracker: PrimaryAgentTracker,
+    event_bus: Option<SharedEventBus>,
 }
 
 impl AgentRuntime {
@@ -272,6 +300,7 @@ impl AgentRuntime {
             session: Arc::new(RwLock::new(session)),
             config: RuntimeConfig::default(),
             primary_tracker: PrimaryAgentTracker::new_active(agent_type),
+            event_bus: None,
         }
     }
 
@@ -280,7 +309,17 @@ impl AgentRuntime {
             session: Arc::new(RwLock::new(session)),
             config,
             primary_tracker: PrimaryAgentTracker::new_active(agent_type),
+            event_bus: None,
         }
+    }
+
+    pub fn with_event_bus(mut self, event_bus: SharedEventBus) -> Self {
+        self.event_bus = Some(event_bus);
+        self
+    }
+
+    pub fn session_id(&self) -> String {
+        self.session.blocking_read().id.to_string()
     }
 
     pub async fn run_loop<A: Agent>(
@@ -303,6 +342,13 @@ impl AgentRuntime {
         let session_id = self.session.read().await.id.to_string();
         tracing::info!(session_id = %session_id, agent = ?agent.agent_type(), max_iterations = self.config.max_iterations, "Starting agent run loop");
 
+        if let Some(ref bus) = self.event_bus {
+            bus.publish(InternalEvent::AgentStarted {
+                session_id: session_id.clone(),
+                agent: agent.name().to_string(),
+            });
+        }
+
         let mut iteration = 0;
         let mut final_response = AgentResponse {
             content: String::new(),
@@ -320,16 +366,26 @@ impl AgentRuntime {
 
             tracing::debug!(session_id = %session_id, iteration = iteration, "Agent iteration starting");
 
+            let llm_start = Instant::now();
             let response = agent
                 .run(&mut *self.session.write().await, provider, tools)
-                .await
-                .map_err(|e| {
-                    tracing::error!(session_id = %session_id, error = %e, "Agent run failed");
-                    RuntimeError::ToolExecutionFailed {
-                        tool: "agent".to_string(),
-                        reason: e.to_string(),
-                    }
-                })?;
+                .await;
+            let llm_duration = llm_start.elapsed();
+
+            tracing::info!(
+                session_id = %session_id,
+                iteration = iteration,
+                llm_duration_ms = llm_duration.as_millis(),
+                "LLM call completed"
+            );
+
+            let response = response.map_err(|e| {
+                tracing::error!(session_id = %session_id, error = %e, "Agent run failed");
+                RuntimeError::ToolExecutionFailed {
+                    tool: "agent".to_string(),
+                    reason: e.to_string(),
+                }
+            })?;
 
             if response.tool_calls.is_empty() {
                 tracing::info!(session_id = %session_id, iteration = iteration, response_len = response.content.len(), "Agent completed successfully");
@@ -360,6 +416,15 @@ impl AgentRuntime {
                 };
 
                 tracing::debug!(session_id = %session_id, tool = %call.name, "Executing tool");
+
+                if let Some(ref bus) = self.event_bus {
+                    bus.publish(InternalEvent::ToolCallStarted {
+                        session_id: session_id.clone(),
+                        tool_name: call.name.clone(),
+                        call_id: call.id.clone(),
+                    });
+                }
+
                 let result = tools
                     .execute(&call.name, tool_call.args, Some(ctx))
                     .await
@@ -370,6 +435,14 @@ impl AgentRuntime {
                             reason: e.to_string(),
                         }
                     })?;
+
+                if let Some(ref bus) = self.event_bus {
+                    bus.publish(InternalEvent::ToolCallEnded {
+                        session_id: session_id.clone(),
+                        call_id: call.id.clone(),
+                        success: result.success,
+                    });
+                }
 
                 let result_text = if result.success {
                     tracing::debug!(session_id = %session_id, tool = %call.name, "Tool execution succeeded");
@@ -387,6 +460,13 @@ impl AgentRuntime {
 
         let assistant_msg = Message::assistant(&final_response.content);
         self.session.write().await.add_message(assistant_msg);
+
+        if let Some(ref bus) = self.event_bus {
+            bus.publish(InternalEvent::AgentStopped {
+                session_id: session_id.clone(),
+                agent: agent.name().to_string(),
+            });
+        }
 
         Ok(final_response)
     }
@@ -411,6 +491,13 @@ impl AgentRuntime {
 
         let session_id = self.session.read().await.id.to_string();
         tracing::info!(session_id = %session_id, agent = ?agent.agent_type(), max_iterations = self.config.max_iterations, "Starting streaming agent run loop");
+
+        if let Some(ref bus) = self.event_bus {
+            bus.publish(InternalEvent::AgentStarted {
+                session_id: session_id.clone(),
+                agent: agent.name().to_string(),
+            });
+        }
 
         let mut iteration = 0;
         let mut final_response = AgentResponse {
@@ -475,16 +562,26 @@ impl AgentRuntime {
                 _ => {}
             });
 
-            agent
-                    .run_streaming(&mut *self.session.write().await, provider, tools, events_callback)
-                    .await
-                    .map_err(|e| {
-                        tracing::error!(session_id = %session_id, error = %e, "Agent run_streaming failed");
-                        RuntimeError::ToolExecutionFailed {
-                            tool: "agent".to_string(),
-                            reason: e.to_string(),
-                        }
-                    })?;
+            let llm_start = Instant::now();
+            let result = agent
+                .run_streaming(&mut *self.session.write().await, provider, tools, events_callback)
+                .await;
+            let llm_duration = llm_start.elapsed();
+
+            tracing::info!(
+                session_id = %session_id,
+                iteration = iteration,
+                llm_duration_ms = llm_duration.as_millis(),
+                "LLM streaming call completed"
+            );
+
+            result.map_err(|e| {
+                tracing::error!(session_id = %session_id, error = %e, "Agent run_streaming failed");
+                RuntimeError::ToolExecutionFailed {
+                    tool: "agent".to_string(),
+                    reason: e.to_string(),
+                }
+            })?;
 
             if let Ok(guard) = content_buffer.lock() {
                 final_response.content = guard.clone();
@@ -519,6 +616,15 @@ impl AgentRuntime {
                 };
 
                 tracing::debug!(session_id = %session_id, tool = %call.name, "Executing tool");
+
+                if let Some(ref bus) = self.event_bus {
+                    bus.publish(InternalEvent::ToolCallStarted {
+                        session_id: session_id.clone(),
+                        tool_name: call.name.clone(),
+                        call_id: call.id.clone(),
+                    });
+                }
+
                 let result = tools
                     .execute(&call.name, tool_call.args, Some(ctx))
                     .await
@@ -529,6 +635,14 @@ impl AgentRuntime {
                             reason: e.to_string(),
                         }
                     })?;
+
+                if let Some(ref bus) = self.event_bus {
+                    bus.publish(InternalEvent::ToolCallEnded {
+                        session_id: session_id.clone(),
+                        call_id: call.id.clone(),
+                        success: result.success,
+                    });
+                }
 
                 let result_text = if result.success {
                     tracing::debug!(session_id = %session_id, tool = %call.name, "Tool execution succeeded");
@@ -556,6 +670,13 @@ impl AgentRuntime {
 
         let assistant_msg = Message::assistant(&final_response.content);
         self.session.write().await.add_message(assistant_msg);
+
+        if let Some(ref bus) = self.event_bus {
+            bus.publish(InternalEvent::AgentStopped {
+                session_id: session_id.clone(),
+                agent: agent.name().to_string(),
+            });
+        }
 
         Ok(final_response)
     }
