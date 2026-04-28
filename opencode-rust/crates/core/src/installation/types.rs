@@ -19,12 +19,12 @@ impl InstallationManager {
             info: InstallationInfo {
                 version: env!("CARGO_PKG_VERSION").to_string(),
                 install_path: PathBuf::from("/usr/local/bin"),
-                data_path: directories::ProjectDirs::from("ai", "opencode", "opencode")
+                data_path: directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
                     .map(|d| d.data_dir().to_path_buf())
-                    .unwrap_or_else(|| PathBuf::from("~/.local/share/opencode")),
-                config_path: directories::ProjectDirs::from("ai", "opencode", "opencode")
+                    .unwrap_or_else(|| PathBuf::from("~/.local/share/opencode-rs")),
+                config_path: directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
                     .map(|d| d.config_dir().to_path_buf())
-                    .unwrap_or_else(|| PathBuf::from("~/.config/opencode")),
+                    .unwrap_or_else(|| PathBuf::from("~/.config/opencode-rs")),
             },
         }
     }

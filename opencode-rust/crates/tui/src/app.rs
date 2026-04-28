@@ -22,7 +22,7 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
     terminal::{
-        disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, LeaveAlternateScreen,
+        disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
     },
 };
 use opencode_agent::{AgentRuntime, AgentType, BuildAgent};
@@ -1119,15 +1119,19 @@ fn parse_openai_error(body: &str) -> Option<String> {
 
 impl App {
     pub fn new() -> Self {
+        let _start = tracing::info_span!("app_init").entered();
+
         let mut timeline_state = ListState::default();
         timeline_state.select(None);
+
+        let _span = tracing::info_span!("app_init", phase = "theme_and_config").entered();
         let mut theme_manager = ThemeManager::new();
         let _ = theme_manager.load_from_config();
-        let custom_themes = Config::load_from_default_path()
-            .map(|c| c.tui_config().custom_themes)
-            .unwrap_or_default();
+        let config = Config::load_from_default_path().unwrap_or_else(|_| Config::default_config());
+        let custom_themes = config.tui_config().custom_themes.clone();
         theme_manager.load_custom_themes_from_config(&custom_themes);
         let theme = theme_manager.current().clone();
+        drop(_span);
 
         let config_dir = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -1175,6 +1179,29 @@ impl App {
             std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
             &command_registry,
         );
+
+        let _span = tracing::info_span!("app_init", phase = "tool_registry").entered();
+        let tool_registry = Arc::new(if let Ok(rt) = tokio::runtime::Handle::try_current() {
+            rt.block_on(async { build_default_registry(None).await })
+        } else {
+            tokio::runtime::Runtime::new()
+                .expect("failed to create Tokio runtime for tool registry")
+                .block_on(async { build_default_registry(None).await })
+        });
+        drop(_span);
+
+        let _span = tracing::info_span!("app_init", phase = "mcp_bridge").entered();
+        let agent_executor = {
+            let mut registry = opencode_core::ToolRegistry::new();
+            let mcp_manager = McpManager::global();
+            if let Ok(rt) = tokio::runtime::Handle::try_current() {
+                rt.block_on(async {
+                    mcp_manager.bridge_to_tool_registry(&mut registry).await;
+                });
+            }
+            AgentExecutor::new(registry)
+        };
+        drop(_span);
 
         Self {
             messages: Vec::new(),
@@ -1281,24 +1308,9 @@ impl App {
             enriched_input: None,
             shell_handler: ShellHandler::new(),
             file_ref_handler: FileRefHandler::new(),
-            config: Config::load_from_default_path().unwrap_or_else(|_| Config::default_config()),
-            tool_registry: Arc::new(if let Ok(rt) = tokio::runtime::Handle::try_current() {
-                rt.block_on(async { build_default_registry(None).await })
-            } else {
-                tokio::runtime::Runtime::new()
-                    .expect("failed to create Tokio runtime for tool registry")
-                    .block_on(async { build_default_registry(None).await })
-            }),
-            agent_executor: {
-                let mut registry = opencode_core::ToolRegistry::new();
-                let mcp_manager = McpManager::global();
-                if let Ok(rt) = tokio::runtime::Handle::try_current() {
-                    rt.block_on(async {
-                        mcp_manager.bridge_to_tool_registry(&mut registry).await;
-                    });
-                }
-                AgentExecutor::new(registry)
-            },
+            config: config.clone(),
+            tool_registry,
+            agent_executor,
             mcp_manager: McpManager::global(),
             lsp_client: None,
             lsp_diagnostics: Vec::new(),
@@ -2332,10 +2344,15 @@ impl App {
     }
 
     fn cleanup_terminal() -> io::Result<()> {
-        use crossterm::{cursor, terminal::LeaveAlternateScreen};
-        execute!(io::stdout(), LeaveAlternateScreen, cursor::Show)?;
+        use crossterm::{cursor, terminal::{Clear, ClearType, LeaveAlternateScreen}};
+        // Clear the screen before leaving alternate screen to avoid leaving TUI artifacts
+        execute!(io::stdout(), Clear(ClearType::All), LeaveAlternateScreen, cursor::Show)?;
         io::stdout().flush()?;
         disable_raw_mode()
+    }
+
+    pub fn restore_terminal_after_error() -> io::Result<()> {
+        Self::cleanup_terminal()
     }
 
     pub fn set_tui_state(&mut self, new_state: TuiState) {
@@ -2471,8 +2488,100 @@ impl App {
         false
     }
 
+    fn connect_progress_message(&self) -> String {
+        let provider_name = self
+            .pending_connect_provider
+            .as_deref()
+            .map(|provider| self.get_provider_name(provider))
+            .unwrap_or_else(|| "Provider".to_string());
+
+        if self.validation_in_progress {
+            format!("Validating {} API key...", provider_name)
+        } else {
+            format!("Complete {} authentication in your browser...", provider_name)
+        }
+    }
+
+    pub fn get_connect_progress_message_for_testing(&self) -> String {
+        self.connect_progress_message()
+    }
+
+    fn sync_status_bar_state(&mut self) {
+        self.status_bar.activity_message = match self.mode {
+            AppMode::ConnectProvider => Some("🔌 Select provider".to_string()),
+            AppMode::ConnectMethod => self
+                .pending_connect_provider
+                .as_deref()
+                .map(|provider| format!("🔐 Choose {} auth", self.get_provider_name(provider))),
+            AppMode::ConnectApiKey => self
+                .pending_connect_provider
+                .as_deref()
+                .map(|provider| format!("🔑 Enter {} API key", self.get_provider_name(provider))),
+            AppMode::ConnectApiKeyError => self
+                .pending_connect_provider
+                .as_deref()
+                .map(|provider| format!("⚠ Fix {} API key", self.get_provider_name(provider))),
+            AppMode::ConnectModel => self
+                .pending_connect_provider
+                .as_deref()
+                .map(|provider| format!("🤖 Select {} model", self.get_provider_name(provider))),
+            AppMode::ConnectProgress if self.validation_in_progress => self
+                .pending_connect_provider
+                .as_deref()
+                .map(|provider| format!("⏳ Validating {}", self.get_provider_name(provider))),
+            AppMode::ConnectProgress => self
+                .pending_connect_provider
+                .as_deref()
+                .map(|provider| format!("🌐 Browser auth: {}", self.get_provider_name(provider))),
+            _ => match self.tui_state {
+                TuiState::Idle => Some("✓ Ready".to_string()),
+                TuiState::Composing => Some("✎ Composing".to_string()),
+                TuiState::Reconnecting => Some("🔄 Reconnecting".to_string()),
+                TuiState::Submitting => Some("📤 Submitting prompt".to_string()),
+                TuiState::Streaming => Some("✍ Streaming response".to_string()),
+                TuiState::ExecutingTool => self
+                    .tool_calls
+                    .iter()
+                    .find(|tool| matches!(tool.status, ToolStatus::Running))
+                    .map(|tool| format!("🛠 Running {}", tool.name))
+                    .or_else(|| Some("🛠 Executing tool".to_string())),
+                TuiState::AwaitingPermission => Some("✋ Awaiting permission".to_string()),
+                TuiState::Aborting => Some("🛑 Aborting".to_string()),
+                TuiState::ShowingDiff => Some("🧾 Reviewing diff".to_string()),
+                TuiState::ShowingError => self
+                    .tool_calls
+                    .iter()
+                    .rev()
+                    .find(|tool| matches!(tool.status, ToolStatus::Failed(_)))
+                    .map(|tool| format!("⚠ Tool failed: {}", tool.name))
+                    .or_else(|| Some("⚠ Review error".to_string())),
+                TuiState::Paused => Some("⏸ Paused".to_string()),
+            },
+        };
+
+        self.status_bar.connection_status = match self.mode {
+            AppMode::ConnectProvider
+            | AppMode::ConnectMethod
+            | AppMode::ConnectApiKey
+            | AppMode::ConnectProgress => {
+                crate::components::status_bar::ConnectionStatus::Disconnected
+            }
+            AppMode::ConnectApiKeyError => crate::components::status_bar::ConnectionStatus::Error,
+            _ => match self.tui_state {
+                TuiState::Reconnecting => crate::components::status_bar::ConnectionStatus::Disconnected,
+                TuiState::ShowingError => crate::components::status_bar::ConnectionStatus::Error,
+                _ => crate::components::status_bar::ConnectionStatus::Connected,
+            },
+        };
+    }
+
+    pub fn sync_status_bar_state_for_testing(&mut self) {
+        self.sync_status_bar_state();
+    }
+
     pub fn run(&mut self) -> io::Result<()> {
         enable_raw_mode()?;
+        execute!(io::stdout(), EnterAlternateScreen)?;
         let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         execute!(
             io::stdout(),
@@ -4678,11 +4787,7 @@ OpenCode Agent Configuration
                     6.min(f.area().height.saturating_sub(2)),
                 );
                 f.render_widget(Clear, area);
-                let message = if self.validation_in_progress {
-                    "Validating API key..."
-                } else {
-                    "Waiting for browser authentication..."
-                };
+                let message = self.connect_progress_message();
                 f.render_widget(
                     Paragraph::new(vec![Line::from(message)])
                         .block(Block::default().title("Connect").borders(Borders::ALL)),
@@ -5251,6 +5356,7 @@ OpenCode Agent Configuration
     }
 
     fn draw_chat(&mut self, f: &mut Frame) {
+        self.sync_status_bar_state();
         let area = f.area();
 
         let (_title_area, main_area) = if self.show_title_bar {

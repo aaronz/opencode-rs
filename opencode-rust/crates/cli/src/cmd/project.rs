@@ -23,13 +23,13 @@ pub(crate) struct ProjectInfo {
 }
 
 fn project_state_path() -> PathBuf {
-    if let Ok(data_dir) = std::env::var("OPENCODE_DATA_DIR") {
+    if let Ok(data_dir) = std::env::var("OPENCODE_RS_DATA_DIR") {
         let path = PathBuf::from(data_dir);
         let _ = std::fs::create_dir_all(&path);
         return path.join("projects.json");
     }
 
-    directories::ProjectDirs::from("com", "opencode", "rs")
+    directories::ProjectDirs::from("ai", "opencode", "opencode-rs")
         .map(|dirs| dirs.data_dir().join("projects.json"))
         .unwrap_or_else(|| PathBuf::from("./projects.json"))
 }
