@@ -29,7 +29,8 @@ mod tests {
 
 pub(crate) fn run(_args: ThreadArgs) {
     let mut app = App::new();
-    if let Err(e) = app.run() {
-        eprintln!("Error running TUI: {}", e);
+    if let Err(message) = crate::finalize_tui_run_result(app.run(), App::restore_terminal_after_error)
+    {
+        tracing::error!(error = %message, "TUI run failed");
     }
 }

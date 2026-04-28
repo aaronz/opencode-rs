@@ -5,8 +5,32 @@ pub(crate) mod output;
 #[allow(dead_code)]
 pub(crate) mod webview;
 
+pub fn finalize_tui_run_result<F>(
+    run_result: std::io::Result<()>,
+    restore_terminal: F,
+) -> Result<(), String>
+where
+    F: FnOnce() -> std::io::Result<()>,
+{
+    let restore_result = restore_terminal();
+
+    match run_result {
+        Ok(()) => restore_result.map_err(|restore_error| {
+            format!("Terminal restore failed after TUI exit: {}", restore_error)
+        }),
+        Err(error) => match restore_result {
+            Ok(()) => Err(format!("Error running TUI: {}", error)),
+            Err(restore_error) => Err(format!(
+                "Error running TUI: {} (terminal restore failed: {})",
+                error, restore_error
+            )),
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::finalize_tui_run_result;
     use super::output::NdjsonSerializer;
 
     #[test]
@@ -106,5 +130,45 @@ mod tests {
         let buffer = Vec::new();
         let mut serializer = NdjsonSerializer::new(buffer);
         serializer.flush().unwrap();
+    }
+
+    #[test]
+    fn test_finalize_tui_run_result_returns_ok_on_success() {
+        let restore_called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let restore_called_clone = restore_called.clone();
+        let result = finalize_tui_run_result(Ok(()), move || {
+            restore_called_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+            Ok(())
+        });
+        assert!(result.is_ok());
+        assert!(
+            restore_called.load(std::sync::atomic::Ordering::SeqCst),
+            "terminal restore should still run after a clean TUI exit"
+        );
+    }
+
+    #[test]
+    fn test_finalize_tui_run_result_formats_run_error_after_cleanup() {
+        let result = finalize_tui_run_result(Err(std::io::Error::other("draw failed")), || Ok(()));
+
+        assert_eq!(
+            result.unwrap_err(),
+            "Error running TUI: draw failed",
+            "run errors should be returned after terminal recovery"
+        );
+    }
+
+    #[test]
+    fn test_finalize_tui_run_result_reports_cleanup_failure() {
+        let result = finalize_tui_run_result(
+            Err(std::io::Error::other("draw failed")),
+            || Err(std::io::Error::other("restore failed")),
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            "Error running TUI: draw failed (terminal restore failed: restore failed)",
+            "cleanup failure should be included in the returned message"
+        );
     }
 }

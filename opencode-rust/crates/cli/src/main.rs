@@ -48,6 +48,7 @@ use cmd::{
     workspace::{self, WorkspaceArgs},
     workspace_serve::{self, WorkspaceServeArgs},
 };
+use opencode_cli::finalize_tui_run_result;
 use opencode_core::Config;
 use opencode_llm::ModelRegistry;
 use opencode_plugin::PluginManager;
@@ -486,7 +487,7 @@ fn run_tui(args: TuiArgs) {
 
     // Initialize LLM provider
     if let Err(e) = app.init_llm_provider() {
-        eprintln!("Warning: LLM provider not initialized: {}", e);
+        tracing::warn!(error = %e, "LLM provider not initialized before TUI run");
     }
 
     if let Some(prompt) = args.prompt {
@@ -497,7 +498,7 @@ fn run_tui(args: TuiArgs) {
         app.agent = agent;
     }
 
-    if let Err(e) = app.run() {
-        eprintln!("Error running TUI: {}", e);
+    if let Err(message) = finalize_tui_run_result(app.run(), App::restore_terminal_after_error) {
+        tracing::error!(error = %message, "TUI run failed");
     }
 }
