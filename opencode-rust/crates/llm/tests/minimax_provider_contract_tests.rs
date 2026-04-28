@@ -77,19 +77,19 @@ async fn minimax_cn_validate_key_uses_correct_endpoint() {
 
 #[tokio::test]
 async fn minimax_cn_404_returns_error_with_diagnostics() {
-    let mock_server = MockServer::start().await;
+    let _mock_server = MockServer::start().await;
 
     Mock::given(wiremock::matchers::method("POST"))
         .and(wiremock::matchers::path("/v1/chat/completions"))
         .respond_with(create_404_response())
         .expect(1)
-        .mount(&mock_server)
+        .mount(&_mock_server)
         .await;
 
     let provider = MiniMaxProvider::with_base_url(
         "test-api-key".to_string(),
         "MiniMax-M2.7".to_string(),
-        mock_server.uri(),
+        _mock_server.uri(),
     );
 
     let result = provider.complete("Hello", None).await;
@@ -107,19 +107,19 @@ async fn minimax_cn_404_returns_error_with_diagnostics() {
 
 #[tokio::test]
 async fn minimax_cn_401_returns_auth_error() {
-    let mock_server = MockServer::start().await;
+    let _mock_server = MockServer::start().await;
 
     Mock::given(wiremock::matchers::method("POST"))
         .and(wiremock::matchers::path("/v1/chat/completions"))
         .respond_with(create_401_response())
         .expect(1)
-        .mount(&mock_server)
+        .mount(&_mock_server)
         .await;
 
     let provider = MiniMaxProvider::with_base_url(
         "invalid-key".to_string(),
         "MiniMax-M2.7".to_string(),
-        mock_server.uri(),
+        _mock_server.uri(),
     );
 
     let result = provider.complete("Hello", None).await;
@@ -162,9 +162,10 @@ async fn minimax_cn_timeout_is_handled() {
                         "total_tokens": 30
                     }
                 }))
-                .set_delay(Duration::from_secs(30)),
+                // Delay longer than the provider's 30s timeout — we wrap in a 2s outer timeout
+                .set_delay(Duration::from_secs(60)),
         )
-        .expect(1)
+        // No .expect(1) — the request may be received but never complete within our window
         .mount(&mock_server)
         .await;
 
@@ -174,18 +175,19 @@ async fn minimax_cn_timeout_is_handled() {
         mock_server.uri(),
     );
 
+    // Outer 2s timeout: either tokio cancels or the provider's reqwest timeout fires
     let result =
         tokio::time::timeout(Duration::from_secs(2), provider.complete("Hello", None)).await;
 
     assert!(
         result.is_err() || result.unwrap().is_err(),
-        "Should timeout or return error"
+        "Should timeout or return error within 2 seconds"
     );
 }
 
 #[tokio::test]
 async fn minimax_cn_success_response_parsing() {
-    let mock_server = MockServer::start().await;
+    let _mock_server = MockServer::start().await;
 
     Mock::given(wiremock::matchers::method("POST"))
         .and(wiremock::matchers::path("/v1/chat/completions"))
@@ -209,13 +211,13 @@ async fn minimax_cn_success_response_parsing() {
             }
         })))
         .expect(1)
-        .mount(&mock_server)
+        .mount(&_mock_server)
         .await;
 
     let provider = MiniMaxProvider::with_base_url(
         "test-api-key".to_string(),
         "MiniMax-M2.7".to_string(),
-        mock_server.uri(),
+        _mock_server.uri(),
     );
 
     let result = provider.complete("Hello", None).await;

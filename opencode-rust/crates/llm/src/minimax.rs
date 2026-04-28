@@ -7,6 +7,7 @@ pub struct MiniMaxProvider {
     model: String,
     temperature: f32,
     base_url: String,
+    client: reqwest::Client,
 }
 
 impl MiniMaxProvider {
@@ -16,6 +17,10 @@ impl MiniMaxProvider {
             model,
             temperature: 0.7,
             base_url: "https://api.minimax.io".to_string(),
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_default(),
         }
     }
 
@@ -25,6 +30,10 @@ impl MiniMaxProvider {
             model,
             temperature: 0.7,
             base_url,
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_default(),
         }
     }
 
@@ -41,7 +50,6 @@ impl sealed::Sealed for MiniMaxProvider {}
 #[async_trait::async_trait]
 impl Provider for MiniMaxProvider {
     async fn complete(&self, prompt: &str, context: Option<&str>) -> Result<String, OpenCodeError> {
-        let client = reqwest::Client::new();
         let url = self.chat_url();
 
         let messages = if let Some(ctx) = context {
@@ -59,7 +67,8 @@ impl Provider for MiniMaxProvider {
             "temperature": self.temperature,
         });
 
-        let response = client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
@@ -108,7 +117,6 @@ impl Provider for MiniMaxProvider {
         prompt: &str,
         mut callback: StreamingCallback,
     ) -> Result<(), OpenCodeError> {
-        let client = reqwest::Client::new();
         let url = self.chat_url();
 
         let body = serde_json::json!({
@@ -120,7 +128,8 @@ impl Provider for MiniMaxProvider {
             "stream": true,
         });
 
-        let response = client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")

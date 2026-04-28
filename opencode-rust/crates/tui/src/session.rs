@@ -51,7 +51,7 @@ impl SessionManager {
         let mut manager = Self::new();
         manager.sessions_file = Some(path.clone());
         if let Err(e) = manager.load_from_file(&path) {
-            eprintln!("Failed to load sessions: {}", e);
+            tracing::error!("Failed to load sessions: {}", e);
         }
         manager
     }
@@ -59,7 +59,7 @@ impl SessionManager {
     pub fn save(&self) {
         if let Some(ref path) = self.sessions_file {
             if let Err(e) = self.save_to_file(path) {
-                eprintln!("Failed to save sessions: {}", e);
+                tracing::error!("Failed to save sessions: {}", e);
             }
         }
     }

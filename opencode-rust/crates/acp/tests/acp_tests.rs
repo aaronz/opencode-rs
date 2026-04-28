@@ -1265,7 +1265,7 @@ async fn test_ack_uses_configured_base_url() {
 
     Mock::given(method("POST"))
         .and(path("/api/acp/ack"))
-        .and(body_json(&serde_json::json!({
+        .and(body_json(serde_json::json!({
             "handshake_id": "handshake-config-test",
             "accepted": true
         })))

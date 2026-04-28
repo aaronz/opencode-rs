@@ -56,8 +56,12 @@ struct StreamChunk {
 
 impl OllamaProvider {
     pub fn new(model: String, base_url: Option<String>) -> Self {
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .unwrap_or_default();
         Self {
-            client: Client::new(),
+            client,
             base_url: base_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
             model,
         }

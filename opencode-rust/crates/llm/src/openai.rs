@@ -624,7 +624,7 @@ impl Provider for OpenAiProvider {
                         if data == "[DONE]" {
                             for tool_call in pending_tool_calls {
                                 let arguments = serde_json::from_str(&tool_call.arguments)
-                                    .unwrap_or_else(|_| serde_json::Value::String(tool_call.arguments));
+                                    .unwrap_or(serde_json::Value::String(tool_call.arguments));
                                 callback(LlmEvent::ToolCall {
                                     name: tool_call.name,
                                     arguments,

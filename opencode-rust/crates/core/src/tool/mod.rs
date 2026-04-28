@@ -347,7 +347,7 @@ mod tests {
         assert!(builtin_executor.is_some());
 
         let result = builtin_executor.unwrap()(serde_json::json!({}));
-        assert!(result.is_ok() && result.unwrap() == serde_json::json!({}).to_string());
+        assert!(result.is_ok() && result.unwrap() == "{}");
     }
 
     #[test]
