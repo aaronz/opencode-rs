@@ -3,7 +3,7 @@ set -e
 
 REPO_URL="https://github.com/anomalyco/opencode-rs"
 INSTALL_DIR="${HOME}/.local/bin"
-CONFIG_DIR="${HOME}/.config/opencode"
+CONFIG_DIR="${HOME}/.config/opencode-rs"
 BINARY_NAME="opencode-rs"
 
 usage() {
@@ -15,7 +15,7 @@ Install opencode-rs to your local machine.
 OPTIONS:
     -h, --help          Show this help message
     -d, --dir DIR       Install to custom directory (default: ~/.local/bin)
-    -c, --config DIR    Config directory (default: ~/.config/opencode)
+    -c, --config DIR    Config directory (default: ~/.config/opencode-rs)
     -r, --repo URL      Git repository URL (default: $REPO_URL)
     -b, --branch BRANCH Git branch to install from
     --uninstall         Remove opencode-rs from your system
