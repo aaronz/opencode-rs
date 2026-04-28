@@ -42,7 +42,7 @@ fn model_registry_respects_provider_filter() {
     ));
 
     assert!(registry.get("gpt-4o").is_none());
-    assert!(registry.get("claude-haiku-3").is_some());
+    assert!(registry.get("claude-3-5-haiku-latest").is_some());
     assert!(registry.list_by_provider("openai").is_empty());
     assert!(!registry.list_by_provider("anthropic").is_empty());
 }
@@ -52,15 +52,15 @@ fn model_registry_returns_next_available_provider_for_failover() {
     let mut registry = ModelRegistry::default();
     registry.set_provider_filter(ProviderFilter::new(
         vec!["openai".to_string()],
-        vec!["anthropic".to_string(), "ollama".to_string()],
+        vec!["anthropic".to_string(), "google".to_string()],
     ));
 
     assert_eq!(
         registry.get_next_available_provider("anthropic"),
-        Some("ollama".to_string())
+        Some("google".to_string())
     );
     assert_eq!(
-        registry.get_next_available_provider("ollama"),
+        registry.get_next_available_provider("google"),
         Some("anthropic".to_string())
     );
 }

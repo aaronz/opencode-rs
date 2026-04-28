@@ -478,7 +478,7 @@ mod provider_tests {
         use opencode_llm::models::ModelRegistry;
 
         let registry = ModelRegistry::new();
-        let openai_models = registry.list_by_provider("models-dev-openai");
+        let openai_models = registry.list_by_provider("openai");
 
         for model in &openai_models {
             assert!(
@@ -495,7 +495,7 @@ mod provider_tests {
         let registry = ModelRegistry::new();
 
         if let Some(model) = registry.get("gpt-4o") {
-            assert_eq!(model.provider, "models-dev-openai");
+            assert_eq!(model.provider, "openai");
             assert!(model.supports_functions);
             assert!(model.supports_streaming);
         }
@@ -1056,11 +1056,8 @@ mod provider_tests {
 
         let mut registry = ModelRegistry::new();
         registry.set_provider_filter(ProviderFilter::new(
-            vec!["models-dev-openai".to_string()],
-            vec![
-                "models-dev-openai".to_string(),
-                "models-dev-anthropic".to_string(),
-            ],
+            vec!["openai".to_string()],
+            vec!["openai".to_string(), "anthropic".to_string()],
         ));
 
         let providers: Vec<String> = registry.list().iter().map(|m| m.provider.clone()).collect();

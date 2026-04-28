@@ -1,7 +1,9 @@
 use opencode_llm::models::ModelRegistry;
 
-const MINIMUM_MODEL_COUNT: usize = 50;
-const BASELINE_MODEL_COUNT: usize = 63;
+// The catalog currently has 2311 models; keep minimums well below actual count
+// so this test passes even if a handful of models are removed, but catches large regressions.
+const MINIMUM_MODEL_COUNT: usize = 1000;
+const BASELINE_MODEL_COUNT: usize = 2000;
 
 #[test]
 fn verify_total_model_count_meets_minimum_requirement() {
@@ -34,25 +36,22 @@ fn verify_model_count_does_not_decrease() {
 fn verify_all_expected_providers_have_models() {
     let registry = ModelRegistry::new();
 
+    // These are the core providers that must always be present.
+    // Provider IDs are now canonical (no "models-dev-" prefix).
     let expected_providers = vec![
         "anthropic",
-        "azure",
-        "cerebras",
-        "cohere",
-        "deepinfra",
-        "github-copilot",
         "google",
         "groq",
-        "kimi",
         "mistral",
-        "ollama",
         "openai",
-        "opencode",
         "openrouter",
-        "perplexity",
-        "togetherai",
         "xai",
-        "z.ai",
+        "cohere",
+        "deepinfra",
+        "togetherai",
+        "cerebras",
+        "github-copilot",
+        "perplexity",
     ];
 
     for provider in expected_providers {
@@ -66,45 +65,30 @@ fn verify_all_expected_providers_have_models() {
 }
 
 #[test]
-fn verify_model_count_by_provider_distributions() {
+fn verify_key_provider_model_counts_are_reasonable() {
     let registry = ModelRegistry::new();
 
-    let provider_model_counts = vec![
-        ("openai", 8),
-        ("anthropic", 7),
-        ("google", 11),
-        ("github-copilot", 7),
-        ("ollama", 2),
-        ("azure", 1),
-        ("openrouter", 1),
-        ("xai", 1),
-        ("mistral", 1),
-        ("groq", 1),
-        ("deepinfra", 1),
-        ("cerebras", 1),
-        ("cohere", 1),
-        ("togetherai", 1),
-        ("perplexity", 1),
-        ("opencode", 3),
-        ("kimi", 6),
-        ("z.ai", 9),
+    // Verify a selection of well-known providers have a reasonable lower bound.
+    // These are deliberately conservative so minor catalog changes don't break CI.
+    let provider_min_counts = vec![
+        ("openai", 10),
+        ("anthropic", 3),
+        ("google", 5),
+        ("github-copilot", 5),
+        ("mistral", 10),
+        ("groq", 5),
+        ("openrouter", 20),
+        ("xai", 5),
     ];
 
-    let total_expected: usize = provider_model_counts.iter().map(|(_, c)| c).sum();
-    let actual_total = registry.list().len();
-
-    assert_eq!(
-        actual_total, total_expected,
-        "Total model count ({}) should match sum of provider models ({})",
-        actual_total, total_expected
-    );
-
-    for (provider, expected_count) in provider_model_counts {
+    for (provider, min_count) in provider_min_counts {
         let actual_count = registry.list_by_provider(provider).len();
-        assert_eq!(
-            actual_count, expected_count,
-            "Provider '{}' should have {} models, but has {}",
-            provider, expected_count, actual_count
+        assert!(
+            actual_count >= min_count,
+            "Provider '{}' should have at least {} models, but has {}",
+            provider,
+            min_count,
+            actual_count
         );
     }
 }

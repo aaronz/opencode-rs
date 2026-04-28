@@ -1,6 +1,6 @@
 use opencode_llm::models::ModelRegistry;
 
-const PROVIDER_PREFIX: &str = "models-dev-";
+// Provider IDs are canonical — no "models-dev-" prefix after the catalog fix.
 
 #[test]
 fn verify_model_catalog_contains_50_plus_models() {
@@ -18,7 +18,7 @@ fn verify_github_copilot_provider_exists() {
     let registry = ModelRegistry::new();
     let providers = registry.list_providers();
     assert!(
-        providers.contains(&format!("{}github-copilot", PROVIDER_PREFIX).to_string()),
+        providers.contains(&"github-copilot".to_string()),
         "github-copilot should be in the providers list"
     );
 }
@@ -26,7 +26,7 @@ fn verify_github_copilot_provider_exists() {
 #[test]
 fn verify_github_copilot_has_claude_models() {
     let registry = ModelRegistry::new();
-    let copilot_models = registry.list_by_provider(&format!("{}github-copilot", PROVIDER_PREFIX));
+    let copilot_models = registry.list_by_provider("github-copilot");
 
     assert!(
         !copilot_models.is_empty(),
@@ -56,7 +56,7 @@ fn verify_github_copilot_model_attributes() {
     let model = registry.get("claude-opus-41");
     assert!(model.is_some(), "claude-opus-41 should exist");
     let model = model.unwrap();
-    assert_eq!(model.provider, format!("{}github-copilot", PROVIDER_PREFIX));
+    assert_eq!(model.provider, "github-copilot");
     assert!(model.supports_streaming);
 }
 
@@ -66,10 +66,10 @@ fn verify_chinese_providers_exist() {
     let providers = registry.list_providers();
 
     let chinese_providers = vec![
-        "models-dev-kimi-for-coding",
-        "models-dev-minimax-coding-plan",
-        "models-dev-302ai",
-        "models-dev-zhipuai-coding-plan",
+        "kimi-for-coding",
+        "minimax-coding-plan",
+        "302ai",
+        "zhipuai-coding-plan",
     ];
 
     for provider in chinese_providers {
@@ -86,7 +86,7 @@ fn verify_kimi_for_coding_provider() {
     let registry = ModelRegistry::new();
     let providers = registry.list_providers();
     assert!(
-        providers.contains(&format!("{}kimi-for-coding", PROVIDER_PREFIX).to_string()),
+        providers.contains(&"kimi-for-coding".to_string()),
         "kimi-for-coding should be in the providers list"
     );
 }
@@ -94,7 +94,7 @@ fn verify_kimi_for_coding_provider() {
 #[test]
 fn verify_kimi_for_coding_has_k2p5_model() {
     let registry = ModelRegistry::new();
-    let kimi_models = registry.list_by_provider(&format!("{}kimi-for-coding", PROVIDER_PREFIX));
+    let kimi_models = registry.list_by_provider("kimi-for-coding");
 
     assert!(
         !kimi_models.is_empty(),
@@ -114,10 +114,7 @@ fn verify_kimi_model_attributes() {
     let model = registry.get("k2p5");
     assert!(model.is_some(), "k2p5 should exist");
     let model = model.unwrap();
-    assert_eq!(
-        model.provider,
-        format!("{}kimi-for-coding", PROVIDER_PREFIX)
-    );
+    assert_eq!(model.provider, "kimi-for-coding");
     assert!(model.supports_streaming);
 }
 
@@ -126,7 +123,7 @@ fn verify_minimax_coding_plan_provider() {
     let registry = ModelRegistry::new();
     let providers = registry.list_providers();
     assert!(
-        providers.contains(&format!("{}minimax-coding-plan", PROVIDER_PREFIX).to_string()),
+        providers.contains(&"minimax-coding-plan".to_string()),
         "minimax-coding-plan should be in the providers list"
     );
 }
@@ -134,8 +131,7 @@ fn verify_minimax_coding_plan_provider() {
 #[test]
 fn verify_minimax_coding_plan_has_models() {
     let registry = ModelRegistry::new();
-    let minimax_models =
-        registry.list_by_provider(&format!("{}minimax-coding-plan", PROVIDER_PREFIX));
+    let minimax_models = registry.list_by_provider("minimax-coding-plan");
 
     assert!(
         !minimax_models.is_empty(),
@@ -158,7 +154,7 @@ fn verify_302ai_provider() {
     let registry = ModelRegistry::new();
     let providers = registry.list_providers();
     assert!(
-        providers.contains(&format!("{}302ai", PROVIDER_PREFIX).to_string()),
+        providers.contains(&"302ai".to_string()),
         "302ai should be in the providers list"
     );
 }
@@ -166,7 +162,7 @@ fn verify_302ai_provider() {
 #[test]
 fn verify_302ai_has_models() {
     let registry = ModelRegistry::new();
-    let models_302ai = registry.list_by_provider(&format!("{}302ai", PROVIDER_PREFIX));
+    let models_302ai = registry.list_by_provider("302ai");
 
     assert!(
         !models_302ai.is_empty(),
@@ -191,7 +187,7 @@ fn verify_zhipuai_coding_plan_provider() {
     let registry = ModelRegistry::new();
     let providers = registry.list_providers();
     assert!(
-        providers.contains(&format!("{}zhipuai-coding-plan", PROVIDER_PREFIX).to_string()),
+        providers.contains(&"zhipuai-coding-plan".to_string()),
         "zhipuai-coding-plan should be in the providers list"
     );
 }
@@ -199,8 +195,7 @@ fn verify_zhipuai_coding_plan_provider() {
 #[test]
 fn verify_zhipuai_coding_plan_has_glm_models() {
     let registry = ModelRegistry::new();
-    let zhipuai_models =
-        registry.list_by_provider(&format!("{}zhipuai-coding-plan", PROVIDER_PREFIX));
+    let zhipuai_models = registry.list_by_provider("zhipuai-coding-plan");
 
     assert!(
         !zhipuai_models.is_empty(),
@@ -245,7 +240,7 @@ fn verify_openai_provider_exists() {
     let registry = ModelRegistry::new();
     let providers = registry.list_providers();
     assert!(
-        providers.contains(&format!("{}openai", PROVIDER_PREFIX).to_string()),
+        providers.contains(&"openai".to_string()),
         "openai should be in the providers list"
     );
 }
@@ -253,7 +248,7 @@ fn verify_openai_provider_exists() {
 #[test]
 fn verify_openai_has_common_models() {
     let registry = ModelRegistry::new();
-    let openai_models = registry.list_by_provider(&format!("{}openai", PROVIDER_PREFIX));
+    let openai_models = registry.list_by_provider("openai");
 
     assert!(
         !openai_models.is_empty(),
@@ -276,7 +271,7 @@ fn verify_anthropic_provider_exists() {
     let registry = ModelRegistry::new();
     let providers = registry.list_providers();
     assert!(
-        providers.contains(&format!("{}anthropic", PROVIDER_PREFIX).to_string()),
+        providers.contains(&"anthropic".to_string()),
         "anthropic should be in the providers list"
     );
 }
@@ -284,7 +279,7 @@ fn verify_anthropic_provider_exists() {
 #[test]
 fn verify_anthropic_has_claude_models() {
     let registry = ModelRegistry::new();
-    let anthropic_models = registry.list_by_provider(&format!("{}anthropic", PROVIDER_PREFIX));
+    let anthropic_models = registry.list_by_provider("anthropic");
 
     assert!(
         !anthropic_models.is_empty(),
