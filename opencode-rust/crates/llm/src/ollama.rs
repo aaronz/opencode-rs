@@ -3,7 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::provider::sealed;
-use crate::provider::{ChatMessage, ChatResponse, Provider, StreamingCallback};
+use crate::provider::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
 use opencode_core::OpenCodeError;
 
 pub struct OllamaProvider {
@@ -54,6 +54,25 @@ struct StreamChunk {
     done: bool,
 }
 
+#[derive(Deserialize)]
+struct OllamaTagsResponse {
+    models: Vec<OllamaModelInfo>,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct OllamaModelInfo {
+    name: String,
+    #[serde(default)]
+    model: String,
+    #[serde(default)]
+    modified_at: String,
+    #[serde(default)]
+    size: u64,
+    #[serde(default)]
+    digest: String,
+}
+
 impl OllamaProvider {
     pub fn new(model: String, base_url: Option<String>) -> Self {
         let client = Client::builder()
@@ -73,6 +92,44 @@ impl OllamaProvider {
 
     fn chat_url(&self) -> String {
         format!("{}/api/chat", self.base_url)
+    }
+
+    fn tags_url(&self) -> String {
+        format!("{}/api/tags", self.base_url)
+    }
+
+    pub async fn get_local_models(&self) -> Result<Vec<Model>, OpenCodeError> {
+        let response = self.client.get(self.tags_url()).send().await.map_err(|e| {
+            tracing::error!(provider = "ollama", error = %e, "Failed to fetch Ollama models");
+            OpenCodeError::Llm(e.to_string())
+        })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            tracing::error!(provider = "ollama", status = %status, "Failed to fetch Ollama models");
+            return Err(OpenCodeError::Llm(format!(
+                "Ollama API error {}: failed to list models",
+                status
+            )));
+        }
+
+        let tags: OllamaTagsResponse = response.json().await.map_err(|e| {
+            tracing::error!(provider = "ollama", error = %e, "Failed to parse Ollama models response");
+            OpenCodeError::Llm(e.to_string())
+        })?;
+
+        let models: Vec<Model> = tags
+            .models
+            .into_iter()
+            .map(|info| Model::new(&info.name, &info.name))
+            .collect();
+
+        tracing::debug!(
+            provider = "ollama",
+            model_count = models.len(),
+            "Fetched local Ollama models"
+        );
+        Ok(models)
     }
 }
 
@@ -232,6 +289,23 @@ impl Provider for OllamaProvider {
     fn provider_name(&self) -> &str {
         "ollama"
     }
+
+    fn get_models(&self) -> Vec<Model> {
+        // Return common Ollama models as fallback.
+        // For actual local model discovery, use get_local_models() which is async
+        // and can properly query the Ollama server.
+        vec![
+            Model::new("llama3", "Llama 3"),
+            Model::new("llama3.1", "Llama 3.1"),
+            Model::new("llama3.2", "Llama 3.2"),
+            Model::new("mistral", "Mistral"),
+            Model::new("codellama", "Code Llama"),
+            Model::new("qwen2.5", "Qwen 2.5"),
+            Model::new("qwen2.5-coder", "Qwen 2.5 Coder"),
+            Model::new("phi3", "Phi-3"),
+            Model::new("gemma2", "Gemma 2"),
+        ]
+    }
 }
 
 #[cfg(test)]
@@ -269,5 +343,32 @@ mod tests {
         }];
         let result = provider.chat(&messages).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_ollama_get_local_models() {
+        let provider = OllamaProvider::new(
+            "qwen3.5:9b".to_string(),
+            Some("http://localhost:11434".to_string()),
+        );
+        let result = provider.get_local_models().await;
+        assert!(result.is_ok());
+        let models = result.unwrap();
+        assert!(!models.is_empty());
+        // Should contain qwen3.5:9b which is the installed model
+        assert!(models.iter().any(|m| m.id == "qwen3.5:9b"));
+    }
+
+    #[test]
+    fn test_ollama_get_models_returns_fallback() {
+        let provider = OllamaProvider::new(
+            "llama2".to_string(),
+            Some("http://localhost:19999".to_string()),
+        );
+        // get_models returns fallback models since sync context can't query server
+        let models = provider.get_models();
+        assert!(!models.is_empty());
+        // Should contain common fallback models
+        assert!(models.iter().any(|m| m.id == "llama3"));
     }
 }

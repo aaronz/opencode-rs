@@ -37,6 +37,7 @@ const REGION_PREFIXES: &[&str] = &["us", "eu", "jp", "apac", "au"];
 ///
 /// # Examples
 /// ```
+/// use opencode_llm::bedrock::get_region_prefix;
 /// assert_eq!(get_region_prefix("us.amazon.nova-pro"), Some("us"));
 /// assert_eq!(get_region_prefix("eu.claude-3-sonnet"), Some("eu"));
 /// assert_eq!(get_region_prefix("anthropic.claude-3-sonnet"), None);
@@ -57,6 +58,7 @@ pub fn get_region_prefix(model_id: &str) -> Option<&str> {
 ///
 /// # Examples
 /// ```
+/// use opencode_llm::bedrock::get_bedrock_endpoint;
 /// assert_eq!(get_bedrock_endpoint("us.amazon.nova-pro"),
 ///            "https://bedrock.us-east-1.amazonaws.com");
 /// assert_eq!(get_bedrock_endpoint("eu.claude-3-sonnet"),

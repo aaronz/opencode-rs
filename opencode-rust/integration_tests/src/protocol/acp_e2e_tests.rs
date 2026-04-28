@@ -759,15 +759,12 @@ mod tests {
         let resp_text = ws_recv_text(&mut ws).await;
         let resp_msg: ServerWsMessage = serde_json::from_str(&resp_text).unwrap();
 
-        match resp_msg {
-            ServerWsMessage::Error { code, .. } => {
-                assert!(
-                    code == "invalid_session" || code == "handshake_not_completed",
-                    "Should get session error, got {}",
-                    code
-                );
-            }
-            _ => {}
+        if let ServerWsMessage::Error { code, .. } = resp_msg {
+            assert!(
+                code == "invalid_session" || code == "handshake_not_completed",
+                "Should get session error, got {}",
+                code
+            );
         }
 
         ws_close(&mut ws).await;

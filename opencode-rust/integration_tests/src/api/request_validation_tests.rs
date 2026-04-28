@@ -363,9 +363,7 @@ mod test_request_validation {
         ];
 
         for (json_str, description) in array_cases {
-            let result: Result<Value, _> = serde_json::from_str(json_str);
-            if result.is_ok() {
-                let value = result.unwrap();
+            if let Ok(value) = serde_json::from_str::<Value>(json_str) {
                 if let Some(sid) = value.get("session_id") {
                     assert!(!sid.is_array(), "{} should be rejected", description);
                 }
