@@ -22,14 +22,15 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
     terminal::{
-        disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
+        disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, EnterAlternateScreen,
+        LeaveAlternateScreen,
     },
 };
 use opencode_agent::{AgentRuntime, AgentType, BuildAgent};
 use opencode_auth::CredentialStore;
 use opencode_core::{
-    AgentExecutor, CostCalculator, Message, Session, SessionSharing, SkillResolver, SkillState,
-    TokenCounter,
+    AgentExecutor, CostCalculator, Message, PermissionManager, Session, SessionSharing,
+    SkillResolver, SkillState, TokenCounter,
 };
 use opencode_llm::{
     BrowserAuthModelInfo, CopilotOAuthService, CopilotOAuthSession, CopilotOAuthStore,
@@ -40,6 +41,10 @@ use opencode_llm::{
 use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
 use opencode_mcp::McpManager;
+use opencode_runtime::{Runtime as OpenCodeRuntime, RuntimeServices};
+use opencode_storage::{
+    InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
+};
 use opencode_tools::{build_default_registry, ToolRegistry as ToolsToolRegistry};
 use ratatui::{
     backend::CrosstermBackend,
@@ -72,6 +77,7 @@ pub enum LlmEvent {
     Error(String),
 }
 
+#[derive(Debug)]
 pub enum ConnectEvent {
     BrowserOpened(String),
     AuthComplete(OpenAiBrowserSession, Vec<BrowserAuthModelInfo>),
@@ -551,6 +557,8 @@ pub struct App {
     file_ref_handler: FileRefHandler,
     pub config: Config,
     tool_registry: Arc<ToolsToolRegistry>,
+    #[allow(dead_code)]
+    runtime: Arc<OpenCodeRuntime>,
     session: Option<Session>,
     #[allow(dead_code)]
     agent_executor: AgentExecutor,
@@ -824,6 +832,19 @@ pub async fn validate_api_key_and_fetch_models(
                 "GET".to_string(),
             )
         }
+        "ollama" => {
+            let base_url = std::env::var("OLLAMA_BASE_URL")
+                .ok()
+                .or_else(|| std::env::var("OPENCODE_BASE_URL").ok())
+                .unwrap_or_else(|| "http://localhost:11434".to_string());
+            (
+                format!("{}/api/tags", base_url.trim_end_matches('/')),
+                String::new(),
+                false,
+                false,
+                "GET".to_string(),
+            )
+        }
         _ => {
             let base_url = match std::env::var(
                 format!("{}_BASE_URL", provider_id.to_uppercase()).replace("-", "_"),
@@ -945,6 +966,8 @@ pub async fn validate_api_key_and_fetch_models(
             parse_lm_studio_models(&body)
         } else if is_anthropic {
             parse_anthropic_models(&body)
+        } else if provider_id == "ollama" {
+            parse_ollama_models(&body)
         } else {
             parse_openai_models(&body)
         };
@@ -1053,6 +1076,38 @@ pub fn parse_anthropic_models(body: &str) -> Vec<BrowserAuthModelInfo> {
                     id: m.id.clone(),
                     name: m.id,
                     variants: vec![],
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+pub fn parse_ollama_models(body: &str) -> Vec<BrowserAuthModelInfo> {
+    #[derive(Debug, Deserialize)]
+    struct OllamaModelsResponse {
+        models: Vec<OllamaModelData>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct OllamaModelData {
+        name: String,
+        #[serde(rename = "model")]
+        model: Option<String>,
+    }
+
+    serde_json::from_str::<OllamaModelsResponse>(body)
+        .map(|response| {
+            response
+                .models
+                .into_iter()
+                .map(|m| {
+                    let id = m.name.clone();
+                    let name = m.model.unwrap_or_else(|| m.name.clone());
+                    BrowserAuthModelInfo {
+                        id,
+                        name,
+                        variants: vec![],
+                    }
                 })
                 .collect()
         })
@@ -1221,6 +1276,8 @@ impl App {
         };
         drop(_span);
 
+        let runtime = build_placeholder_runtime();
+
         Self {
             messages: Vec::new(),
             tool_calls: Vec::new(),
@@ -1328,6 +1385,7 @@ impl App {
             file_ref_handler: FileRefHandler::new(),
             config: config.clone(),
             tool_registry,
+            runtime,
             agent_executor,
             mcp_manager: McpManager::global(),
             lsp_client: None,
@@ -1366,8 +1424,20 @@ impl App {
     }
 
     fn handle_connect_method_confirm(&mut self, method: String) {
-        self.pending_connect_method = Some(method);
-        if self.pending_connect_provider.as_deref() == Some("openai")
+        self.pending_connect_method = Some(method.clone());
+        if method == "local" {
+            if self.pending_connect_provider.as_deref() == Some("ollama")
+                || self.pending_connect_provider.as_deref() == Some("lmstudio")
+            {
+                self.start_local_connect();
+            } else {
+                self.add_message(
+                    "Local authentication is only available for Ollama and LM Studio".to_string(),
+                    false,
+                );
+                self.mode = AppMode::Chat;
+            }
+        } else if self.pending_connect_provider.as_deref() == Some("openai")
             && self.pending_connect_method.as_deref() == Some("browser")
         {
             self.start_openai_browser_connect();
@@ -1388,6 +1458,92 @@ impl App {
             );
             self.mode = AppMode::Chat;
         }
+    }
+
+    fn start_local_connect(&mut self) {
+        self.validation_in_progress = true;
+        self.validation_cancelled = false;
+        self.mode = AppMode::ConnectProgress;
+        let provider_id = self.pending_connect_provider.clone().unwrap_or_default();
+        self.pending_api_key_for_validation = Some(provider_id.clone());
+        let (tx, rx) = mpsc::channel();
+        self.connect_rx = Some(rx);
+
+        tracing::info!(
+            event = "tui.connect.local.start",
+            provider_id = %provider_id,
+            "Starting local connect for provider"
+        );
+
+        std::thread::spawn(move || {
+            let runtime = match tokio::runtime::Runtime::new() {
+                Ok(rt) => rt,
+                Err(e) => {
+                    tracing::error!(
+                        event = "tui.connect.local.runtime_failed",
+                        error = %e,
+                        "Failed to create runtime for local connect"
+                    );
+                    let _ = tx.send(ConnectEvent::ValidationComplete {
+                        success: false,
+                        error_message: Some(format!("Failed to create runtime: {}", e)),
+                        models: None,
+                    });
+                    return;
+                }
+            };
+
+            let result = runtime.block_on(async {
+                let base_url = std::env::var("OLLAMA_BASE_URL")
+                    .ok()
+                    .or_else(|| std::env::var("OPENCODE_BASE_URL").ok())
+                    .unwrap_or_else(|| "http://localhost:11434".to_string());
+
+                tracing::debug!(
+                    event = "tui.connect.local.fetching_models",
+                    base_url = %base_url,
+                    "Fetching models from Ollama"
+                );
+
+                let provider = opencode_llm::OllamaProvider::new("".to_string(), Some(base_url));
+                provider.get_local_models().await
+            });
+
+            match result {
+                Ok(models) => {
+                    tracing::info!(
+                        event = "tui.connect.local.models_fetched",
+                        model_count = models.len(),
+                        "Successfully fetched local models"
+                    );
+                    let browser_models: Vec<BrowserAuthModelInfo> = models
+                        .into_iter()
+                        .map(|m| BrowserAuthModelInfo {
+                            id: m.id.clone(),
+                            name: m.name,
+                            variants: vec![],
+                        })
+                        .collect();
+                    let _ = tx.send(ConnectEvent::ValidationComplete {
+                        success: true,
+                        error_message: None,
+                        models: Some(browser_models),
+                    });
+                }
+                Err(e) => {
+                    tracing::error!(
+                        event = "tui.connect.local.fetch_failed",
+                        error = %e,
+                        "Failed to fetch local models"
+                    );
+                    let _ = tx.send(ConnectEvent::ValidationComplete {
+                        success: false,
+                        error_message: Some(e.to_string()),
+                        models: None,
+                    });
+                }
+            }
+        });
     }
 
     fn start_api_key_input(&mut self) {
@@ -2362,9 +2518,17 @@ impl App {
     }
 
     fn cleanup_terminal() -> io::Result<()> {
-        use crossterm::{cursor, terminal::{Clear, ClearType, LeaveAlternateScreen}};
+        use crossterm::{
+            cursor,
+            terminal::{Clear, ClearType, LeaveAlternateScreen},
+        };
         // Clear the screen before leaving alternate screen to avoid leaving TUI artifacts
-        execute!(io::stdout(), Clear(ClearType::All), LeaveAlternateScreen, cursor::Show)?;
+        execute!(
+            io::stdout(),
+            Clear(ClearType::All),
+            LeaveAlternateScreen,
+            cursor::Show
+        )?;
         io::stdout().flush()?;
         disable_raw_mode()
     }
@@ -2516,7 +2680,10 @@ impl App {
         if self.validation_in_progress {
             format!("Validating {} API key...", provider_name)
         } else {
-            format!("Complete {} authentication in your browser...", provider_name)
+            format!(
+                "Complete {} authentication in your browser...",
+                provider_name
+            )
         }
     }
 
@@ -2586,7 +2753,9 @@ impl App {
             }
             AppMode::ConnectApiKeyError => crate::components::status_bar::ConnectionStatus::Error,
             _ => match self.tui_state {
-                TuiState::Reconnecting => crate::components::status_bar::ConnectionStatus::Disconnected,
+                TuiState::Reconnecting => {
+                    crate::components::status_bar::ConnectionStatus::Disconnected
+                }
                 TuiState::ShowingError => crate::components::status_bar::ConnectionStatus::Error,
                 _ => crate::components::status_bar::ConnectionStatus::Connected,
             },
@@ -2642,14 +2811,35 @@ impl App {
                 AppMode::ProviderManagement => {
                     self.handle_provider_management_dialog(&mut terminal)?
                 }
-                AppMode::ConnectProvider => self.handle_connect_provider_dialog(&mut terminal)?,
-                AppMode::ConnectMethod => self.handle_connect_method_dialog(&mut terminal)?,
-                AppMode::ConnectApiKey => self.handle_api_key_input_dialog(&mut terminal)?,
-                AppMode::ConnectProgress => self.handle_connect_progress_dialog(&mut terminal)?,
+                AppMode::ConnectProvider => {
+                    tracing::trace!(event = "tui.connect.handle", mode = ?self.mode, "Handling ConnectProvider");
+                    self.handle_connect_provider_dialog(&mut terminal)?
+                }
+                AppMode::ConnectMethod => {
+                    tracing::trace!(event = "tui.connect.handle", mode = ?self.mode, "Handling ConnectMethod");
+                    self.handle_connect_method_dialog(&mut terminal)?
+                }
+                AppMode::ConnectApiKey => {
+                    tracing::trace!(event = "tui.connect.handle", mode = ?self.mode, "Handling ConnectApiKey");
+                    self.handle_api_key_input_dialog(&mut terminal)?
+                }
+                AppMode::ConnectProgress => {
+                    tracing::trace!(event = "tui.connect.handle", mode = ?self.mode, "Handling ConnectProgress");
+                    self.handle_connect_progress_dialog(&mut terminal)?
+                }
                 AppMode::ConnectApiKeyError => {
+                    tracing::trace!(event = "tui.connect.handle", mode = ?self.mode, "Handling ConnectApiKeyError");
                     self.handle_validation_error_dialog(&mut terminal)?
                 }
-                AppMode::ConnectModel => self.handle_connect_model_dialog(&mut terminal)?,
+                AppMode::ConnectModel => {
+                    tracing::info!(
+                        event = "tui.connect.handle_connect_model",
+                        mode = ?self.mode,
+                        has_dialog = %self.connect_model_dialog.is_some(),
+                        "Handling ConnectModel"
+                    );
+                    self.handle_connect_model_dialog(&mut terminal)?
+                }
                 AppMode::FileSelection => self.handle_file_selection_dialog(&mut terminal)?,
                 AppMode::DirectorySelection => {
                     self.handle_directory_selection_dialog(&mut terminal)?
@@ -2802,7 +2992,21 @@ impl App {
                 events.push(event);
             }
 
+            if !events.is_empty() {
+                tracing::debug!(
+                    event = "tui.connect.events_received",
+                    count = %events.len(),
+                    "Received connect events"
+                );
+            }
+
             for event in events {
+                let event_type = format!("{:?}", event);
+                tracing::trace!(
+                    event = "tui.connect.event_processing",
+                    event_type = %event_type,
+                    "Processing connect event"
+                );
                 match event {
                     ConnectEvent::BrowserOpened(url) => {
                         self.add_message(
@@ -2843,6 +3047,13 @@ impl App {
                         if success {
                             let provider_id =
                                 self.pending_connect_provider.clone().unwrap_or_default();
+                            let model_count = models.as_ref().map(|m| m.len()).unwrap_or(0);
+                            tracing::info!(
+                                event = "tui.connect.validation_success",
+                                provider_id = %provider_id,
+                                model_count = %model_count,
+                                "Validation succeeded, about to show model selection"
+                            );
                             self.add_message(
                                 format!(
                                     "API key validated successfully for {}",
@@ -2854,6 +3065,12 @@ impl App {
                                 &provider_id,
                                 self.pending_api_key_for_validation.as_deref().unwrap_or(""),
                             ) {
+                                tracing::error!(
+                                    event = "tui.connect.save_credential_failed",
+                                    error = %e,
+                                    provider_id = %provider_id,
+                                    "Failed to save API key credential"
+                                );
                                 self.add_message(format!("Failed to save API key: {}", e), false);
                                 self.mode = AppMode::Chat;
                             } else {
@@ -2866,10 +3083,14 @@ impl App {
                                 self.pending_api_key_models = models.unwrap_or_default();
                                 self.pending_api_key_for_provider = Some(api_key.clone());
                                 let theme = self.theme_manager.current().clone();
-                                self.connect_model_dialog = Some(ConnectModelDialog::new(
-                                    theme,
-                                    self.pending_api_key_models.clone(),
-                                ));
+                                let models_clone = self.pending_api_key_models.clone();
+                                tracing::debug!(
+                                    event = "tui.connect.creating_model_dialog",
+                                    model_count = %models_clone.len(),
+                                    "Creating ConnectModelDialog"
+                                );
+                                self.connect_model_dialog =
+                                    Some(ConnectModelDialog::new(theme, models_clone));
                                 if let Some(providers) = &mut self.config.providers {
                                     if let Some(existing) =
                                         providers.iter_mut().find(|p| p.name == provider_id)
@@ -2904,6 +3125,11 @@ impl App {
                                 if let Err(e) = self.config.save(&Config::default_config_path()) {
                                     tracing::warn!("Failed to save provider config: {}", e);
                                 }
+                                tracing::info!(
+                                    event = "tui.connect.mode_change",
+                                    mode = "ConnectModel",
+                                    "Mode changed to ConnectModel"
+                                );
                                 self.mode = AppMode::ConnectModel;
                             }
                         } else {
@@ -4820,8 +5046,23 @@ OpenCode Agent Configuration
             }
             AppMode::ConnectModel => {
                 self.draw_chat(f);
+                tracing::info!(
+                    event = "tui.connect.draw_connect_model",
+                    mode = ?self.mode,
+                    has_dialog = %self.connect_model_dialog.is_some(),
+                    "Drawing ConnectModel mode"
+                );
                 if let Some(dialog) = self.connect_model_dialog.as_ref() {
+                    tracing::debug!(
+                        event = "tui.connect.drawing_model_dialog",
+                        "Drawing ConnectModelDialog"
+                    );
                     dialog.draw(f, f.area());
+                } else {
+                    tracing::warn!(
+                        event = "tui.connect.model_dialog_none",
+                        "ConnectModelDialog is None but mode is ConnectModel"
+                    );
                 }
             }
             AppMode::FileSelection => {
@@ -5279,7 +5520,8 @@ OpenCode Agent Configuration
             crate::components::status_bar::ConnectionStatus::Disconnected => "Disconnected",
             crate::components::status_bar::ConnectionStatus::Error => "Error",
         };
-        self.home_view.set_connection_status(Some(status_label.to_string()));
+        self.home_view
+            .set_connection_status(Some(status_label.to_string()));
         self.home_view.draw(f, f.area());
     }
 
@@ -5540,7 +5782,12 @@ OpenCode Agent Configuration
                     (theme.foreground_color(), Modifier::BOLD)
                 };
                 let is_code_like = msg.content.starts_with("```")
-                    || (msg.content.contains('\n') && msg.content.lines().skip(1).any(|l| l.starts_with("    ") || l.starts_with('\t')));
+                    || (msg.content.contains('\n')
+                        && msg
+                            .content
+                            .lines()
+                            .skip(1)
+                            .any(|l| l.starts_with("    ") || l.starts_with('\t')));
                 let content_style = if is_code_like {
                     Style::default()
                         .fg(theme.secondary_color())
@@ -5550,7 +5797,12 @@ OpenCode Agent Configuration
                 };
                 let mut lines = vec![Line::from(vec![
                     Span::styled(prefix, Style::default().fg(color).add_modifier(style)),
-                    Span::styled(format!("[{}] ", role_label), Style::default().fg(theme.muted_color()).add_modifier(Modifier::BOLD)),
+                    Span::styled(
+                        format!("[{}] ", role_label),
+                        Style::default()
+                            .fg(theme.muted_color())
+                            .add_modifier(Modifier::BOLD),
+                    ),
                     Span::styled(
                         if msg.is_thinking && self.thinking_mode {
                             format!("[Thinking...] {}", msg.content)
@@ -6428,6 +6680,30 @@ OpenCode Agent Configuration
         }
         Ok(())
     }
+}
+
+fn build_placeholder_runtime() -> Arc<OpenCodeRuntime> {
+    let event_bus = Arc::new(opencode_core::bus::EventBus::new());
+    let permission_manager = Arc::new(tokio::sync::RwLock::new(PermissionManager::default()));
+    let session_repo = Arc::new(InMemorySessionRepository::default());
+    let project_repo = Arc::new(InMemoryProjectRepository::default());
+    let db_path = std::env::temp_dir().join(format!(
+        "opencode-tui-runtime-placeholder-{}.db",
+        uuid::Uuid::new_v4()
+    ));
+    let pool = StoragePool::new(&db_path).expect("placeholder storage pool");
+    let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
+    let agent_runtime = Arc::new(tokio::sync::RwLock::new(AgentRuntime::new(
+        Session::default(),
+        AgentType::Build,
+    )));
+
+    Arc::new(OpenCodeRuntime::new(RuntimeServices::new(
+        event_bus,
+        permission_manager,
+        storage,
+        agent_runtime,
+    )))
 }
 
 impl Default for App {

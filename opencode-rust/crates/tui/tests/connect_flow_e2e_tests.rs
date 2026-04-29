@@ -273,4 +273,169 @@ mod connect_flow_regression_tests {
             "default model should be set"
         );
     }
+
+    #[test]
+    fn connect_ollama_local_success_shows_model_dialog() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
+        let mut app = App::new();
+        app.pending_connect_provider = Some("ollama".to_string());
+        // For local connect, api_key is typically the provider id itself
+        app.pending_api_key_for_validation = Some("ollama".to_string());
+        app.validation_in_progress = true;
+        app.mode = AppMode::ConnectProgress;
+
+        // Simulate Ollama returning 1 model
+        app.simulate_validation_complete_for_testing(
+            true,
+            None,
+            Some(vec![BrowserAuthModelInfo {
+                id: "qwen3.5:9b".to_string(),
+                name: "qwen3.5:9b".to_string(),
+                variants: vec![],
+            }]),
+        );
+
+        assert_eq!(
+            app.mode,
+            AppMode::ConnectModel,
+            "Mode should be ConnectModel after successful Ollama validation"
+        );
+        assert!(
+            !app.validation_in_progress,
+            "validation_in_progress should be cleared"
+        );
+        assert!(
+            app.connect_model_dialog.is_some(),
+            "Model selection dialog should appear for Ollama"
+        );
+    }
+
+    #[test]
+    fn connect_ollama_local_with_multiple_models() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
+        let mut app = App::new();
+        app.pending_connect_provider = Some("ollama".to_string());
+        app.pending_api_key_for_validation = Some("ollama".to_string());
+        app.validation_in_progress = true;
+        app.mode = AppMode::ConnectProgress;
+
+        // Simulate Ollama returning multiple models
+        app.simulate_validation_complete_for_testing(
+            true,
+            None,
+            Some(vec![
+                BrowserAuthModelInfo {
+                    id: "llama3".to_string(),
+                    name: "Llama 3".to_string(),
+                    variants: vec![],
+                },
+                BrowserAuthModelInfo {
+                    id: "qwen2.5".to_string(),
+                    name: "Qwen 2.5".to_string(),
+                    variants: vec![],
+                },
+                BrowserAuthModelInfo {
+                    id: "mistral".to_string(),
+                    name: "Mistral".to_string(),
+                    variants: vec![],
+                },
+            ]),
+        );
+
+        assert_eq!(
+            app.mode,
+            AppMode::ConnectModel,
+            "Mode should be ConnectModel after successful Ollama validation"
+        );
+        assert!(
+            app.connect_model_dialog.is_some(),
+            "Model selection dialog should appear for Ollama with multiple models"
+        );
+    }
+
+    #[test]
+    fn connect_ollama_local_saves_provider_config() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
+        let mut app = App::new();
+        app.pending_connect_provider = Some("ollama".to_string());
+        app.pending_api_key_for_validation = Some("ollama".to_string());
+        app.validation_in_progress = true;
+        app.mode = AppMode::ConnectProgress;
+
+        app.simulate_validation_complete_for_testing(
+            true,
+            None,
+            Some(vec![BrowserAuthModelInfo {
+                id: "llama3".to_string(),
+                name: "Llama 3".to_string(),
+                variants: vec![],
+            }]),
+        );
+
+        let providers = app
+            .config
+            .providers
+            .as_ref()
+            .expect("providers should be set");
+        let ollama_provider = providers
+            .iter()
+            .find(|p| p.name == "ollama")
+            .expect("ollama should be in providers");
+        assert_eq!(
+            ollama_provider.default_model,
+            Some("llama3".to_string()),
+            "default model should be set to llama3"
+        );
+    }
+
+    /// Regression test: verifies that when ValidationComplete is received,
+    /// the mode changes AND pending_api_key_models is properly populated.
+    #[test]
+    fn connect_ollama_validation_complete_populates_pending_models() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        std::env::set_var("OPENCODE_DATA_DIR", temp_dir.path().to_str().unwrap());
+
+        let mut app = App::new();
+        app.pending_connect_provider = Some("ollama".to_string());
+        app.pending_api_key_for_validation = Some("ollama".to_string());
+        app.validation_in_progress = true;
+        app.mode = AppMode::ConnectProgress;
+
+        let models = vec![
+            BrowserAuthModelInfo {
+                id: "qwen3.5:9b".to_string(),
+                name: "qwen3.5:9b".to_string(),
+                variants: vec![],
+            },
+            BrowserAuthModelInfo {
+                id: "llama3".to_string(),
+                name: "Llama 3".to_string(),
+                variants: vec![],
+            },
+        ];
+
+        app.simulate_validation_complete_for_testing(true, None, Some(models));
+
+        assert_eq!(app.mode, AppMode::ConnectModel);
+        assert!(app.connect_model_dialog.is_some(), "Dialog should exist");
+        assert_eq!(
+            app.pending_api_key_models.len(),
+            2,
+            "pending_api_key_models should have 2 models"
+        );
+        assert_eq!(
+            app.pending_api_key_models[0].id, "qwen3.5:9b",
+            "First model should be qwen3.5:9b"
+        );
+        assert_eq!(
+            app.pending_api_key_models[1].id, "llama3",
+            "Second model should be llama3"
+        );
+    }
 }

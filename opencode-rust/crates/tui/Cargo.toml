@@ -9,6 +9,8 @@ license.workspace = true
 opencode-core.workspace = true
 opencode-llm.workspace = true
 opencode-agent = { path = "../agent" }
+opencode-runtime.workspace = true
+opencode-storage.workspace = true
 opencode-tools = { path = "../tools" }
 opencode-auth = { path = "../auth" }
 opencode-mcp = { path = "../mcp" }
