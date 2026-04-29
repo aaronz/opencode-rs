@@ -5,8 +5,8 @@ use tokio::sync::RwLock;
 use opencode_agent::{AgentRuntime, AgentType};
 use opencode_core::{bus::EventBus, bus::InternalEvent, permission::PermissionManager, Session};
 use opencode_runtime::{
-    Runtime, RuntimeCommand, RuntimeEvent, RuntimeFacadeError, RuntimeServices, RuntimeStatus,
-    SubmitUserInput, TaskControlCommand,
+    Runtime, RuntimeCommand, RuntimeEvent, RuntimeFacadeError, RuntimePermissionAdapter,
+    RuntimePermissionDecision, RuntimeServices, RuntimeStatus, SubmitUserInput, TaskControlCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -102,6 +102,31 @@ fn runtime_event_ignores_unhandled_internal_variants() {
     };
 
     assert!(RuntimeEvent::from_internal_event(&event).is_none());
+}
+
+#[test]
+fn runtime_permission_adapter_allows_granted_permissions() {
+    let adapter = RuntimePermissionAdapter::default();
+
+    let decision = adapter.check(
+        opencode_core::permission::Permission::FileRead,
+        "src/lib.rs",
+    );
+
+    assert_eq!(decision, RuntimePermissionDecision::Allow);
+}
+
+#[test]
+fn runtime_permission_adapter_denies_blocked_patterns() {
+    use opencode_core::permission::{Permission, PermissionConfig, PermissionManager};
+
+    let mut config = PermissionConfig::default();
+    config.always_denied.push(".env".to_string());
+    let adapter = RuntimePermissionAdapter::new(PermissionManager::new(config));
+
+    let decision = adapter.check(Permission::FileRead, ".env");
+
+    assert_eq!(decision, RuntimePermissionDecision::Deny);
 }
 
 #[tokio::test]
