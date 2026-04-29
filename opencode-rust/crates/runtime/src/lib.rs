@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod context_view;
 pub mod errors;
 pub mod events;
 pub mod permission;
@@ -8,6 +9,7 @@ pub mod services;
 pub mod types;
 
 pub use commands::{PermissionResponse, RuntimeCommand, SubmitUserInput, TaskControlCommand};
+pub use context_view::RuntimeContextSummary;
 pub use errors::RuntimeFacadeError;
 pub use events::RuntimeEvent;
 pub use permission::{RuntimePermissionAdapter, RuntimePermissionDecision};

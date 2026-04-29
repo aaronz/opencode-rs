@@ -3,11 +3,17 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use opencode_agent::{AgentRuntime, AgentType};
-use opencode_core::{bus::EventBus, bus::InternalEvent, permission::PermissionManager, Session};
+use opencode_core::{
+    bus::EventBus,
+    bus::InternalEvent,
+    context::{Context, ContextBudget, ContextItem, ContextLayer, LayerBudgets},
+    permission::PermissionManager,
+    Session,
+};
 use opencode_runtime::{
-    Runtime, RuntimeCommand, RuntimeEvent, RuntimeFacadeError, RuntimePermissionAdapter,
-    RuntimePermissionDecision, RuntimeServices, RuntimeSessionStore, RuntimeStatus,
-    SubmitUserInput, TaskControlCommand,
+    Runtime, RuntimeCommand, RuntimeContextSummary, RuntimeEvent, RuntimeFacadeError,
+    RuntimePermissionAdapter, RuntimePermissionDecision, RuntimeServices, RuntimeSessionStore,
+    RuntimeStatus, SubmitUserInput, TaskControlCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -162,6 +168,86 @@ async fn runtime_session_store_returns_none_for_missing_session() {
         .expect("missing session lookup should succeed");
 
     assert!(loaded.is_none());
+}
+
+#[test]
+fn runtime_context_summary_reports_budget_and_counts() {
+    let context = Context {
+        layers: vec![ContextItem {
+            layer: ContextLayer::L0ExplicitInput,
+            content: "hello".to_string(),
+            token_count: 5,
+            source: "explicit".to_string(),
+        }],
+        file_context: vec!["src/lib.rs".to_string()],
+        tool_context: vec!["read: file reader".to_string()],
+        session_context: vec!["User: hi".to_string()],
+        prompt_messages: vec![],
+        budget: ContextBudget {
+            total_tokens: 5,
+            max_tokens: 100,
+            remaining_tokens: 95,
+            usage_pct: 0.05,
+            layer_breakdown: vec![(ContextLayer::L0ExplicitInput, 5)],
+            layer_budgets: LayerBudgets::default(),
+            warning_threshold: 0.7,
+            compact_threshold: 0.85,
+            continuation_threshold: 0.95,
+        },
+    };
+
+    let summary = RuntimeContextSummary::from_context(&context);
+
+    assert_eq!(summary.total_tokens, 5);
+    assert_eq!(summary.remaining_tokens, 95);
+    assert_eq!(summary.layer_count, 1);
+    assert_eq!(summary.file_count, 1);
+    assert_eq!(summary.tool_count, 1);
+    assert_eq!(summary.session_count, 1);
+}
+
+#[test]
+fn runtime_context_summary_preserves_layer_breakdown() {
+    let context = Context {
+        layers: vec![
+            ContextItem {
+                layer: ContextLayer::L0ExplicitInput,
+                content: "hello".to_string(),
+                token_count: 5,
+                source: "explicit".to_string(),
+            },
+            ContextItem {
+                layer: ContextLayer::L2ProjectContext,
+                content: "src/lib.rs".to_string(),
+                token_count: 12,
+                source: "project".to_string(),
+            },
+        ],
+        file_context: vec![],
+        tool_context: vec![],
+        session_context: vec![],
+        prompt_messages: vec![],
+        budget: ContextBudget {
+            total_tokens: 17,
+            max_tokens: 100,
+            remaining_tokens: 83,
+            usage_pct: 0.17,
+            layer_breakdown: vec![
+                (ContextLayer::L0ExplicitInput, 5),
+                (ContextLayer::L2ProjectContext, 12),
+            ],
+            layer_budgets: LayerBudgets::default(),
+            warning_threshold: 0.7,
+            compact_threshold: 0.85,
+            continuation_threshold: 0.95,
+        },
+    };
+
+    let summary = RuntimeContextSummary::from_context(&context);
+
+    assert_eq!(summary.layer_breakdown.len(), 2);
+    assert_eq!(summary.layer_breakdown[0].1, 5);
+    assert_eq!(summary.layer_breakdown[1].1, 12);
 }
 
 #[tokio::test]
