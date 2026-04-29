@@ -396,6 +396,7 @@ fn create_streaming_test_server_state() -> opencode_server::ServerState {
             opencode_permission::ApprovalQueue::default(),
         )),
         audit_log: None,
+        runtime: opencode_server::build_placeholder_runtime(),
     }
 }
 

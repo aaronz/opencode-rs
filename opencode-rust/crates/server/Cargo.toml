@@ -16,6 +16,7 @@ opencode-mcp = { path = "../mcp" }
 opencode-control-plane = { path = "../control-plane" }
 opencode-tools = { path = "../tools" }
 opencode-agent = { path = "../agent" }
+opencode-runtime.workspace = true
 opencode-permission = { path = "../permission" }
 actix-web = { workspace = true }
 actix-cors = { workspace = true }

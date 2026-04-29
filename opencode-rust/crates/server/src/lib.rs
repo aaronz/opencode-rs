@@ -13,13 +13,17 @@ use actix_web::dev::Service;
 use actix_web::{middleware as actix_middleware, web, App, HttpResponse, HttpServer, Responder};
 use futures::future::{ready, Either};
 use futures::FutureExt;
+use opencode_agent::{AgentRuntime, AgentType};
 use opencode_control_plane::SharedAcpStream;
 use opencode_core::bus::SharedEventBus;
 use opencode_core::config::ServerConfig;
-use opencode_core::Config;
+use opencode_core::{Config, Session};
 use opencode_llm::ModelRegistry;
 use opencode_permission::{ApprovalQueue, AuditLog, PermissionScope};
-use opencode_storage::StorageService;
+use opencode_runtime::{Runtime as OpenCodeRuntime, RuntimeServices};
+use opencode_storage::{
+    InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
+};
 use opencode_tools::ToolRegistry;
 use routes::acp_ws::SharedAcpClientRegistry;
 use routes::share::ShareServer;
@@ -46,6 +50,7 @@ pub mod streaming;
 
 pub struct ServerState {
     pub storage: Arc<StorageService>,
+    pub runtime: Arc<OpenCodeRuntime>,
     pub models: Arc<ModelRegistry>,
     pub config: Arc<RwLock<Config>>,
     pub event_bus: SharedEventBus,
@@ -68,6 +73,7 @@ impl Clone for ServerState {
     fn clone(&self) -> Self {
         ServerState {
             storage: self.storage.clone(),
+            runtime: self.runtime.clone(),
             models: self.models.clone(),
             config: self.config.clone(),
             event_bus: self.event_bus.clone(),
@@ -86,6 +92,32 @@ impl Clone for ServerState {
             audit_log: self.audit_log.clone(),
         }
     }
+}
+
+pub fn build_placeholder_runtime() -> Arc<OpenCodeRuntime> {
+    let event_bus = Arc::new(opencode_core::bus::EventBus::new());
+    let permission_manager = Arc::new(tokio::sync::RwLock::new(
+        opencode_core::permission::PermissionManager::default(),
+    ));
+    let session_repo = Arc::new(InMemorySessionRepository::default());
+    let project_repo = Arc::new(InMemoryProjectRepository::default());
+    let db_path = std::env::temp_dir().join(format!(
+        "opencode-runtime-placeholder-{}.db",
+        uuid::Uuid::new_v4()
+    ));
+    let pool = StoragePool::new(&db_path).expect("placeholder storage pool");
+    let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
+    let agent_runtime = Arc::new(tokio::sync::RwLock::new(AgentRuntime::new(
+        Session::default(),
+        AgentType::Build,
+    )));
+
+    Arc::new(OpenCodeRuntime::new(RuntimeServices::new(
+        event_bus,
+        permission_manager,
+        storage,
+        agent_runtime,
+    )))
 }
 
 pub async fn run_server(state: Arc<ServerState>, host: &str, port: u16) -> std::io::Result<()> {
@@ -312,6 +344,7 @@ mod tests {
                 opencode_permission::PermissionScope::Full,
             ))),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         };
 
         let cloned = state.clone();
@@ -363,6 +396,7 @@ mod tests {
                 opencode_permission::PermissionScope::Full,
             ))),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         };
     }
 }

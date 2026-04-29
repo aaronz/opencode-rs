@@ -104,6 +104,7 @@ impl WebServerState {
             permission_manager: self.permission_manager.clone(),
             approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
             audit_log: None,
+            runtime: opencode_server::build_placeholder_runtime(),
         }
     }
 }

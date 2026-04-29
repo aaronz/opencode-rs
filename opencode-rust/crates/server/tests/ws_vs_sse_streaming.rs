@@ -51,6 +51,7 @@ fn create_sse_ws_comparison_test_state() -> ServerState {
             opencode_permission::ApprovalQueue::default(),
         )),
         audit_log: None,
+        runtime: opencode_server::build_placeholder_runtime(),
     }
 }
 

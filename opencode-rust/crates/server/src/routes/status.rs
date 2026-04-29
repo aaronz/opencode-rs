@@ -288,6 +288,7 @@ mod tests {
             permission_manager: Arc::new(RwLock::new(opencode_core::PermissionManager::default())),
             approval_queue: Arc::new(RwLock::new(ApprovalQueue::new(PermissionScope::Full))),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         };
 
         let calculated_uptime = std::time::SystemTime::now()

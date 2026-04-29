@@ -152,6 +152,7 @@ async fn run_serve(args: ServeArgs) -> Result<(), Box<dyn std::error::Error>> {
         permission_manager,
         approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
         audit_log: None,
+        runtime: opencode_server::build_placeholder_runtime(),
     };
 
     run_server(Arc::new(state), &host, port).await?;

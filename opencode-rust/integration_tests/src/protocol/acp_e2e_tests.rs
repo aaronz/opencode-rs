@@ -46,6 +46,7 @@ mod tests {
                 opencode_permission::ApprovalQueue::default(),
             )),
             audit_log: None,
+            runtime: opencode_server::build_placeholder_runtime(),
         }
     }
 

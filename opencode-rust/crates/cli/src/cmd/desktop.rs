@@ -115,6 +115,7 @@ async fn run_desktop(args: DesktopArgs) -> Result<(), Box<dyn std::error::Error>
         permission_manager,
         approval_queue: Arc::new(RwLock::new(ApprovalQueue::default())),
         audit_log: None,
+        runtime: opencode_server::build_placeholder_runtime(),
     };
 
     #[cfg(feature = "desktop")]

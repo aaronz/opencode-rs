@@ -105,6 +105,7 @@ mod tests {
                 PermissionScope::Full,
             ))),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         }
     }
 
@@ -143,6 +144,7 @@ mod tests {
                 PermissionScope::Full,
             ))),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         }
     }
 

@@ -54,6 +54,7 @@ mod tests {
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         }
     }
 
@@ -101,6 +102,7 @@ mod tests {
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         }
     }
 
@@ -2040,6 +2042,7 @@ mod security_tests {
                 PermissionScope::Full,
             ))),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         }
     }
 
@@ -2260,6 +2263,7 @@ mod security_tests {
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
             audit_log: Some(audit_log),
+            runtime: crate::build_placeholder_runtime(),
         };
         (state, temp_dir)
     }
@@ -2660,6 +2664,7 @@ mod api_negative_tests {
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         }
     }
 
@@ -2709,6 +2714,7 @@ mod api_negative_tests {
                 PermissionScope::Full,
             ))),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         }
     }
 
@@ -3401,6 +3407,7 @@ mod auth_negative_tests {
                 PermissionScope::Full,
             ))),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         }
     }
 
@@ -3935,6 +3942,7 @@ mod auth_negative_tests {
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         };
 
         let req = TestRequest::default().to_http_request();
@@ -4008,6 +4016,7 @@ mod auth_negative_tests {
             )),
             approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
             audit_log: None,
+            runtime: crate::build_placeholder_runtime(),
         };
 
         let req = TestRequest::default().to_http_request();

@@ -196,6 +196,7 @@ async fn start_test_server(
             opencode_permission::ApprovalQueue::default(),
         )),
         audit_log: None,
+        runtime: opencode_server::build_placeholder_runtime(),
     };
 
     let state_data = web::Data::new(state);

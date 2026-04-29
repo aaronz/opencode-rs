@@ -97,6 +97,7 @@ fn create_test_state() -> ServerState {
             opencode_permission::ApprovalQueue::default(),
         )),
         audit_log: None,
+        runtime: opencode_server::build_placeholder_runtime(),
     }
 }
 
@@ -494,6 +495,7 @@ fn create_test_state_with_audit_log(temp_dir: TempDir) -> (ServerState, TempDir,
             opencode_permission::ApprovalQueue::default(),
         )),
         audit_log: Some(audit_log.clone()),
+        runtime: opencode_server::build_placeholder_runtime(),
     };
     (state, temp_dir, audit_log)
 }

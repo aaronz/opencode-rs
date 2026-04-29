@@ -47,6 +47,7 @@ fn create_test_state() -> ServerState {
             PermissionScope::ReadOnly,
         ))),
         audit_log: None,
+        runtime: opencode_server::build_placeholder_runtime(),
     }
 }
 

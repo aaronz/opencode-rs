@@ -44,6 +44,7 @@ fn create_test_state() -> ServerState {
         )),
         approval_queue: std::sync::Arc::new(std::sync::RwLock::new(ApprovalQueue::default())),
         audit_log: None,
+        runtime: opencode_server::build_placeholder_runtime(),
     }
 }
 
