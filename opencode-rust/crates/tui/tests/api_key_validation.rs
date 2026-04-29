@@ -461,7 +461,8 @@ fn test_executing_tool_tui_state_shows_active_tool_name_when_available() {
     let mut app = App::new();
     app.set_tui_state(opencode_tui::app::TuiState::ExecutingTool);
     app.mode = AppMode::Chat;
-    app.tool_calls.push(opencode_tui::app::ToolCall::new("grep"));
+    app.tool_calls
+        .push(opencode_tui::app::ToolCall::new("grep"));
 
     app.sync_status_bar_state_for_testing();
 

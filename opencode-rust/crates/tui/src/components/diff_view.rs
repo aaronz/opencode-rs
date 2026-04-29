@@ -385,7 +385,9 @@ impl Widget for DiffView {
 
             let base_style = self.get_line_style(diff_line.line_type);
             let style = if is_cursor {
-                base_style.bg(theme.primary_color()).fg(theme.foreground_color())
+                base_style
+                    .bg(theme.primary_color())
+                    .fg(theme.foreground_color())
             } else if is_collapsed_hunk {
                 base_style
             } else {

@@ -347,10 +347,9 @@ impl DiffReviewOverlay {
                                 .add_modifier(ratatui::style::Modifier::BOLD),
                         ),
                         DiffLineType::Unchanged => ("  ", Style::default()),
-                        DiffLineType::Context => (
-                            "  ",
-                            Style::default().fg(self.theme.muted_color()),
-                        ),
+                        DiffLineType::Context => {
+                            ("  ", Style::default().fg(self.theme.muted_color()))
+                        }
                     };
 
                     let mut spans = vec![Span::raw("  "), Span::styled(line_prefix, base_style)];

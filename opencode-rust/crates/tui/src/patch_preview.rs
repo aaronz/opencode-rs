@@ -1,3 +1,4 @@
+use crate::theme::Theme;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::Rect,
@@ -6,7 +7,6 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
-use crate::theme::Theme;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PatchDecision {
@@ -80,7 +80,10 @@ impl PatchPreview {
 
     fn highlight_diff_line<'a>(&'a self, line: &'a str) -> Line<'a> {
         if line.starts_with("+++") || line.starts_with("---") || line.starts_with("@@") {
-            Line::from(Span::styled(line, Style::default().fg(self.theme.primary_color())))
+            Line::from(Span::styled(
+                line,
+                Style::default().fg(self.theme.primary_color()),
+            ))
         } else if line.starts_with('+') {
             Line::from(Span::styled(
                 line,

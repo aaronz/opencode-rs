@@ -123,7 +123,10 @@ impl StatusPopover {
             Line::from(""),
             Line::from(vec![
                 Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::styled(self.connection_status_label(), Style::default().fg(status_color)),
+                Span::styled(
+                    self.connection_status_label(),
+                    Style::default().fg(status_color),
+                ),
             ]),
             Line::from(vec![
                 Span::styled("Activity: ", Style::default().add_modifier(Modifier::BOLD)),
@@ -362,8 +365,8 @@ impl StatusBar {
             Span::styled("●", Style::default().fg(connection_color)),
             Span::styled(status_suffix, Style::default().fg(status_color)),
         ]))
-            .alignment(Alignment::Right)
-            .style(Style::default());
+        .alignment(Alignment::Right)
+        .style(Style::default());
         f.render_widget(paragraph, area);
 
         if let Some(ref popover_type) = self.active_popover {
@@ -415,7 +418,8 @@ mod tests {
         bar.activity_message = Some("⏳ Validating OpenAI".to_string());
 
         assert!(
-            bar.status_text_for_testing().contains("⏳ Validating OpenAI"),
+            bar.status_text_for_testing()
+                .contains("⏳ Validating OpenAI"),
             "status bar text should include the current activity message"
         );
     }
