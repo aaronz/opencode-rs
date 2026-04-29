@@ -88,3 +88,55 @@ fn test_connect_method_dialog_renders_openai_methods() {
         "Dialog with OpenAI methods should render content"
     );
 }
+
+#[test]
+fn test_connect_method_dialog_ollama_shows_local() {
+    let mut dialog = ConnectMethodDialog::new(Theme::default(), "ollama".into());
+    // Press Down - with only 1 method, selected_index should stay at 0 (wraps around)
+    dialog.handle_input(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    // With 1 method, Down wraps to 0
+    let action = dialog.handle_input(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    // Ollama should confirm with "local"
+    assert_eq!(
+        action,
+        opencode_tui::dialogs::DialogAction::Confirm("local".into())
+    );
+}
+
+#[test]
+fn test_connect_method_dialog_lmstudio_shows_local() {
+    let mut dialog = ConnectMethodDialog::new(Theme::default(), "lmstudio".into());
+    // Press Down - with only 1 method, selected_index should stay at 0 (wraps around)
+    dialog.handle_input(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Down,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    let action = dialog.handle_input(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    // LM Studio should confirm with "local"
+    assert_eq!(
+        action,
+        opencode_tui::dialogs::DialogAction::Confirm("local".into())
+    );
+}
+
+#[test]
+fn test_connect_method_dialog_ollama_local_confirms() {
+    let mut dialog = ConnectMethodDialog::new(Theme::default(), "ollama".into());
+    let action = dialog.handle_input(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Enter,
+        crossterm::event::KeyModifiers::NONE,
+    ));
+    assert_eq!(
+        action,
+        opencode_tui::dialogs::DialogAction::Confirm("local".into())
+    );
+}

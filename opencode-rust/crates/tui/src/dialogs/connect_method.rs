@@ -25,6 +25,7 @@ impl ConnectMethodDialog {
         let supports_browser = auth_methods.contains(&AuthMethod::Browser)
             || auth_methods.contains(&AuthMethod::DeviceFlow);
         let supports_api_key = auth_methods.contains(&AuthMethod::ApiKey);
+        let supports_local = auth_methods.contains(&AuthMethod::Local);
 
         let (methods, is_oauth_only) = if provider_id == "openai" {
             (
@@ -36,6 +37,8 @@ impl ConnectMethodDialog {
             )
         } else if provider_id == "google" || provider_id == "copilot" {
             (Vec::new(), true)
+        } else if supports_local {
+            (vec![("local".to_string(), "Local".to_string())], false)
         } else if !supports_api_key && !supports_browser {
             (Vec::new(), false)
         } else {
