@@ -2,6 +2,7 @@
 //!
 //! Provides request/response types for POST /api/sessions/{id}/execute
 
+use opencode_runtime::RuntimeEvent;
 use serde::{Deserialize, Serialize};
 
 /// Request type for session execution endpoint.
@@ -144,11 +145,34 @@ impl ExecuteEvent {
     pub(crate) fn complete(session_state: serde_json::Value) -> Self {
         Self::Complete { session_state }
     }
+
+    pub(crate) fn to_runtime_event(&self, _session_id: &str) -> Option<RuntimeEvent> {
+        match self {
+            Self::ToolCall { tool, call_id, .. } => Some(RuntimeEvent::ToolCallStarted {
+                session_id: _session_id.to_string(),
+                tool_name: tool.clone(),
+                call_id: call_id.clone(),
+            }),
+            Self::ToolResult {
+                call_id, success, ..
+            } => Some(RuntimeEvent::ToolCallEnded {
+                session_id: _session_id.to_string(),
+                call_id: call_id.clone(),
+                success: *success,
+            }),
+            Self::Error { code, message } => Some(RuntimeEvent::Error {
+                source: code.clone(),
+                message: message.clone(),
+            }),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{ExecuteEvent, ExecuteMode, ExecuteRequest};
+    use opencode_runtime::RuntimeEvent;
 
     #[test]
     fn test_execute_request_deserialization() {
@@ -313,6 +337,66 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&ExecuteMode::General).unwrap(),
             r#""general""#
+        );
+    }
+
+    #[test]
+    fn test_execute_event_error_to_runtime_event() {
+        let event = ExecuteEvent::error("ERR", "oops");
+
+        let runtime_event = event
+            .to_runtime_event("session-1")
+            .expect("error should map to runtime event");
+
+        assert_eq!(
+            runtime_event,
+            RuntimeEvent::Error {
+                source: "ERR".to_string(),
+                message: "oops".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_execute_event_message_does_not_map_to_runtime_event() {
+        let event = ExecuteEvent::message("assistant", "hello");
+        assert!(event.to_runtime_event("session-1").is_none());
+    }
+
+    #[test]
+    fn test_execute_event_tool_call_to_runtime_event() {
+        let event = ExecuteEvent::tool_call("read", serde_json::json!({"path": "/tmp/a"}), "c1");
+
+        let runtime_event = event
+            .to_runtime_event("session-1")
+            .expect("tool call should map to runtime event");
+
+        assert_eq!(
+            runtime_event,
+            RuntimeEvent::ToolCallStarted {
+                session_id: "session-1".to_string(),
+                tool_name: "read".to_string(),
+                call_id: "c1".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_execute_event_tool_result_to_runtime_event() {
+        let event =
+            ExecuteEvent::tool_result("read", serde_json::json!({"content": "hello"}), "c2", true);
+
+        let runtime_event = event
+            .to_runtime_event("session-1")
+            .expect("tool result should map to runtime event");
+
+        assert_eq!(
+            runtime_event,
+            RuntimeEvent::ToolCallEnded {
+                session_id: "session-1".to_string(),
+                call_id: "c2".to_string(),
+                success: true,
+            }
         );
     }
 }
