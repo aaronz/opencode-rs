@@ -784,7 +784,7 @@ async fn test_send_message_handles_network_errors() {
 
 #[tokio::test]
 async fn test_acp_connected_event_published_on_successful_connect() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::events::DomainEvent;
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
@@ -816,7 +816,7 @@ async fn test_acp_connected_event_published_on_successful_connect() {
 
     let event = subscriber.recv().await.unwrap();
     match event {
-        InternalEvent::AcpConnected {
+        DomainEvent::AcpConnected {
             server_id,
             capabilities,
         } => {
@@ -829,7 +829,7 @@ async fn test_acp_connected_event_published_on_successful_connect() {
 
 #[tokio::test]
 async fn test_acp_connected_event_contains_correct_connection_info() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::events::DomainEvent;
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
@@ -859,7 +859,7 @@ async fn test_acp_connected_event_contains_correct_connection_info() {
 
     let event = subscriber.recv().await.unwrap();
     match event {
-        InternalEvent::AcpConnected {
+        DomainEvent::AcpConnected {
             server_id,
             capabilities,
         } => {
@@ -872,7 +872,7 @@ async fn test_acp_connected_event_contains_correct_connection_info() {
 
 #[tokio::test]
 async fn test_acp_disconnected_event_published_on_disconnect() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::events::DomainEvent;
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let mock_server = MockServer::start().await;
@@ -903,21 +903,21 @@ async fn test_acp_disconnected_event_published_on_disconnect() {
     let connected_event = subscriber.recv().await.unwrap();
     assert!(matches!(
         connected_event,
-        InternalEvent::AcpConnected { .. }
+        DomainEvent::AcpConnected { .. }
     ));
 
     client.disconnect().await.unwrap();
 
     let event = subscriber.recv().await.unwrap();
     match event {
-        InternalEvent::AcpDisconnected => {}
+        DomainEvent::AcpDisconnected => {}
         other => panic!("Expected AcpDisconnected event, got {:?}", other),
     }
 }
 
 #[tokio::test]
 async fn test_full_connect_message_disconnect_cycle() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::events::DomainEvent;
     use wiremock::{
         matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
@@ -960,7 +960,7 @@ async fn test_full_connect_message_disconnect_cycle() {
 
     let connect_event = subscriber.recv().await.unwrap();
     assert!(
-        matches!(connect_event, InternalEvent::AcpConnected { server_id, .. } if server_id == "srv-full-cycle")
+        matches!(connect_event, DomainEvent::AcpConnected { server_id, .. } if server_id == "srv-full-cycle")
     );
 
     let msg_result = client
@@ -976,7 +976,7 @@ async fn test_full_connect_message_disconnect_cycle() {
     assert_eq!(client.connection_state(), AcpConnectionState::Disconnected);
 
     let disconnect_event = subscriber.recv().await.unwrap();
-    assert!(matches!(disconnect_event, InternalEvent::AcpDisconnected));
+    assert!(matches!(disconnect_event, DomainEvent::AcpDisconnected));
 }
 
 #[tokio::test]

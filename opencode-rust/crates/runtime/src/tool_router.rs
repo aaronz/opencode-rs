@@ -4,11 +4,11 @@ use opencode_core::OpenCodeError;
 use opencode_tools::{Tool, ToolContext, ToolRegistry};
 use tokio::sync::RwLock;
 
-pub struct RuntimeToolRouter {
+pub struct RuntimeFacadeToolRouter {
     registry: Arc<RwLock<ToolRegistry>>,
 }
 
-impl RuntimeToolRouter {
+impl RuntimeFacadeToolRouter {
     pub fn new(registry: ToolRegistry) -> Self {
         Self {
             registry: Arc::new(RwLock::new(registry)),
@@ -49,7 +49,7 @@ impl RuntimeToolRouter {
     }
 }
 
-impl Clone for RuntimeToolRouter {
+impl Clone for RuntimeFacadeToolRouter {
     fn clone(&self) -> Self {
         Self {
             registry: Arc::clone(&self.registry),
@@ -57,7 +57,7 @@ impl Clone for RuntimeToolRouter {
     }
 }
 
-impl Default for RuntimeToolRouter {
+impl Default for RuntimeFacadeToolRouter {
     fn default() -> Self {
         Self::new(ToolRegistry::new())
     }

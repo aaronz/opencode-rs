@@ -6,6 +6,9 @@ use crate::provider::sealed;
 use crate::provider::{ChatMessage, ChatResponse, Model, Provider, StreamingCallback};
 use opencode_core::OpenCodeError;
 
+const OLLAMA_CONNECT_TIMEOUT_SECS: u64 = 10;
+const OLLAMA_REQUEST_TIMEOUT_SECS: u64 = 120;
+
 pub struct OllamaProvider {
     client: Client,
     base_url: String,
@@ -51,7 +54,12 @@ struct OllamaMessage {
 #[derive(Deserialize)]
 struct StreamChunk {
     response: Option<String>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    thinking: Option<String>,
     done: bool,
+    #[serde(default)]
+    error: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -76,7 +84,7 @@ struct OllamaModelInfo {
 impl OllamaProvider {
     pub fn new(model: String, base_url: Option<String>) -> Self {
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(OLLAMA_CONNECT_TIMEOUT_SECS))
             .build()
             .unwrap_or_default();
         Self {
@@ -99,10 +107,16 @@ impl OllamaProvider {
     }
 
     pub async fn get_local_models(&self) -> Result<Vec<Model>, OpenCodeError> {
-        let response = self.client.get(self.tags_url()).send().await.map_err(|e| {
-            tracing::error!(provider = "ollama", error = %e, "Failed to fetch Ollama models");
-            OpenCodeError::Llm(e.to_string())
-        })?;
+        let response = self
+            .client
+            .get(self.tags_url())
+            .timeout(std::time::Duration::from_secs(OLLAMA_REQUEST_TIMEOUT_SECS))
+            .send()
+            .await
+            .map_err(|e| {
+                tracing::error!(provider = "ollama", error = %e, "Failed to fetch Ollama models");
+                OpenCodeError::Llm(e.to_string())
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -133,6 +147,43 @@ impl OllamaProvider {
     }
 }
 
+fn process_stream_buffer<F>(buffer: &mut String, callback: &mut F) -> Result<bool, OpenCodeError>
+where
+    F: FnMut(&str),
+{
+    let mut done = false;
+
+    while let Some(newline_idx) = buffer.find('\n') {
+        let line = buffer[..newline_idx].trim_end_matches('\r').trim();
+        let line = line.to_string();
+        buffer.drain(..=newline_idx);
+
+        if line.is_empty() {
+            continue;
+        }
+
+        let chunk: StreamChunk = serde_json::from_str(&line)
+            .map_err(|e| OpenCodeError::Llm(format!("Failed to parse Ollama stream chunk: {e}")))?;
+
+        if let Some(error) = chunk.error {
+            return Err(OpenCodeError::Llm(format!("Ollama stream error: {error}")));
+        }
+
+        if let Some(response) = chunk.response {
+            if !response.is_empty() {
+                callback(&response);
+            }
+        }
+
+        if chunk.done {
+            done = true;
+            break;
+        }
+    }
+
+    Ok(done)
+}
+
 impl sealed::Sealed for OllamaProvider {}
 
 #[async_trait]
@@ -154,6 +205,7 @@ impl Provider for OllamaProvider {
             .client
             .post(self.generate_url())
             .json(&request)
+            .timeout(std::time::Duration::from_secs(OLLAMA_REQUEST_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|e| {
@@ -199,6 +251,7 @@ impl Provider for OllamaProvider {
             .client
             .post(self.chat_url())
             .json(&request)
+            .timeout(std::time::Duration::from_secs(OLLAMA_REQUEST_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|e| {
@@ -246,6 +299,7 @@ impl Provider for OllamaProvider {
             .client
             .post(self.generate_url())
             .json(&request)
+            .timeout(std::time::Duration::from_secs(OLLAMA_REQUEST_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|e| OpenCodeError::Llm(e.to_string()))?;
@@ -260,29 +314,54 @@ impl Provider for OllamaProvider {
         }
 
         let mut lines = response.bytes_stream();
+        let mut buffer = String::new();
+        let mut emitted_any = false;
 
         use futures_util::StreamExt;
         while let Some(item) = lines.next().await {
             match item {
                 Ok(bytes) => {
-                    let text = String::from_utf8_lossy(&bytes);
-                    for line in text.lines() {
-                        if let Ok(chunk) = serde_json::from_str::<StreamChunk>(line) {
-                            if let Some(response) = chunk.response {
-                                callback(response);
-                            }
-                            if chunk.done {
-                                return Ok(());
-                            }
-                        }
+                    buffer.push_str(&String::from_utf8_lossy(&bytes));
+                    let done = process_stream_buffer(&mut buffer, &mut |chunk: &str| {
+                        emitted_any = true;
+                        callback(chunk.to_string());
+                    })?;
+
+                    if done {
+                        return Ok(());
                     }
                 }
                 Err(e) => {
+                    if !emitted_any {
+                        let fallback = self.complete(prompt, None).await?;
+                        callback(fallback);
+                        return Ok(());
+                    }
                     return Err(OpenCodeError::Llm(format!("Stream error: {}", e)));
                 }
             }
         }
 
+        let done = process_stream_buffer(&mut buffer, &mut |chunk: &str| {
+            emitted_any = true;
+            callback(chunk.to_string());
+        })?;
+
+        if done || buffer.trim().is_empty() {
+            return Ok(());
+        }
+
+        if !emitted_any {
+            let fallback = self.complete(prompt, None).await?;
+            callback(fallback);
+            return Ok(());
+        }
+
+        tracing::warn!(
+            provider = "ollama",
+            partial = !buffer.is_empty(),
+            "Ollama stream ended with partial data"
+        );
         Ok(())
     }
 
@@ -311,6 +390,10 @@ impl Provider for OllamaProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::{Arc, Mutex};
+    use std::thread;
 
     #[test]
     fn test_ollama_provider_new() {
@@ -370,5 +453,117 @@ mod tests {
         assert!(!models.is_empty());
         // Should contain common fallback models
         assert!(models.iter().any(|m| m.id == "llama3"));
+    }
+
+    #[test]
+    fn test_process_stream_buffer_handles_split_json_lines() {
+        let mut buffer = String::from("{\"response\":\"Hel");
+        let emitted = Arc::new(Mutex::new(Vec::new()));
+        let emitted_clone = emitted.clone();
+
+        let result = process_stream_buffer(&mut buffer, &mut |chunk: &str| {
+            emitted_clone.lock().unwrap().push(chunk.to_string());
+        })
+        .unwrap();
+
+        assert!(!result);
+        assert!(emitted.lock().unwrap().is_empty());
+
+        buffer.push_str("lo\",\"done\":false}\n{\"done\":true}\n");
+        let result = process_stream_buffer(&mut buffer, &mut |chunk: &str| {
+            emitted.lock().unwrap().push(chunk.to_string());
+        })
+        .unwrap();
+
+        assert!(result);
+        assert_eq!(emitted.lock().unwrap().as_slice(), ["Hello"]);
+        assert!(buffer.is_empty());
+    }
+
+    #[test]
+    fn test_process_stream_buffer_ignores_thinking_only_chunks() {
+        let mut buffer = String::from(
+            "{\"response\":\"\",\"thinking\":\"step 1\",\"done\":false}\n{\"response\":\"done\",\"done\":false}\n{\"done\":true}\n",
+        );
+        let emitted = Arc::new(Mutex::new(Vec::new()));
+        let emitted_clone = emitted.clone();
+
+        let result = process_stream_buffer(&mut buffer, &mut |chunk: &str| {
+            emitted_clone.lock().unwrap().push(chunk.to_string());
+        })
+        .unwrap();
+
+        assert!(result);
+        assert_eq!(emitted.lock().unwrap().as_slice(), ["done"]);
+        assert!(buffer.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_ollama_streaming_falls_back_after_stream_failure() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let requests_clone = requests.clone();
+
+        thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut buffer = Vec::new();
+                let mut chunk = [0_u8; 4096];
+
+                loop {
+                    let read = stream.read(&mut chunk).unwrap_or(0);
+                    if read == 0 {
+                        break;
+                    }
+                    buffer.extend_from_slice(&chunk[..read]);
+                    if buffer.windows(4).any(|w| w == b"\r\n\r\n") {
+                        break;
+                    }
+                }
+
+                let request_text = String::from_utf8_lossy(&buffer).to_string();
+                let body = request_text
+                    .split("\r\n\r\n")
+                    .nth(1)
+                    .unwrap_or("")
+                    .to_string();
+                requests_clone.lock().unwrap().push(body.clone());
+
+                if body.contains("\"stream\":true") {
+                    let response = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: application/json\r\n\r\n";
+                    let _ = stream.write_all(response.as_bytes());
+                    let _ = stream.flush();
+                    continue;
+                }
+
+                let response_body = "{\"response\":\"fallback works\"}";
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    response_body.len(),
+                    response_body
+                );
+                let _ = stream.write_all(response.as_bytes());
+                let _ = stream.flush();
+            }
+        });
+
+        let provider =
+            OllamaProvider::new("qwen3.5:9b".to_string(), Some(format!("http://{}", addr)));
+        let output = Arc::new(Mutex::new(String::new()));
+        let output_clone = output.clone();
+
+        provider
+            .complete_streaming(
+                "hello",
+                Box::new(move |chunk| output_clone.lock().unwrap().push_str(&chunk)),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(output.lock().unwrap().as_str(), "fallback works");
+        assert_eq!(requests.lock().unwrap().len(), 2);
+        assert!(requests.lock().unwrap()[0].contains("\"stream\":true"));
+        assert!(requests.lock().unwrap()[1].contains("\"stream\":false"));
     }
 }

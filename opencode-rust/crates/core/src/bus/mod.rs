@@ -1,6 +1,7 @@
 mod types;
 
-pub use types::{EventBus, InternalEvent, SharedEventBus};
+pub use types::{EventBus, SharedEventBus};
+pub use crate::events::DomainEvent;
 
 #[cfg(test)]
 mod tests {
@@ -18,12 +19,12 @@ mod tests {
         let mut rx = bus.subscribe();
         assert_eq!(bus.subscriber_count(), 1);
 
-        bus.publish(InternalEvent::SessionStarted("test-session".to_string()));
+        bus.publish(DomainEvent::SessionStarted("test-session".to_string()));
 
         let event = rx.try_recv();
         assert!(event.is_ok());
         match event.unwrap() {
-            InternalEvent::SessionStarted(id) => assert_eq!(id, "test-session"),
+            DomainEvent::SessionStarted(id) => assert_eq!(id, "test-session"),
             _ => panic!("Expected SessionStarted event"),
         }
     }
@@ -35,7 +36,7 @@ mod tests {
         let mut rx2 = bus.subscribe();
         assert_eq!(bus.subscriber_count(), 2);
 
-        bus.publish(InternalEvent::ConfigUpdated);
+        bus.publish(DomainEvent::ConfigUpdated);
 
         let event1 = rx1.try_recv();
         let event2 = rx2.try_recv();
@@ -44,18 +45,18 @@ mod tests {
     }
 
     #[test]
-    fn test_internal_event_session_id() {
-        let event = InternalEvent::SessionStarted("session-123".to_string());
+    fn test_domain_event_session_id() {
+        let event = DomainEvent::SessionStarted("session-123".to_string());
         assert_eq!(event.session_id(), Some("session-123"));
 
-        let event = InternalEvent::SessionForked {
+        let event = DomainEvent::SessionForked {
             original_id: "orig".to_string(),
             new_id: "new".to_string(),
             fork_point: 5,
         };
         assert_eq!(event.session_id(), Some("orig"));
 
-        let event = InternalEvent::ConfigUpdated;
+        let event = DomainEvent::ConfigUpdated;
         assert_eq!(event.session_id(), None);
     }
 
@@ -64,12 +65,12 @@ mod tests {
         let bus = EventBus::new();
         let mut rx = bus.subscribe();
 
-        bus.publish(InternalEvent::ServerStarted { port: 8080 });
+        bus.publish(DomainEvent::ServerStarted { port: 8080 });
 
         let event = rx.recv().await;
         assert!(event.is_ok());
         match event.unwrap() {
-            InternalEvent::ServerStarted { port } => assert_eq!(port, 8080),
+            DomainEvent::ServerStarted { port } => assert_eq!(port, 8080),
             _ => panic!("Expected ServerStarted event"),
         }
     }
@@ -78,15 +79,15 @@ mod tests {
     fn test_event_bus_late_subscriber() {
         let bus = EventBus::new();
 
-        bus.publish(InternalEvent::SessionEnded("session-1".to_string()));
+        bus.publish(DomainEvent::SessionEnded("session-1".to_string()));
 
         let mut rx = bus.subscribe();
-        bus.publish(InternalEvent::SessionEnded("session-2".to_string()));
+        bus.publish(DomainEvent::SessionEnded("session-2".to_string()));
 
         let event = rx.try_recv();
         assert!(event.is_ok());
         match event.unwrap() {
-            InternalEvent::SessionEnded(id) => assert_eq!(id, "session-2"),
+            DomainEvent::SessionEnded(id) => assert_eq!(id, "session-2"),
             _ => panic!("Expected SessionEnded event"),
         }
     }

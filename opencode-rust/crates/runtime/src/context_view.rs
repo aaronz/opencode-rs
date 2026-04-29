@@ -2,7 +2,7 @@ use opencode_core::context::{Context, ContextLayer};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct RuntimeContextSummary {
+pub struct RuntimeFacadeContextSummary {
     pub total_tokens: usize,
     pub max_tokens: usize,
     pub remaining_tokens: usize,
@@ -15,7 +15,7 @@ pub struct RuntimeContextSummary {
     pub layer_breakdown: Vec<(ContextLayer, usize)>,
 }
 
-impl RuntimeContextSummary {
+impl RuntimeFacadeContextSummary {
     pub fn from_context(context: &Context) -> Self {
         Self {
             total_tokens: context.budget.total_tokens,

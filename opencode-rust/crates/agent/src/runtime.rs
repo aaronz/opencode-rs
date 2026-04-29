@@ -3,7 +3,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use opencode_core::bus::{InternalEvent, SharedEventBus};
+use opencode_core::bus::SharedEventBus;
+use opencode_core::events::DomainEvent;
 use opencode_core::{Message, Session};
 use opencode_llm::provider::{EventCallback, LlmEvent};
 use opencode_llm::Provider;
@@ -343,7 +344,7 @@ impl AgentRuntime {
         tracing::info!(session_id = %session_id, agent = ?agent.agent_type(), max_iterations = self.config.max_iterations, "Starting agent run loop");
 
         if let Some(ref bus) = self.event_bus {
-            bus.publish(InternalEvent::AgentStarted {
+            bus.publish(DomainEvent::AgentStarted {
                 session_id: session_id.clone(),
                 agent: agent.name().to_string(),
             });
@@ -418,7 +419,7 @@ impl AgentRuntime {
                 tracing::debug!(session_id = %session_id, tool = %call.name, "Executing tool");
 
                 if let Some(ref bus) = self.event_bus {
-                    bus.publish(InternalEvent::ToolCallStarted {
+                    bus.publish(DomainEvent::ToolCallStarted {
                         session_id: session_id.clone(),
                         tool_name: call.name.clone(),
                         call_id: call.id.clone(),
@@ -437,7 +438,7 @@ impl AgentRuntime {
                     })?;
 
                 if let Some(ref bus) = self.event_bus {
-                    bus.publish(InternalEvent::ToolCallEnded {
+                    bus.publish(DomainEvent::ToolCallEnded {
                         session_id: session_id.clone(),
                         call_id: call.id.clone(),
                         success: result.success,
@@ -462,7 +463,7 @@ impl AgentRuntime {
         self.session.write().await.add_message(assistant_msg);
 
         if let Some(ref bus) = self.event_bus {
-            bus.publish(InternalEvent::AgentStopped {
+            bus.publish(DomainEvent::AgentStopped {
                 session_id: session_id.clone(),
                 agent: agent.name().to_string(),
             });
@@ -493,7 +494,7 @@ impl AgentRuntime {
         tracing::info!(session_id = %session_id, agent = ?agent.agent_type(), max_iterations = self.config.max_iterations, "Starting streaming agent run loop");
 
         if let Some(ref bus) = self.event_bus {
-            bus.publish(InternalEvent::AgentStarted {
+            bus.publish(DomainEvent::AgentStarted {
                 session_id: session_id.clone(),
                 agent: agent.name().to_string(),
             });
@@ -523,6 +524,9 @@ impl AgentRuntime {
             let cb_clone = content_buffer.clone();
             let tc_clone = tool_calls_buffer.clone();
             let ext_clone = ext_events_arc.clone();
+            let event_bus_clone = self.event_bus.clone();
+            let session_id_clone = session_id.clone();
+            let provider_name = provider.provider_name().to_string();
 
             let events_callback: EventCallback = Box::new(move |event| match event {
                 LlmEvent::TextChunk(text) => {
@@ -532,8 +536,14 @@ impl AgentRuntime {
                     if let Some(ref ext) = ext_clone {
                         if let Ok(mut guard) = ext.lock() {
                             let callback = &mut *guard;
-                            callback(LlmEvent::TextChunk(text));
+                            callback(LlmEvent::TextChunk(text.clone()));
                         }
+                    }
+                    if let Some(ref bus) = event_bus_clone {
+                        bus.publish(DomainEvent::LlmTokenStreamed {
+                            session_id: session_id_clone.clone(),
+                            delta: text,
+                        });
                     }
                 }
                 LlmEvent::ToolCall {
@@ -559,8 +569,30 @@ impl AgentRuntime {
                         }
                     }
                 }
+                LlmEvent::Error(e) => {
+                    if let Some(ref ext) = ext_clone {
+                        if let Ok(mut guard) = ext.lock() {
+                            let callback = &mut *guard;
+                            callback(LlmEvent::Error(e.clone()));
+                        }
+                    }
+                    if let Some(ref bus) = event_bus_clone {
+                        bus.publish(DomainEvent::LlmError {
+                            session_id: session_id_clone.clone(),
+                            error: e,
+                        });
+                    }
+                }
                 _ => {}
             });
+
+            if let Some(ref bus) = self.event_bus {
+                bus.publish(DomainEvent::LlmRequestStarted {
+                    session_id: session_id.clone(),
+                    provider: provider_name.clone(),
+                    model: "".to_string(),
+                });
+            }
 
             let llm_start = Instant::now();
             let result = agent
@@ -579,6 +611,13 @@ impl AgentRuntime {
                 llm_duration_ms = llm_duration.as_millis(),
                 "LLM streaming call completed"
             );
+
+            if let Some(ref bus) = self.event_bus {
+                bus.publish(DomainEvent::LlmResponseCompleted {
+                    session_id: session_id.clone(),
+                    total_tokens: None,
+                });
+            }
 
             result.map_err(|e| {
                 tracing::error!(session_id = %session_id, error = %e, "Agent run_streaming failed");
@@ -623,7 +662,7 @@ impl AgentRuntime {
                 tracing::debug!(session_id = %session_id, tool = %call.name, "Executing tool");
 
                 if let Some(ref bus) = self.event_bus {
-                    bus.publish(InternalEvent::ToolCallStarted {
+                    bus.publish(DomainEvent::ToolCallStarted {
                         session_id: session_id.clone(),
                         tool_name: call.name.clone(),
                         call_id: call.id.clone(),
@@ -642,7 +681,7 @@ impl AgentRuntime {
                     })?;
 
                 if let Some(ref bus) = self.event_bus {
-                    bus.publish(InternalEvent::ToolCallEnded {
+                    bus.publish(DomainEvent::ToolCallEnded {
                         session_id: session_id.clone(),
                         call_id: call.id.clone(),
                         success: result.success,
@@ -677,7 +716,7 @@ impl AgentRuntime {
         self.session.write().await.add_message(assistant_msg);
 
         if let Some(ref bus) = self.event_bus {
-            bus.publish(InternalEvent::AgentStopped {
+            bus.publish(DomainEvent::AgentStopped {
                 session_id: session_id.clone(),
                 agent: agent.name().to_string(),
             });

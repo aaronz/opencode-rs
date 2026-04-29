@@ -7,35 +7,39 @@ use opencode_permission::PermissionScope;
 use opencode_storage::StorageService;
 use tokio::sync::RwLock;
 
-use crate::checkpoint::RuntimeCheckpointStore;
-use crate::permission::RuntimePermissionAdapter;
-use crate::task_store::RuntimeTaskStore;
-use crate::tool_router::RuntimeToolRouter;
-use crate::trace_store::RuntimeTraceStore;
+use crate::checkpoint::RuntimeFacadeCheckpointStore;
+use crate::permission::RuntimeFacadePermissionAdapter;
+use crate::task_store::RuntimeFacadeTaskStore;
+use crate::tool_router::RuntimeFacadeToolRouter;
+use crate::trace_store::RuntimeFacadeTraceStore;
 
 #[derive(Clone)]
-pub struct RuntimeServices {
+pub struct RuntimeFacadeServices {
     pub event_bus: SharedEventBus,
     pub permission_manager: Arc<RwLock<PermissionManager>>,
     pub storage: Arc<StorageService>,
     pub agent_runtime: Arc<RwLock<AgentRuntime>>,
-    pub task_store: Arc<RuntimeTaskStore>,
-    pub tool_router: Arc<RuntimeToolRouter>,
-    pub permission_adapter: RuntimePermissionAdapter,
-    pub trace_store: Arc<RuntimeTraceStore>,
-    pub checkpoint_store: Arc<RuntimeCheckpointStore>,
+    pub task_store: Arc<RuntimeFacadeTaskStore>,
+    pub tool_router: Arc<RuntimeFacadeToolRouter>,
+    pub permission_adapter: RuntimeFacadePermissionAdapter,
+    pub trace_store: Arc<RuntimeFacadeTraceStore>,
+    pub checkpoint_store: Arc<RuntimeFacadeCheckpointStore>,
 }
 
-impl RuntimeServices {
+impl RuntimeFacadeServices {
+    pub fn agent_runtime(&self) -> Arc<RwLock<AgentRuntime>> {
+        Arc::clone(&self.agent_runtime)
+    }
+
     pub fn new(
         event_bus: SharedEventBus,
         permission_manager: Arc<RwLock<PermissionManager>>,
         storage: Arc<StorageService>,
         agent_runtime: Arc<RwLock<AgentRuntime>>,
-        task_store: Arc<RuntimeTaskStore>,
-        tool_router: Arc<RuntimeToolRouter>,
+        task_store: Arc<RuntimeFacadeTaskStore>,
+        tool_router: Arc<RuntimeFacadeToolRouter>,
     ) -> Self {
-        let permission_adapter = RuntimePermissionAdapter::new(
+        let permission_adapter = RuntimeFacadePermissionAdapter::new(
             Arc::clone(&permission_manager),
             Arc::new(RwLock::new(opencode_permission::ApprovalQueue::new(
                 PermissionScope::default(),
@@ -51,8 +55,8 @@ impl RuntimeServices {
             task_store,
             tool_router,
             permission_adapter,
-            trace_store: Arc::new(RuntimeTraceStore::new()),
-            checkpoint_store: Arc::new(RuntimeCheckpointStore::new()),
+            trace_store: Arc::new(RuntimeFacadeTraceStore::new()),
+            checkpoint_store: Arc::new(RuntimeFacadeCheckpointStore::new()),
         }
     }
 }

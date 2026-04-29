@@ -17,7 +17,7 @@ pub struct TokenUsageSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuntimeTrace {
+pub struct RuntimeFacadeTrace {
     pub id: TraceId,
     pub session_id: Uuid,
     pub turn_id: Option<Uuid>,
@@ -33,7 +33,7 @@ pub struct RuntimeTrace {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuntimeTraceSummary {
+pub struct RuntimeFacadeTraceSummary {
     pub id: TraceId,
     pub session_id: Uuid,
     pub turn_id: Option<Uuid>,
@@ -44,8 +44,8 @@ pub struct RuntimeTraceSummary {
     pub error: Option<String>,
 }
 
-impl From<&RuntimeTrace> for RuntimeTraceSummary {
-    fn from(trace: &RuntimeTrace) -> Self {
+impl From<&RuntimeFacadeTrace> for RuntimeFacadeTraceSummary {
+    fn from(trace: &RuntimeFacadeTrace) -> Self {
         Self {
             id: trace.id,
             session_id: trace.session_id,
@@ -60,12 +60,12 @@ impl From<&RuntimeTrace> for RuntimeTraceSummary {
 }
 
 #[derive(Default, Clone)]
-pub struct RuntimeTraceStore {
-    traces: Arc<RwLock<HashMap<TraceId, RuntimeTrace>>>,
+pub struct RuntimeFacadeTraceStore {
+    traces: Arc<RwLock<HashMap<TraceId, RuntimeFacadeTrace>>>,
     by_session: Arc<RwLock<HashMap<Uuid, Vec<TraceId>>>>,
 }
 
-impl RuntimeTraceStore {
+impl RuntimeFacadeTraceStore {
     pub fn new() -> Self {
         Self::default()
     }
@@ -77,7 +77,7 @@ impl RuntimeTraceStore {
         task_id: Option<Uuid>,
     ) -> Result<TraceId, RuntimeFacadeError> {
         let trace_id = TraceId::new();
-        let trace = RuntimeTrace {
+        let trace = RuntimeFacadeTrace {
             id: trace_id,
             session_id,
             turn_id,
@@ -134,16 +134,16 @@ impl RuntimeTraceStore {
     pub async fn list_session_traces(
         &self,
         session_id: &Uuid,
-    ) -> Result<Vec<RuntimeTraceSummary>, RuntimeFacadeError> {
+    ) -> Result<Vec<RuntimeFacadeTraceSummary>, RuntimeFacadeError> {
         let by_session = self.by_session.read().await;
         let trace_ids = by_session.get(session_id).cloned().unwrap_or_default();
         drop(by_session);
 
         let traces = self.traces.read().await;
-        let summaries: Vec<RuntimeTraceSummary> = trace_ids
+        let summaries: Vec<RuntimeFacadeTraceSummary> = trace_ids
             .iter()
             .filter_map(|id| traces.get(id))
-            .map(RuntimeTraceSummary::from)
+            .map(RuntimeFacadeTraceSummary::from)
             .collect();
 
         Ok(summaries)
@@ -152,7 +152,7 @@ impl RuntimeTraceStore {
     pub async fn get_trace(
         &self,
         trace_id: &TraceId,
-    ) -> Result<Option<RuntimeTrace>, RuntimeFacadeError> {
+    ) -> Result<Option<RuntimeFacadeTrace>, RuntimeFacadeError> {
         let traces = self.traces.read().await;
         Ok(traces.get(trace_id).cloned())
     }

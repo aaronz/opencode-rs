@@ -175,7 +175,7 @@ async fn test_ws_agent_streaming_connects_successfully() {
 
 #[tokio::test]
 async fn test_ws_agent_streaming_tool_events_broadcast() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::events::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -201,7 +201,7 @@ async fn test_ws_agent_streaming_tool_events_broadcast() {
     );
 
     let event_bus = &state_data.event_bus;
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "test-agent-session".to_string(),
         tool_name: "read".to_string(),
         call_id: "call-agent-123".to_string(),
@@ -236,7 +236,7 @@ async fn test_ws_agent_streaming_tool_events_broadcast() {
         "Call ID should match"
     );
 
-    event_bus.publish(InternalEvent::ToolCallEnded {
+    event_bus.publish(DomainEvent::ToolCallEnded {
         session_id: "test-agent-session".to_string(),
         call_id: "call-agent-123".to_string(),
         success: true,
@@ -267,7 +267,7 @@ async fn test_ws_agent_streaming_tool_events_broadcast() {
 
 #[tokio::test]
 async fn test_ws_agent_streaming_multiple_concurrent_connections() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::events::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -330,7 +330,7 @@ async fn test_ws_agent_streaming_multiple_concurrent_connections() {
 
     let event_bus = &state_data.event_bus;
 
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "test-multi-conn-session".to_string(),
         tool_name: "read".to_string(),
         call_id: "call-multi-conn-123".to_string(),
@@ -372,7 +372,7 @@ async fn test_ws_agent_streaming_multiple_concurrent_connections() {
         "Second client session ID should match"
     );
 
-    event_bus.publish(InternalEvent::AgentStatusChanged {
+    event_bus.publish(DomainEvent::AgentStatusChanged {
         session_id: "test-multi-conn-session".to_string(),
         status: "processing".to_string(),
     });
@@ -504,7 +504,7 @@ async fn test_ws_agent_streaming_session_hub_broadcast() {
 
 #[tokio::test]
 async fn test_ws_agent_streaming_event_emitter_integration() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::events::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -519,7 +519,7 @@ async fn test_ws_agent_streaming_event_emitter_integration() {
 
     let event_bus = &state_data.event_bus;
 
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "test-emitter-session".to_string(),
         tool_name: "grep".to_string(),
         call_id: "call-emitter-456".to_string(),

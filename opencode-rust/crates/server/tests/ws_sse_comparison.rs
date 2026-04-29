@@ -1,4 +1,4 @@
-use opencode_core::bus::InternalEvent;
+use opencode_core::events::DomainEvent;
 use opencode_server::routes::ws::SessionHub;
 use opencode_server::streaming::{ReconnectionStore, StreamMessage};
 
@@ -139,7 +139,7 @@ async fn test_event_bus_integration_works_for_both_protocols() {
 
     let event_bus = SharedEventBus::default();
 
-    let tool_started = InternalEvent::ToolCallStarted {
+    let tool_started = DomainEvent::ToolCallStarted {
         session_id: "shared-event-session".to_string(),
         tool_name: "grep".to_string(),
         call_id: "call-shared".to_string(),

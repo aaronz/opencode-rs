@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod shell_system_tests {
-    use opencode_core::bus::{EventBus, InternalEvent};
+    use opencode_core::bus::EventBus;
+    use opencode_core::events::DomainEvent;
     use opencode_core::pty::PtySession;
     use opencode_core::shell::Shell;
     use opencode_core::sync::{SyncManager, SyncStatus};
@@ -11,9 +12,9 @@ mod shell_system_tests {
         let bus = EventBus::new();
         let mut rx = bus.subscribe();
 
-        bus.publish(InternalEvent::SessionStarted("test-session".to_string()));
+        bus.publish(DomainEvent::SessionStarted("test-session".to_string()));
         let event = rx.try_recv().unwrap();
-        assert!(matches!(event, InternalEvent::SessionStarted(id) if id == "test-session"));
+        assert!(matches!(event, DomainEvent::SessionStarted(id) if id == "test-session"));
     }
 
     #[test]
@@ -21,7 +22,7 @@ mod shell_system_tests {
         let bus = EventBus::new();
         let _rx = bus.subscribe();
 
-        bus.publish(InternalEvent::ConfigUpdated);
+        bus.publish(DomainEvent::ConfigUpdated);
         assert_eq!(bus.subscriber_count(), 1);
     }
 
@@ -42,19 +43,19 @@ mod shell_system_tests {
         let bus = EventBus::new();
         let mut rx = bus.subscribe();
 
-        bus.publish(InternalEvent::SessionStarted("s1".to_string()));
-        bus.publish(InternalEvent::SessionEnded("s1".to_string()));
-        bus.publish(InternalEvent::SessionForked {
+        bus.publish(DomainEvent::SessionStarted("s1".to_string()));
+        bus.publish(DomainEvent::SessionEnded("s1".to_string()));
+        bus.publish(DomainEvent::SessionForked {
             original_id: "orig".to_string(),
             new_id: "new".to_string(),
             fork_point: 5,
         });
 
-        assert!(matches!(rx.try_recv().unwrap(), InternalEvent::SessionStarted(id) if id == "s1"));
-        assert!(matches!(rx.try_recv().unwrap(), InternalEvent::SessionEnded(id) if id == "s1"));
+        assert!(matches!(rx.try_recv().unwrap(), DomainEvent::SessionStarted(id) if id == "s1"));
+        assert!(matches!(rx.try_recv().unwrap(), DomainEvent::SessionEnded(id) if id == "s1"));
         assert!(matches!(
             rx.try_recv().unwrap(),
-            InternalEvent::SessionForked { .. }
+            DomainEvent::SessionForked { .. }
         ));
     }
 
@@ -63,12 +64,12 @@ mod shell_system_tests {
         let bus = EventBus::new();
         let mut rx = bus.subscribe();
 
-        bus.publish(InternalEvent::ToolCallStarted {
+        bus.publish(DomainEvent::ToolCallStarted {
             session_id: "s1".to_string(),
             tool_name: "read".to_string(),
             call_id: "c1".to_string(),
         });
-        bus.publish(InternalEvent::ToolCallEnded {
+        bus.publish(DomainEvent::ToolCallEnded {
             session_id: "s1".to_string(),
             call_id: "c1".to_string(),
             success: true,
@@ -76,11 +77,11 @@ mod shell_system_tests {
 
         assert!(matches!(
             rx.try_recv().unwrap(),
-            InternalEvent::ToolCallStarted { .. }
+            DomainEvent::ToolCallStarted { .. }
         ));
         assert!(matches!(
             rx.try_recv().unwrap(),
-            InternalEvent::ToolCallEnded { .. }
+            DomainEvent::ToolCallEnded { .. }
         ));
     }
 
@@ -89,9 +90,9 @@ mod shell_system_tests {
         let bus = EventBus::new();
         let mut rx = bus.subscribe();
 
-        bus.publish(InternalEvent::ServerStarted { port: 8080 });
+        bus.publish(DomainEvent::ServerStarted { port: 8080 });
         let event = rx.recv().await.unwrap();
-        assert!(matches!(event, InternalEvent::ServerStarted { port: 8080 }));
+        assert!(matches!(event, DomainEvent::ServerStarted { port: 8080 }));
     }
 
     #[test]
@@ -99,13 +100,13 @@ mod shell_system_tests {
         let bus = EventBus::new();
         let mut rx = bus.subscribe();
 
-        bus.publish(InternalEvent::Error {
+        bus.publish(DomainEvent::Error {
             source: "test".to_string(),
             message: "test error".to_string(),
         });
 
         let event = rx.try_recv().unwrap();
-        assert!(matches!(event, InternalEvent::Error { source, message }
+        assert!(matches!(event, DomainEvent::Error { source, message }
             if source == "test" && message == "test error"));
     }
 
@@ -215,41 +216,41 @@ mod shell_system_tests {
         let mut rx1 = bus.subscribe();
         let mut rx2 = bus.subscribe();
 
-        bus.publish(InternalEvent::ConfigUpdated);
+        bus.publish(DomainEvent::ConfigUpdated);
 
         let event1 = rx1.try_recv().unwrap();
         let event2 = rx2.try_recv().unwrap();
-        assert!(matches!(event1, InternalEvent::ConfigUpdated));
-        assert!(matches!(event2, InternalEvent::ConfigUpdated));
+        assert!(matches!(event1, DomainEvent::ConfigUpdated));
+        assert!(matches!(event2, DomainEvent::ConfigUpdated));
     }
 
     #[test]
     fn test_bus_late_subscriber_misses_early_events() {
         let bus = EventBus::new();
 
-        bus.publish(InternalEvent::SessionEnded("session-1".to_string()));
+        bus.publish(DomainEvent::SessionEnded("session-1".to_string()));
 
         let mut rx = bus.subscribe();
-        bus.publish(InternalEvent::SessionEnded("session-2".to_string()));
+        bus.publish(DomainEvent::SessionEnded("session-2".to_string()));
 
         assert!(
-            matches!(rx.try_recv().unwrap(), InternalEvent::SessionEnded(id) if id == "session-2")
+            matches!(rx.try_recv().unwrap(), DomainEvent::SessionEnded(id) if id == "session-2")
         );
     }
 
     #[test]
     fn test_internal_event_session_id_extraction() {
-        let event = InternalEvent::SessionStarted("session-123".to_string());
+        let event = DomainEvent::SessionStarted("session-123".to_string());
         assert_eq!(event.session_id(), Some("session-123"));
 
-        let event = InternalEvent::SessionForked {
+        let event = DomainEvent::SessionForked {
             original_id: "orig".to_string(),
             new_id: "new".to_string(),
             fork_point: 5,
         };
         assert_eq!(event.session_id(), Some("orig"));
 
-        let event = InternalEvent::ConfigUpdated;
+        let event = DomainEvent::ConfigUpdated;
         assert_eq!(event.session_id(), None);
     }
 
@@ -258,22 +259,22 @@ mod shell_system_tests {
         let bus = EventBus::new();
         let mut rx = bus.subscribe();
 
-        bus.publish(InternalEvent::PermissionGranted {
+        bus.publish(DomainEvent::PermissionGranted {
             user_id: "user1".to_string(),
             permission: "file:read".to_string(),
         });
-        bus.publish(InternalEvent::PermissionDenied {
+        bus.publish(DomainEvent::PermissionDenied {
             user_id: "user1".to_string(),
             permission: "file:write".to_string(),
         });
 
         assert!(matches!(
             rx.try_recv().unwrap(),
-            InternalEvent::PermissionGranted { .. }
+            DomainEvent::PermissionGranted { .. }
         ));
         assert!(matches!(
             rx.try_recv().unwrap(),
-            InternalEvent::PermissionDenied { .. }
+            DomainEvent::PermissionDenied { .. }
         ));
     }
 
@@ -282,30 +283,30 @@ mod shell_system_tests {
         let bus = EventBus::new();
         let mut rx = bus.subscribe();
 
-        bus.publish(InternalEvent::AgentStarted {
+        bus.publish(DomainEvent::AgentStarted {
             session_id: "s1".to_string(),
             agent: "test-agent".to_string(),
         });
-        bus.publish(InternalEvent::AgentStopped {
+        bus.publish(DomainEvent::AgentStopped {
             session_id: "s1".to_string(),
             agent: "test-agent".to_string(),
         });
-        bus.publish(InternalEvent::AgentStatusChanged {
+        bus.publish(DomainEvent::AgentStatusChanged {
             session_id: "s1".to_string(),
             status: "running".to_string(),
         });
 
         assert!(matches!(
             rx.try_recv().unwrap(),
-            InternalEvent::AgentStarted { .. }
+            DomainEvent::AgentStarted { .. }
         ));
         assert!(matches!(
             rx.try_recv().unwrap(),
-            InternalEvent::AgentStopped { .. }
+            DomainEvent::AgentStopped { .. }
         ));
         assert!(matches!(
             rx.try_recv().unwrap(),
-            InternalEvent::AgentStatusChanged { .. }
+            DomainEvent::AgentStatusChanged { .. }
         ));
     }
 }

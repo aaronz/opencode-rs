@@ -578,29 +578,29 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_stream_message_from_internal_event() {
+    async fn test_stream_message_from_domain_event() {
         use crate::streaming::StreamMessage;
-        use opencode_core::bus::InternalEvent;
+        use opencode_core::events::DomainEvent;
 
         // Test MessageAdded event conversion
-        let event = InternalEvent::MessageAdded {
+        let event = DomainEvent::MessageAdded {
             session_id: "evt-session".to_string(),
             message_id: "msg-1".to_string(),
         };
 
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
 
         let msg = msg.unwrap();
         assert_eq!(msg.session_id(), Some("evt-session"));
 
         // Test AgentStatusChanged event
-        let event = InternalEvent::AgentStatusChanged {
+        let event = DomainEvent::AgentStatusChanged {
             session_id: "evt-session-2".to_string(),
             status: "running".to_string(),
         };
 
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
 
         match msg.unwrap() {

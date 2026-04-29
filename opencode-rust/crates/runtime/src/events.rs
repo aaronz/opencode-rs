@@ -1,8 +1,8 @@
-use opencode_core::bus::InternalEvent;
+use opencode_core::events::DomainEvent;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum RuntimeEvent {
+pub enum RuntimeFacadeEvent {
     SessionStarted {
         session_id: String,
     },
@@ -68,32 +68,73 @@ pub enum RuntimeEvent {
         turn_id: String,
         task_id: String,
     },
+    LlmRequestStarted {
+        session_id: String,
+        provider: String,
+        model: String,
+    },
+    LlmTokenStreamed {
+        session_id: String,
+        delta: String,
+    },
+    LlmResponseCompleted {
+        session_id: String,
+        total_tokens: Option<u64>,
+    },
+    LlmError {
+        session_id: String,
+        error: String,
+    },
 }
 
-impl RuntimeEvent {
-    pub fn from_internal_event(event: &InternalEvent) -> Option<Self> {
+impl RuntimeFacadeEvent {
+    /// Extract the `session_id` from this event, if present.
+    pub fn session_id(&self) -> Option<&str> {
+        match self {
+            Self::SessionStarted { session_id }
+            | Self::SessionEnded { session_id }
+            | Self::MessageAdded { session_id, .. }
+            | Self::MessageUpdated { session_id, .. }
+            | Self::ToolCallStarted { session_id, .. }
+            | Self::ToolCallEnded { session_id, .. }
+            | Self::ToolCallOutput { session_id, .. }
+            | Self::AgentStatusChanged { session_id, .. }
+            | Self::TaskStarted { session_id, .. }
+            | Self::TaskProgress { session_id, .. }
+            | Self::TaskCompleted { session_id, .. }
+            | Self::TaskFailed { session_id, .. }
+            | Self::TaskCancelled { session_id, .. }
+            | Self::LlmRequestStarted { session_id, .. }
+            | Self::LlmTokenStreamed { session_id, .. }
+            | Self::LlmResponseCompleted { session_id, .. }
+            | Self::LlmError { session_id, .. } => Some(session_id),
+            Self::Error { .. } => None,
+        }
+    }
+
+    pub fn from_domain_event(event: &DomainEvent) -> Option<Self> {
         match event {
-            InternalEvent::SessionStarted(session_id) => Some(Self::SessionStarted {
+            DomainEvent::SessionStarted(session_id) => Some(Self::SessionStarted {
                 session_id: session_id.clone(),
             }),
-            InternalEvent::SessionEnded(session_id) => Some(Self::SessionEnded {
+            DomainEvent::SessionEnded(session_id) => Some(Self::SessionEnded {
                 session_id: session_id.clone(),
             }),
-            InternalEvent::MessageAdded {
+            DomainEvent::MessageAdded {
                 session_id,
                 message_id,
             } => Some(Self::MessageAdded {
                 session_id: session_id.clone(),
                 message_id: message_id.clone(),
             }),
-            InternalEvent::MessageUpdated {
+            DomainEvent::MessageUpdated {
                 session_id,
                 message_id,
             } => Some(Self::MessageUpdated {
                 session_id: session_id.clone(),
                 message_id: message_id.clone(),
             }),
-            InternalEvent::ToolCallStarted {
+            DomainEvent::ToolCallStarted {
                 session_id,
                 tool_name,
                 call_id,
@@ -102,7 +143,7 @@ impl RuntimeEvent {
                 tool_name: tool_name.clone(),
                 call_id: call_id.clone(),
             }),
-            InternalEvent::ToolCallEnded {
+            DomainEvent::ToolCallEnded {
                 session_id,
                 call_id,
                 success,
@@ -111,7 +152,7 @@ impl RuntimeEvent {
                 call_id: call_id.clone(),
                 success: *success,
             }),
-            InternalEvent::ToolCallOutput {
+            DomainEvent::ToolCallOutput {
                 session_id,
                 call_id,
                 output,
@@ -120,17 +161,17 @@ impl RuntimeEvent {
                 call_id: call_id.clone(),
                 output: output.clone(),
             }),
-            InternalEvent::AgentStatusChanged { session_id, status } => {
+            DomainEvent::AgentStatusChanged { session_id, status } => {
                 Some(Self::AgentStatusChanged {
                     session_id: session_id.clone(),
                     status: status.clone(),
                 })
             }
-            InternalEvent::Error { source, message } => Some(Self::Error {
+            DomainEvent::Error { source, message } => Some(Self::Error {
                 source: source.clone(),
                 message: message.clone(),
             }),
-            InternalEvent::TaskStarted {
+            DomainEvent::TaskStarted {
                 session_id,
                 turn_id,
                 task_id,
@@ -141,7 +182,7 @@ impl RuntimeEvent {
                 task_id: task_id.clone(),
                 task_kind: task_kind.clone(),
             }),
-            InternalEvent::TaskProgress {
+            DomainEvent::TaskProgress {
                 session_id,
                 turn_id,
                 task_id,
@@ -152,7 +193,7 @@ impl RuntimeEvent {
                 task_id: task_id.clone(),
                 message: message.clone(),
             }),
-            InternalEvent::TaskCompleted {
+            DomainEvent::TaskCompleted {
                 session_id,
                 turn_id,
                 task_id,
@@ -161,7 +202,7 @@ impl RuntimeEvent {
                 turn_id: turn_id.clone(),
                 task_id: task_id.clone(),
             }),
-            InternalEvent::TaskFailed {
+            DomainEvent::TaskFailed {
                 session_id,
                 turn_id,
                 task_id,
@@ -172,7 +213,7 @@ impl RuntimeEvent {
                 task_id: task_id.clone(),
                 error: error.clone(),
             }),
-            InternalEvent::TaskCancelled {
+            DomainEvent::TaskCancelled {
                 session_id,
                 turn_id,
                 task_id,
@@ -181,112 +222,39 @@ impl RuntimeEvent {
                 turn_id: turn_id.clone(),
                 task_id: task_id.clone(),
             }),
+            DomainEvent::LlmRequestStarted {
+                session_id,
+                provider,
+                model,
+            } => Some(Self::LlmRequestStarted {
+                session_id: session_id.clone(),
+                provider: provider.clone(),
+                model: model.clone(),
+            }),
+            DomainEvent::LlmTokenStreamed { session_id, delta } => Some(Self::LlmTokenStreamed {
+                session_id: session_id.clone(),
+                delta: delta.clone(),
+            }),
+            DomainEvent::LlmResponseCompleted {
+                session_id,
+                total_tokens,
+            } => Some(Self::LlmResponseCompleted {
+                session_id: session_id.clone(),
+                total_tokens: *total_tokens,
+            }),
+            DomainEvent::LlmError {
+                session_id,
+                error,
+            } => Some(Self::LlmError {
+                session_id: session_id.clone(),
+                error: error.clone(),
+            }),
             _ => None,
         }
     }
-}
 
-impl From<RuntimeEvent> for InternalEvent {
-    fn from(event: RuntimeEvent) -> Self {
-        match event {
-            RuntimeEvent::SessionStarted { session_id } => Self::SessionStarted(session_id),
-            RuntimeEvent::SessionEnded { session_id } => Self::SessionEnded(session_id),
-            RuntimeEvent::MessageAdded {
-                session_id,
-                message_id,
-            } => Self::MessageAdded {
-                session_id,
-                message_id,
-            },
-            RuntimeEvent::MessageUpdated {
-                session_id,
-                message_id,
-            } => Self::MessageUpdated {
-                session_id,
-                message_id,
-            },
-            RuntimeEvent::ToolCallStarted {
-                session_id,
-                tool_name,
-                call_id,
-            } => Self::ToolCallStarted {
-                session_id,
-                tool_name,
-                call_id,
-            },
-            RuntimeEvent::ToolCallEnded {
-                session_id,
-                call_id,
-                success,
-            } => Self::ToolCallEnded {
-                session_id,
-                call_id,
-                success,
-            },
-            RuntimeEvent::ToolCallOutput {
-                session_id,
-                call_id,
-                output,
-            } => Self::ToolCallOutput {
-                session_id,
-                call_id,
-                output,
-            },
-            RuntimeEvent::AgentStatusChanged { session_id, status } => {
-                Self::AgentStatusChanged { session_id, status }
-            }
-            RuntimeEvent::Error { source, message } => Self::Error { source, message },
-            RuntimeEvent::TaskStarted {
-                session_id,
-                turn_id,
-                task_id,
-                task_kind,
-            } => Self::TaskStarted {
-                session_id,
-                turn_id,
-                task_id,
-                task_kind,
-            },
-            RuntimeEvent::TaskProgress {
-                session_id,
-                turn_id,
-                task_id,
-                message,
-            } => Self::TaskProgress {
-                session_id,
-                turn_id,
-                task_id,
-                message,
-            },
-            RuntimeEvent::TaskCompleted {
-                session_id,
-                turn_id,
-                task_id,
-            } => Self::TaskCompleted {
-                session_id,
-                turn_id,
-                task_id,
-            },
-            RuntimeEvent::TaskFailed {
-                session_id,
-                turn_id,
-                task_id,
-                error,
-            } => Self::TaskFailed {
-                session_id,
-                turn_id,
-                task_id,
-                error,
-            },
-            RuntimeEvent::TaskCancelled {
-                session_id,
-                turn_id,
-                task_id,
-            } => Self::TaskCancelled {
-                session_id,
-                turn_id,
-                task_id,
-            },
-        }
+    #[deprecated(since = "0.1.0", note = "use from_domain_event instead")]
+    pub fn from_internal_event(event: &DomainEvent) -> Option<Self> {
+        Self::from_domain_event(event)
     }
 }

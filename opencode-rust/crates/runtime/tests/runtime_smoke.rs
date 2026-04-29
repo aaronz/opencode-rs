@@ -6,21 +6,21 @@ use tokio::sync::RwLock;
 use opencode_agent::{AgentRuntime, AgentType};
 use opencode_core::{
     bus::EventBus,
-    bus::InternalEvent,
+    events::DomainEvent,
     context::{Context, ContextBudget, ContextItem, ContextLayer, LayerBudgets, TruncationReport},
     permission::PermissionManager,
     Session,
 };
 use opencode_runtime::{
-    Runtime, RuntimeCommand, RuntimeContextSummary, RuntimeEvent, RuntimeFacadeError,
-    RuntimePermissionAdapter, RuntimePermissionDecision, RuntimeServices, RuntimeSessionStore,
-    RuntimeStatus, RuntimeTaskStore, RuntimeToolRouter, SubmitUserInput, TaskControlCommand,
+    RuntimeFacade, RuntimeFacadeCommand, RuntimeFacadeContextSummary, RuntimeFacadeEvent, RuntimeFacadeError,
+    RuntimeFacadePermissionAdapter, RuntimeFacadePermissionDecision, RuntimeFacadeServices, RuntimeFacadeSessionStore,
+    RuntimeFacadeStatus, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter, SubmitUserInput, TaskControlCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
 };
 
-fn build_runtime() -> (Runtime, Arc<StorageService>) {
+fn build_runtime() -> (RuntimeFacade, Arc<StorageService>) {
     let event_bus = Arc::new(EventBus::new());
     let permission_manager = Arc::new(RwLock::new(PermissionManager::default()));
     let session_repo = Arc::new(InMemorySessionRepository::default());
@@ -37,13 +37,13 @@ fn build_runtime() -> (Runtime, Arc<StorageService>) {
     std::mem::forget(temp_dir);
 
     (
-        Runtime::new(RuntimeServices::new(
+        RuntimeFacade::new(RuntimeFacadeServices::new(
             event_bus,
             permission_manager,
             storage.clone(),
             agent_runtime,
-            Arc::new(RuntimeTaskStore::new()),
-            Arc::new(RuntimeToolRouter::new(opencode_tools::ToolRegistry::new())),
+            Arc::new(RuntimeFacadeTaskStore::new()),
+            Arc::new(RuntimeFacadeToolRouter::new(opencode_tools::ToolRegistry::new())),
         )),
         storage,
     )
@@ -52,14 +52,14 @@ fn build_runtime() -> (Runtime, Arc<StorageService>) {
 #[tokio::test]
 async fn runtime_constructs_and_reports_idle_status() {
     let (runtime, _) = build_runtime();
-    assert_eq!(runtime.status().await, RuntimeStatus::Idle);
+    assert_eq!(runtime.status().await, RuntimeFacadeStatus::Idle);
 }
 
 #[tokio::test]
 async fn runtime_accepts_submit_command_shape() {
     let (runtime, _) = build_runtime();
     let result = runtime
-        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+        .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: None,
             input: "hello".to_string(),
         }))
@@ -75,7 +75,7 @@ async fn runtime_accepts_submit_command_shape() {
 async fn runtime_task_control_cancel_nonexistent_returns_error() {
     let (runtime, _) = build_runtime();
     let result = runtime
-        .execute(RuntimeCommand::TaskControl(TaskControlCommand::Cancel {
+        .execute(RuntimeFacadeCommand::TaskControl(TaskControlCommand::Cancel {
             task_id: "00000000-0000-0000-0000-000000000001".to_string(),
         }))
         .await;
@@ -85,16 +85,16 @@ async fn runtime_task_control_cancel_nonexistent_returns_error() {
 
 #[test]
 fn runtime_event_converts_from_internal_message_added() {
-    let event = InternalEvent::MessageAdded {
+    let event = DomainEvent::MessageAdded {
         session_id: "session-1".to_string(),
         message_id: "message-1".to_string(),
     };
 
-    let converted = RuntimeEvent::from_internal_event(&event).expect("runtime event expected");
+    let converted = RuntimeFacadeEvent::from_internal_event(&event).expect("runtime event expected");
 
     assert!(matches!(
         converted,
-        RuntimeEvent::MessageAdded {
+        RuntimeFacadeEvent::MessageAdded {
             session_id,
             message_id,
         } if session_id == "session-1" && message_id == "message-1"
@@ -103,33 +103,35 @@ fn runtime_event_converts_from_internal_message_added() {
 
 #[test]
 fn runtime_event_ignores_unhandled_internal_variants() {
-    let event = InternalEvent::AgentStarted {
+    let event = DomainEvent::AgentStarted {
         session_id: "session-1".to_string(),
         agent: "build".to_string(),
     };
 
-    assert!(RuntimeEvent::from_internal_event(&event).is_none());
+    assert!(RuntimeFacadeEvent::from_internal_event(&event).is_none());
 }
 
-#[test]
-fn runtime_permission_adapter_allows_granted_permissions() {
-    let adapter = RuntimePermissionAdapter::default();
+#[tokio::test]
+async fn runtime_permission_adapter_allows_granted_permissions() {
+    let adapter = RuntimeFacadePermissionAdapter::default();
 
-    let decision = adapter.check(
-        opencode_core::permission::Permission::FileRead,
-        "src/lib.rs",
-    );
+    let decision = adapter
+        .check(
+            opencode_core::permission::Permission::FileRead,
+            "src/lib.rs",
+        )
+        .await;
 
-    assert_eq!(decision, RuntimePermissionDecision::Allow);
+    assert_eq!(decision, RuntimeFacadePermissionDecision::Allow);
 }
 
-#[test]
-fn runtime_permission_adapter_denies_blocked_patterns() {
+#[tokio::test]
+async fn runtime_permission_adapter_denies_blocked_patterns() {
     use opencode_core::permission::{Permission, PermissionConfig, PermissionManager};
 
     let mut config = PermissionConfig::default();
     config.always_denied.push(".env".to_string());
-    let adapter = RuntimePermissionAdapter::new(
+    let adapter = RuntimeFacadePermissionAdapter::new(
         Arc::new(RwLock::new(PermissionManager::new(config))),
         Arc::new(RwLock::new(opencode_permission::ApprovalQueue::new(
             PermissionScope::default(),
@@ -137,15 +139,15 @@ fn runtime_permission_adapter_denies_blocked_patterns() {
         None,
     );
 
-    let decision = adapter.check(Permission::FileRead, ".env");
+    let decision = adapter.check(Permission::FileRead, ".env").await;
 
-    assert_eq!(decision, RuntimePermissionDecision::Deny);
+    assert_eq!(decision, RuntimeFacadePermissionDecision::Deny);
 }
 
 #[tokio::test]
 async fn runtime_session_store_round_trips_session() {
     let (_, storage) = build_runtime();
-    let store = RuntimeSessionStore::new(storage.clone());
+    let store = RuntimeFacadeSessionStore::new(storage.clone());
     let session = Session::default();
     let session_id = session.id.to_string();
 
@@ -166,7 +168,7 @@ async fn runtime_session_store_round_trips_session() {
 #[tokio::test]
 async fn runtime_session_store_returns_none_for_missing_session() {
     let (_, storage) = build_runtime();
-    let store = RuntimeSessionStore::new(storage);
+    let store = RuntimeFacadeSessionStore::new(storage);
 
     let loaded = store
         .load_session("00000000-0000-0000-0000-000000000000")
@@ -204,7 +206,7 @@ fn runtime_context_summary_reports_budget_and_counts() {
         provenance: vec![],
     };
 
-    let summary = RuntimeContextSummary::from_context(&context);
+    let summary = RuntimeFacadeContextSummary::from_context(&context);
 
     assert_eq!(summary.total_tokens, 5);
     assert_eq!(summary.remaining_tokens, 95);
@@ -253,7 +255,7 @@ fn runtime_context_summary_preserves_layer_breakdown() {
         provenance: vec![],
     };
 
-    let summary = RuntimeContextSummary::from_context(&context);
+    let summary = RuntimeFacadeContextSummary::from_context(&context);
 
     assert_eq!(summary.layer_breakdown.len(), 2);
     assert_eq!(summary.layer_breakdown[0].1, 5);
@@ -271,7 +273,7 @@ async fn runtime_submit_with_session_id_persists_turn_to_storage() {
         .expect("session should save before runtime submit");
 
     let result = runtime
-        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+        .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: Some(session_id.clone()),
             input: "hello".to_string(),
         }))
@@ -294,10 +296,10 @@ async fn runtime_submit_with_session_id_persists_turn_to_storage() {
 }
 
 #[tokio::test]
-async fn runtime_submit_creates_task() {
+async fn runtime_submit_completes_task() {
     let (runtime, _) = build_runtime();
     let result = runtime
-        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+        .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: None,
             input: "fix the bug".to_string(),
         }))
@@ -306,42 +308,71 @@ async fn runtime_submit_creates_task() {
 
     assert!(result.accepted);
     let task_count = runtime.task_store().active_count().await;
-    assert_eq!(task_count, 1, "one active task should exist after submit");
+    assert_eq!(
+        task_count, 0,
+        "submit tasks should be completed immediately"
+    );
+
+    let session_id = uuid::Uuid::parse_str(
+        result
+            .session_id
+            .as_deref()
+            .expect("submit should include a session id"),
+    )
+    .expect("session id should be valid");
+    let tasks = runtime.task_store().list_tasks_by_session(session_id).await;
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(
+        tasks[0].status,
+        opencode_runtime::RuntimeFacadeTaskStatus::Completed
+    );
 }
 
 #[tokio::test]
 async fn runtime_task_cancel_requests_cancellation() {
     let (runtime, _) = build_runtime();
-    let result = runtime
-        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
-            session_id: None,
-            input: "do work".to_string(),
-        }))
-        .await
-        .expect("submit should succeed");
-
-    let task_id = runtime.task_store().list_active_tasks().await[0]
-        .id
-        .0
-        .to_string();
+    let task = opencode_runtime::RuntimeFacadeTask::new(
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+        opencode_runtime::TaskKind::Agent,
+        "do work".to_string(),
+        None,
+    );
+    let task_id = task.id.0.to_string();
+    let session_id = task.session_id.to_string();
+    let turn_id = task.turn_id.to_string();
+    runtime.task_store().add_task(task).await;
 
     let cancel_result = runtime
-        .execute(RuntimeCommand::TaskControl(TaskControlCommand::Cancel {
+        .execute(RuntimeFacadeCommand::TaskControl(TaskControlCommand::Cancel {
             task_id: task_id.clone(),
         }))
         .await
         .expect("cancel should succeed");
 
     assert!(cancel_result.accepted);
-    assert_eq!(cancel_result.session_id, result.session_id);
-    assert_eq!(cancel_result.turn_id, result.turn_id);
+    assert_eq!(
+        cancel_result.session_id.as_deref(),
+        Some(session_id.as_str())
+    );
+    assert_eq!(cancel_result.turn_id.as_deref(), Some(turn_id.as_str()));
+    let task_status = runtime
+        .task_store()
+        .task_status(opencode_runtime::RuntimeFacadeTaskId(
+            uuid::Uuid::parse_str(&task_id).expect("valid task id"),
+        ))
+        .await;
+    assert_eq!(
+        task_status,
+        Some(opencode_runtime::RuntimeFacadeTaskStatus::Cancelled)
+    );
 }
 
 #[tokio::test]
 async fn runtime_task_cancel_nonexistent_returns_error() {
     let (runtime, _) = build_runtime();
     let result = runtime
-        .execute(RuntimeCommand::TaskControl(TaskControlCommand::Cancel {
+        .execute(RuntimeFacadeCommand::TaskControl(TaskControlCommand::Cancel {
             task_id: "00000000-0000-0000-0000-000000000999".to_string(),
         }))
         .await;
@@ -377,7 +408,7 @@ async fn runtime_task_events_published_after_submit() {
     ));
 
     runtime
-        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+        .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: None,
             input: "hello".to_string(),
         }))
@@ -385,24 +416,34 @@ async fn runtime_task_events_published_after_submit() {
         .expect("submit should succeed");
 
     let mut found_task_started = false;
-    while let Ok(event) = rx.recv().await {
-        if matches!(event, InternalEvent::TaskStarted { .. }) {
-            found_task_started = true;
-            break;
+    let mut found_task_completed = false;
+    for _ in 0..2 {
+        let event = tokio::time::timeout(std::time::Duration::from_secs(1), rx.recv())
+            .await
+            .expect("event should arrive")
+            .expect("event bus should stay open");
+        match event {
+            DomainEvent::TaskStarted { .. } => found_task_started = true,
+            DomainEvent::TaskCompleted { .. } => found_task_completed = true,
+            _ => {}
         }
     }
     assert!(
         found_task_started,
         "TaskStarted event should be published after submit"
     );
+    assert!(
+        found_task_completed,
+        "TaskCompleted event should be published after submit"
+    );
 }
 
 #[test]
 fn runtime_task_status_state_machine() {
-    use opencode_runtime::{RuntimeTask, RuntimeTaskStatus, TaskKind};
+    use opencode_runtime::{RuntimeFacadeTask, RuntimeFacadeTaskStatus, TaskKind};
     use uuid::Uuid;
 
-    let mut task = RuntimeTask::new(
+    let mut task = RuntimeFacadeTask::new(
         Uuid::new_v4(),
         Uuid::new_v4(),
         TaskKind::Agent,
@@ -410,29 +451,29 @@ fn runtime_task_status_state_machine() {
         None,
     );
 
-    assert_eq!(task.status, RuntimeTaskStatus::Pending);
+    assert_eq!(task.status, RuntimeFacadeTaskStatus::Pending);
     assert!(!task.is_terminal());
     assert!(task.can_cancel());
 
     task.mark_preparing();
-    assert_eq!(task.status, RuntimeTaskStatus::Preparing);
+    assert_eq!(task.status, RuntimeFacadeTaskStatus::Preparing);
     assert!(task.can_cancel());
 
     task.mark_started();
-    assert_eq!(task.status, RuntimeTaskStatus::Running);
+    assert_eq!(task.status, RuntimeFacadeTaskStatus::Running);
     assert!(task.can_cancel());
 
     task.mark_waiting_for_permission();
-    assert_eq!(task.status, RuntimeTaskStatus::WaitingForPermission);
+    assert_eq!(task.status, RuntimeFacadeTaskStatus::WaitingForPermission);
     assert!(task.can_cancel());
 
     task.mark_started();
     task.mark_completed();
-    assert_eq!(task.status, RuntimeTaskStatus::Completed);
+    assert_eq!(task.status, RuntimeFacadeTaskStatus::Completed);
     assert!(task.is_terminal());
     assert!(!task.can_cancel());
 
-    let mut task2 = RuntimeTask::new(
+    let mut task2 = RuntimeFacadeTask::new(
         Uuid::new_v4(),
         Uuid::new_v4(),
         TaskKind::Agent,
@@ -441,10 +482,10 @@ fn runtime_task_status_state_machine() {
     );
     task2.mark_started();
     task2.mark_failed();
-    assert_eq!(task2.status, RuntimeTaskStatus::Failed);
+    assert_eq!(task2.status, RuntimeFacadeTaskStatus::Failed);
     assert!(task2.is_terminal());
 
-    let mut task3 = RuntimeTask::new(
+    let mut task3 = RuntimeFacadeTask::new(
         Uuid::new_v4(),
         Uuid::new_v4(),
         TaskKind::Agent,
@@ -452,9 +493,9 @@ fn runtime_task_status_state_machine() {
         None,
     );
     task3.mark_cancelling();
-    assert_eq!(task3.status, RuntimeTaskStatus::Cancelling);
+    assert_eq!(task3.status, RuntimeFacadeTaskStatus::Cancelling);
     task3.mark_cancelled();
-    assert_eq!(task3.status, RuntimeTaskStatus::Cancelled);
+    assert_eq!(task3.status, RuntimeFacadeTaskStatus::Cancelled);
     assert!(task3.is_terminal());
 }
 
@@ -463,7 +504,7 @@ async fn runtime_trace_store_begin_and_end_trace() {
     use opencode_runtime::RuntimeTraceStore;
     use uuid::Uuid;
 
-    let store = RuntimeTraceStore::new();
+    let store = RuntimeFacadeTraceStore::new();
     let session_id = Uuid::new_v4();
 
     let trace_id = store
@@ -490,7 +531,7 @@ async fn runtime_trace_store_records_tool_calls() {
     use opencode_runtime::RuntimeTraceStore;
     use uuid::Uuid;
 
-    let store = RuntimeTraceStore::new();
+    let store = RuntimeFacadeTraceStore::new();
     let session_id = Uuid::new_v4();
 
     let trace_id = store
@@ -521,7 +562,7 @@ async fn runtime_trace_store_list_session_traces() {
     use opencode_runtime::RuntimeTraceStore;
     use uuid::Uuid;
 
-    let store = RuntimeTraceStore::new();
+    let store = RuntimeFacadeTraceStore::new();
     let session_id = Uuid::new_v4();
 
     let trace1 = store
@@ -552,12 +593,12 @@ async fn runtime_trace_store_list_session_traces() {
 #[tokio::test]
 async fn runtime_checkpoint_store_save_and_load() {
     use opencode_runtime::{
-        Checkpoint, CheckpointStore, RuntimeCheckpointStore, RuntimeTaskId, RuntimeTaskStatus,
+        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus,
     };
     use uuid::Uuid;
 
-    let store = RuntimeCheckpointStore::new();
-    let task_id = RuntimeTaskId::new();
+    let store = RuntimeFacadeCheckpointStore::new();
+    let task_id = RuntimeFacadeTaskId::new();
     let session_id = Uuid::new_v4();
     let turn_id = Uuid::new_v4();
 
@@ -565,7 +606,7 @@ async fn runtime_checkpoint_store_save_and_load() {
         task_id,
         session_id,
         turn_id,
-        RuntimeTaskStatus::Running,
+        RuntimeFacadeTaskStatus::Running,
         "test task".to_string(),
         "step 1".to_string(),
         serde_json::json!({"key": "value"}),
@@ -588,12 +629,12 @@ async fn runtime_checkpoint_store_save_and_load() {
 #[tokio::test]
 async fn runtime_checkpoint_store_multiple_per_task() {
     use opencode_runtime::{
-        Checkpoint, CheckpointStore, RuntimeCheckpointStore, RuntimeTaskId, RuntimeTaskStatus,
+        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus,
     };
     use uuid::Uuid;
 
-    let store = RuntimeCheckpointStore::new();
-    let task_id = RuntimeTaskId::new();
+    let store = RuntimeFacadeCheckpointStore::new();
+    let task_id = RuntimeFacadeTaskId::new();
     let session_id = Uuid::new_v4();
     let turn_id = Uuid::new_v4();
 
@@ -601,7 +642,7 @@ async fn runtime_checkpoint_store_multiple_per_task() {
         task_id,
         session_id,
         turn_id,
-        RuntimeTaskStatus::Running,
+        RuntimeFacadeTaskStatus::Running,
         "task".to_string(),
         "step 1".to_string(),
         serde_json::json!({}),
@@ -610,7 +651,7 @@ async fn runtime_checkpoint_store_multiple_per_task() {
         task_id,
         session_id,
         turn_id,
-        RuntimeTaskStatus::Running,
+        RuntimeFacadeTaskStatus::Running,
         "task".to_string(),
         "step 2".to_string(),
         serde_json::json!({}),
@@ -622,4 +663,62 @@ async fn runtime_checkpoint_store_multiple_per_task() {
     let loaded = store.load_latest(&task_id).await.expect("loads latest");
     assert!(loaded.is_some());
     assert_eq!(loaded.unwrap().id, cp2.id);
+}
+
+#[tokio::test]
+async fn runtime_checkpoint_store_lists_and_deletes_session_checkpoints() {
+    use opencode_runtime::{
+        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus,
+    };
+    use uuid::Uuid;
+
+    let store = RuntimeFacadeCheckpointStore::new();
+    let session_id = Uuid::new_v4();
+    let turn_id = Uuid::new_v4();
+    let cp1 = Checkpoint::new(
+        RuntimeFacadeTaskId::new(),
+        session_id,
+        turn_id,
+        RuntimeFacadeTaskStatus::Running,
+        "task 1".to_string(),
+        "step 1".to_string(),
+        serde_json::json!({}),
+    );
+    let cp2 = Checkpoint::new(
+        RuntimeFacadeTaskId::new(),
+        session_id,
+        turn_id,
+        RuntimeFacadeTaskStatus::Completed,
+        "task 2".to_string(),
+        "step 2".to_string(),
+        serde_json::json!({}),
+    );
+
+    store.save_checkpoint(&cp1).await.expect("cp1 saves");
+    store.save_checkpoint(&cp2).await.expect("cp2 saves");
+
+    let latest = store
+        .load_latest_for_session(&session_id)
+        .await
+        .expect("latest session checkpoint loads")
+        .expect("session should have checkpoints");
+    assert_eq!(latest.id, cp2.id);
+
+    let checkpoints = store
+        .list_for_session(&session_id)
+        .await
+        .expect("session checkpoints list");
+    assert_eq!(checkpoints.len(), 2);
+
+    store
+        .delete_checkpoint(&cp2.id)
+        .await
+        .expect("checkpoint delete succeeds");
+
+    let latest = store
+        .load_latest_for_session(&session_id)
+        .await
+        .expect("latest session checkpoint loads after delete")
+        .expect("session should still have checkpoints");
+    assert_eq!(latest.id, cp1.id);
 }

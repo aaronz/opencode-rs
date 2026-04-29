@@ -8,6 +8,7 @@ pub mod account;
 pub mod acp;
 pub mod agents_md;
 pub mod bus;
+pub mod events;
 pub mod checkpoint;
 pub mod cli;
 pub mod command;
@@ -74,6 +75,10 @@ pub use config::Config;
 
 /// Main error type for OpenCode RS. Covers IO, JSON, Network, Config, Session, Tool, LLM, and Provider errors.
 pub use error::OpenCodeError;
+
+/// Domain event — the single source of truth for all events.
+/// Supersedes [`bus::InternalEvent`]; new code should use this type directly.
+pub use events::DomainEvent;
 
 /// Executes agents with tool access. Use build_default_executor() to create a configured executor.
 pub use executor::AgentExecutor;

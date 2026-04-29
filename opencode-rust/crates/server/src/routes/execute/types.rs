@@ -2,7 +2,7 @@
 //!
 //! Provides request/response types for POST /api/sessions/{id}/execute
 
-use opencode_runtime::RuntimeEvent;
+use opencode_runtime::RuntimeFacadeEvent;
 use serde::{Deserialize, Serialize};
 
 /// Request type for session execution endpoint.
@@ -146,21 +146,21 @@ impl ExecuteEvent {
         Self::Complete { session_state }
     }
 
-    pub(crate) fn to_runtime_event(&self, _session_id: &str) -> Option<RuntimeEvent> {
+    pub(crate) fn to_runtime_event(&self, _session_id: &str) -> Option<RuntimeFacadeEvent> {
         match self {
-            Self::ToolCall { tool, call_id, .. } => Some(RuntimeEvent::ToolCallStarted {
+            Self::ToolCall { tool, call_id, .. } => Some(RuntimeFacadeEvent::ToolCallStarted {
                 session_id: _session_id.to_string(),
                 tool_name: tool.clone(),
                 call_id: call_id.clone(),
             }),
             Self::ToolResult {
                 call_id, success, ..
-            } => Some(RuntimeEvent::ToolCallEnded {
+            } => Some(RuntimeFacadeEvent::ToolCallEnded {
                 session_id: _session_id.to_string(),
                 call_id: call_id.clone(),
                 success: *success,
             }),
-            Self::Error { code, message } => Some(RuntimeEvent::Error {
+            Self::Error { code, message } => Some(RuntimeFacadeEvent::Error {
                 source: code.clone(),
                 message: message.clone(),
             }),
@@ -172,7 +172,7 @@ impl ExecuteEvent {
 #[cfg(test)]
 mod tests {
     use super::{ExecuteEvent, ExecuteMode, ExecuteRequest};
-    use opencode_runtime::RuntimeEvent;
+    use opencode_runtime::RuntimeFacadeEvent;
 
     #[test]
     fn test_execute_request_deserialization() {
@@ -350,7 +350,7 @@ mod tests {
 
         assert_eq!(
             runtime_event,
-            RuntimeEvent::Error {
+            RuntimeFacadeEvent::Error {
                 source: "ERR".to_string(),
                 message: "oops".to_string(),
             }
@@ -373,7 +373,7 @@ mod tests {
 
         assert_eq!(
             runtime_event,
-            RuntimeEvent::ToolCallStarted {
+            RuntimeFacadeEvent::ToolCallStarted {
                 session_id: "session-1".to_string(),
                 tool_name: "read".to_string(),
                 call_id: "c1".to_string(),
@@ -392,7 +392,7 @@ mod tests {
 
         assert_eq!(
             runtime_event,
-            RuntimeEvent::ToolCallEnded {
+            RuntimeFacadeEvent::ToolCallEnded {
                 session_id: "session-1".to_string(),
                 call_id: "c2".to_string(),
                 success: true,

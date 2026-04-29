@@ -3,37 +3,37 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use crate::types::{RuntimeTask, RuntimeTaskId, RuntimeTaskStatus};
+use crate::types::{RuntimeFacadeTask, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus};
 
 #[derive(Debug, Clone)]
-pub struct RuntimeTaskStore {
-    active_tasks: Arc<RwLock<HashMap<RuntimeTaskId, RuntimeTask>>>,
+pub struct RuntimeFacadeTaskStore {
+    active_tasks: Arc<RwLock<HashMap<RuntimeFacadeTaskId, RuntimeFacadeTask>>>,
 }
 
-impl RuntimeTaskStore {
+impl RuntimeFacadeTaskStore {
     pub fn new() -> Self {
         Self {
             active_tasks: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    pub async fn add_task(&self, task: RuntimeTask) -> RuntimeTaskId {
+    pub async fn add_task(&self, task: RuntimeFacadeTask) -> RuntimeFacadeTaskId {
         let id = task.id;
         self.active_tasks.write().await.insert(id, task);
         id
     }
 
-    pub async fn get_task(&self, id: RuntimeTaskId) -> Option<RuntimeTask> {
+    pub async fn get_task(&self, id: RuntimeFacadeTaskId) -> Option<RuntimeFacadeTask> {
         self.active_tasks.read().await.get(&id).cloned()
     }
 
-    pub async fn remove_task(&self, id: RuntimeTaskId) -> Option<RuntimeTask> {
+    pub async fn remove_task(&self, id: RuntimeFacadeTaskId) -> Option<RuntimeFacadeTask> {
         self.active_tasks.write().await.remove(&id)
     }
 
-    pub async fn update_task<F>(&self, id: RuntimeTaskId, f: F) -> Option<RuntimeTask>
+    pub async fn update_task<F>(&self, id: RuntimeFacadeTaskId, f: F) -> Option<RuntimeFacadeTask>
     where
-        F: FnOnce(&mut RuntimeTask),
+        F: FnOnce(&mut RuntimeFacadeTask),
     {
         let mut tasks = self.active_tasks.write().await;
         if let Some(task) = tasks.get_mut(&id) {
@@ -44,7 +44,7 @@ impl RuntimeTaskStore {
         }
     }
 
-    pub async fn cancel_task(&self, id: RuntimeTaskId) -> Option<RuntimeTask> {
+    pub async fn cancel_task(&self, id: RuntimeFacadeTaskId) -> Option<RuntimeFacadeTask> {
         let mut tasks = self.active_tasks.write().await;
         if let Some(task) = tasks.get_mut(&id) {
             if task.can_cancel() {
@@ -56,7 +56,7 @@ impl RuntimeTaskStore {
         None
     }
 
-    pub async fn list_active_tasks(&self) -> Vec<RuntimeTask> {
+    pub async fn list_active_tasks(&self) -> Vec<RuntimeFacadeTask> {
         self.active_tasks
             .read()
             .await
@@ -66,7 +66,7 @@ impl RuntimeTaskStore {
             .collect()
     }
 
-    pub async fn list_tasks_by_session(&self, session_id: uuid::Uuid) -> Vec<RuntimeTask> {
+    pub async fn list_tasks_by_session(&self, session_id: uuid::Uuid) -> Vec<RuntimeFacadeTask> {
         self.active_tasks
             .read()
             .await
@@ -76,12 +76,12 @@ impl RuntimeTaskStore {
             .collect()
     }
 
-    pub async fn complete_task(&self, id: RuntimeTaskId) -> Option<RuntimeTask> {
-        self.update_task(id, RuntimeTask::mark_completed).await
+    pub async fn complete_task(&self, id: RuntimeFacadeTaskId) -> Option<RuntimeFacadeTask> {
+        self.update_task(id, RuntimeFacadeTask::mark_completed).await
     }
 
-    pub async fn fail_task(&self, id: RuntimeTaskId) -> Option<RuntimeTask> {
-        self.update_task(id, RuntimeTask::mark_failed).await
+    pub async fn fail_task(&self, id: RuntimeFacadeTaskId) -> Option<RuntimeFacadeTask> {
+        self.update_task(id, RuntimeFacadeTask::mark_failed).await
     }
 
     pub async fn active_count(&self) -> usize {
@@ -93,12 +93,12 @@ impl RuntimeTaskStore {
             .count()
     }
 
-    pub async fn task_status(&self, id: RuntimeTaskId) -> Option<RuntimeTaskStatus> {
+    pub async fn task_status(&self, id: RuntimeFacadeTaskId) -> Option<RuntimeFacadeTaskStatus> {
         self.active_tasks.read().await.get(&id).map(|t| t.status)
     }
 }
 
-impl Default for RuntimeTaskStore {
+impl Default for RuntimeFacadeTaskStore {
     fn default() -> Self {
         Self::new()
     }

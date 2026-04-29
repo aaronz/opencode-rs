@@ -1,13 +1,14 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
-use opencode_core::bus::InternalEvent;
-use opencode_runtime::RuntimeEvent;
+use opencode_core::events::DomainEvent;
+use opencode_runtime::RuntimeFacadeEvent;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub mod conn_state;
 pub mod heartbeat;
+pub mod projections;
 pub mod stress_test;
 
 pub use conn_state::{
@@ -54,6 +55,10 @@ pub enum StreamMessage {
     Connected {
         session_id: Option<String>,
     },
+    LlmError {
+        session_id: String,
+        error: String,
+    },
 }
 
 impl StreamMessage {
@@ -64,18 +69,24 @@ impl StreamMessage {
             | Self::ToolResult { session_id, .. }
             | Self::SessionUpdate { session_id, .. } => Some(session_id),
             Self::Error { session_id, .. } => session_id.as_deref(),
+            Self::LlmError { session_id, .. } => Some(session_id),
             Self::Heartbeat { .. } | Self::Connected { .. } => None,
         }
     }
 
-    pub fn from_internal_event(event: &InternalEvent) -> Option<Self> {
-        let runtime_event = RuntimeEvent::from_internal_event(event)?;
+    pub fn from_domain_event(event: &DomainEvent) -> Option<Self> {
+        let runtime_event = RuntimeFacadeEvent::from_domain_event(event)?;
         Self::from_runtime_event(&runtime_event)
     }
 
-    pub fn from_runtime_event(event: &RuntimeEvent) -> Option<Self> {
+    #[deprecated(since = "0.1.0", note = "use from_domain_event instead")]
+    pub fn from_internal_event(event: &DomainEvent) -> Option<Self> {
+        Self::from_domain_event(event)
+    }
+
+    pub fn from_runtime_event(event: &RuntimeFacadeEvent) -> Option<Self> {
         match event {
-            RuntimeEvent::MessageAdded {
+            RuntimeFacadeEvent::MessageAdded {
                 session_id,
                 message_id,
             } => Some(Self::Message {
@@ -83,7 +94,7 @@ impl StreamMessage {
                 content: format!("message_added:{message_id}"),
                 role: "system".to_string(),
             }),
-            RuntimeEvent::MessageUpdated {
+            RuntimeFacadeEvent::MessageUpdated {
                 session_id,
                 message_id,
             } => Some(Self::Message {
@@ -91,7 +102,7 @@ impl StreamMessage {
                 content: format!("message_updated:{message_id}"),
                 role: "system".to_string(),
             }),
-            RuntimeEvent::ToolCallStarted {
+            RuntimeFacadeEvent::ToolCallStarted {
                 session_id,
                 tool_name,
                 call_id,
@@ -101,7 +112,7 @@ impl StreamMessage {
                 args: serde_json::Value::Null,
                 call_id: call_id.clone(),
             }),
-            RuntimeEvent::ToolCallEnded {
+            RuntimeFacadeEvent::ToolCallEnded {
                 session_id,
                 call_id,
                 success,
@@ -111,7 +122,7 @@ impl StreamMessage {
                 output: String::new(),
                 success: *success,
             }),
-            RuntimeEvent::ToolCallOutput {
+            RuntimeFacadeEvent::ToolCallOutput {
                 session_id,
                 call_id,
                 output,
@@ -121,29 +132,36 @@ impl StreamMessage {
                 output: output.clone(),
                 success: true,
             }),
-            RuntimeEvent::AgentStatusChanged { session_id, status } => Some(Self::SessionUpdate {
+            RuntimeFacadeEvent::AgentStatusChanged { session_id, status } => Some(Self::SessionUpdate {
                 session_id: session_id.clone(),
                 status: status.clone(),
             }),
-            RuntimeEvent::SessionStarted { session_id } => Some(Self::SessionUpdate {
+            RuntimeFacadeEvent::SessionStarted { session_id } => Some(Self::SessionUpdate {
                 session_id: session_id.clone(),
                 status: "started".to_string(),
             }),
-            RuntimeEvent::SessionEnded { session_id } => Some(Self::SessionUpdate {
+            RuntimeFacadeEvent::SessionEnded { session_id } => Some(Self::SessionUpdate {
                 session_id: session_id.clone(),
                 status: "ended".to_string(),
             }),
-            RuntimeEvent::Error { source, message } => Some(Self::Error {
+            RuntimeFacadeEvent::Error { source, message } => Some(Self::Error {
                 session_id: None,
                 error: source.clone(),
                 code: source.clone(),
                 message: message.clone(),
             }),
-            RuntimeEvent::TaskStarted { .. }
-            | RuntimeEvent::TaskProgress { .. }
-            | RuntimeEvent::TaskCompleted { .. }
-            | RuntimeEvent::TaskFailed { .. }
-            | RuntimeEvent::TaskCancelled { .. } => None,
+            RuntimeFacadeEvent::LlmError { session_id, error } => Some(Self::LlmError {
+                session_id: session_id.clone(),
+                error: error.clone(),
+            }),
+            RuntimeFacadeEvent::TaskStarted { .. }
+            | RuntimeFacadeEvent::TaskProgress { .. }
+            | RuntimeFacadeEvent::TaskCompleted { .. }
+            | RuntimeFacadeEvent::TaskFailed { .. }
+            | RuntimeFacadeEvent::TaskCancelled { .. }
+            | RuntimeFacadeEvent::LlmRequestStarted { .. }
+            | RuntimeFacadeEvent::LlmTokenStreamed { .. }
+            | RuntimeFacadeEvent::LlmResponseCompleted { .. } => None,
         }
     }
 }
@@ -228,8 +246,8 @@ impl Default for ReconnectionStore {
 #[cfg(test)]
 mod tests {
     use super::{ReconnectionStore, StreamMessage};
-    use opencode_core::bus::InternalEvent;
-    use opencode_runtime::RuntimeEvent;
+    use opencode_core::events::DomainEvent;
+    use opencode_runtime::RuntimeFacadeEvent;
 
     #[test]
     fn stream_message_serialization_deserialization() {
@@ -510,12 +528,12 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_message_from_internal_event_message_added() {
-        let event = InternalEvent::MessageAdded {
+    fn test_stream_message_from_domain_event_message_added() {
+        let event = DomainEvent::MessageAdded {
             session_id: "sess-1".to_string(),
             message_id: "msg-123".to_string(),
         };
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
         match msg.unwrap() {
             StreamMessage::Message {
@@ -532,12 +550,12 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_message_from_internal_event_message_updated() {
-        let event = InternalEvent::MessageUpdated {
+    fn test_stream_message_from_domain_event_message_updated() {
+        let event = DomainEvent::MessageUpdated {
             session_id: "sess-1".to_string(),
             message_id: "msg-456".to_string(),
         };
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
         match msg.unwrap() {
             StreamMessage::Message {
@@ -554,13 +572,13 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_message_from_internal_event_tool_call_started() {
-        let event = InternalEvent::ToolCallStarted {
+    fn test_stream_message_from_domain_event_tool_call_started() {
+        let event = DomainEvent::ToolCallStarted {
             session_id: "sess-1".to_string(),
             tool_name: "read".to_string(),
             call_id: "call-789".to_string(),
         };
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
         match msg.unwrap() {
             StreamMessage::ToolCall {
@@ -578,13 +596,13 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_message_from_internal_event_tool_call_ended() {
-        let event = InternalEvent::ToolCallEnded {
+    fn test_stream_message_from_domain_event_tool_call_ended() {
+        let event = DomainEvent::ToolCallEnded {
             session_id: "sess-1".to_string(),
             call_id: "call-abc".to_string(),
             success: true,
         };
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
         match msg.unwrap() {
             StreamMessage::ToolResult {
@@ -602,13 +620,13 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_message_from_internal_event_tool_call_output() {
-        let event = InternalEvent::ToolCallOutput {
+    fn test_stream_message_from_domain_event_tool_call_output() {
+        let event = DomainEvent::ToolCallOutput {
             session_id: "sess-1".to_string(),
             call_id: "call-xyz".to_string(),
             output: "file contents".to_string(),
         };
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
         match msg.unwrap() {
             StreamMessage::ToolResult {
@@ -627,12 +645,12 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_message_from_internal_event_agent_status_changed() {
-        let event = InternalEvent::AgentStatusChanged {
+    fn test_stream_message_from_domain_event_agent_status_changed() {
+        let event = DomainEvent::AgentStatusChanged {
             session_id: "sess-1".to_string(),
             status: "running".to_string(),
         };
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
         match msg.unwrap() {
             StreamMessage::SessionUpdate { session_id, status } => {
@@ -644,12 +662,12 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_message_from_internal_event_error() {
-        let event = InternalEvent::Error {
+    fn test_stream_message_from_domain_event_error() {
+        let event = DomainEvent::Error {
             source: "test-source".to_string(),
             message: "test message".to_string(),
         };
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_some());
         match msg.unwrap() {
             StreamMessage::Error {
@@ -668,18 +686,18 @@ mod tests {
     }
 
     #[test]
-    fn test_stream_message_from_internal_event_unhandled_variant() {
-        let event = InternalEvent::AgentStarted {
+    fn test_stream_message_from_domain_event_unhandled_variant() {
+        let event = DomainEvent::AgentStarted {
             session_id: "sess-1".to_string(),
             agent: "test-agent".to_string(),
         };
-        let msg = StreamMessage::from_internal_event(&event);
+        let msg = StreamMessage::from_domain_event(&event);
         assert!(msg.is_none());
     }
 
     #[test]
     fn test_stream_message_from_runtime_event_message_added() {
-        let event = RuntimeEvent::MessageAdded {
+        let event = RuntimeFacadeEvent::MessageAdded {
             session_id: "runtime-session".to_string(),
             message_id: "message-7".to_string(),
         };

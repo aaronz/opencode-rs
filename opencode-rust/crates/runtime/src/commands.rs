@@ -18,7 +18,7 @@ pub struct PermissionResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum RuntimeCommand {
+pub enum RuntimeFacadeCommand {
     SubmitUserInput(SubmitUserInput),
     TaskControl(TaskControlCommand),
     PermissionResponse(PermissionResponse),

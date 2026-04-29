@@ -5,14 +5,14 @@ use uuid::Uuid;
 use opencode_llm::CancellationToken;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum RuntimeStatus {
+pub enum RuntimeFacadeStatus {
     Idle,
     Busy,
     Degraded,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuntimeResponse {
+pub struct RuntimeFacadeResponse {
     pub session_id: Option<String>,
     pub turn_id: Option<String>,
     pub accepted: bool,
@@ -43,21 +43,21 @@ impl std::fmt::Display for TraceId {
 
 /// Unique identifier for a task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct RuntimeTaskId(pub Uuid);
+pub struct RuntimeFacadeTaskId(pub Uuid);
 
-impl RuntimeTaskId {
+impl RuntimeFacadeTaskId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
 }
 
-impl Default for RuntimeTaskId {
+impl Default for RuntimeFacadeTaskId {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl std::fmt::Display for RuntimeTaskId {
+impl std::fmt::Display for RuntimeFacadeTaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "task:{}", self.0)
     }
@@ -85,7 +85,7 @@ pub enum TaskKind {
 /// Status of a runtime task, following the design doc state machine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RuntimeTaskStatus {
+pub enum RuntimeFacadeTaskStatus {
     /// Task has been created but not yet started.
     #[default]
     Pending,
@@ -110,21 +110,21 @@ pub enum RuntimeTaskStatus {
 /// This supersedes the delegation-specific Task in agent/delegation.rs
 /// by being agnostic to the execution mechanism.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuntimeTask {
+pub struct RuntimeFacadeTask {
     /// Unique task identifier.
-    pub id: RuntimeTaskId,
+    pub id: RuntimeFacadeTaskId,
     /// The session this task belongs to.
     pub session_id: Uuid,
     /// The turn this task belongs to.
     pub turn_id: Uuid,
     /// Optional parent task (for subagent-coordinated tasks).
-    pub parent_task_id: Option<RuntimeTaskId>,
+    pub parent_task_id: Option<RuntimeFacadeTaskId>,
     /// Kind of work this task performs.
     pub kind: TaskKind,
     /// Human-readable description.
     pub description: String,
     /// Current status.
-    pub status: RuntimeTaskStatus,
+    pub status: RuntimeFacadeTaskStatus,
     /// Token that can be signaled to cancel the task.
     #[serde(skip)]
     pub cancellation_token: CancellationToken,
@@ -138,23 +138,23 @@ pub struct RuntimeTask {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-impl RuntimeTask {
+impl RuntimeFacadeTask {
     /// Create a new runtime task.
     pub fn new(
         session_id: Uuid,
         turn_id: Uuid,
         kind: TaskKind,
         description: String,
-        parent_task_id: Option<RuntimeTaskId>,
+        parent_task_id: Option<RuntimeFacadeTaskId>,
     ) -> Self {
         Self {
-            id: RuntimeTaskId::new(),
+            id: RuntimeFacadeTaskId::new(),
             session_id,
             turn_id,
             parent_task_id,
             kind,
             description,
-            status: RuntimeTaskStatus::Pending,
+            status: RuntimeFacadeTaskStatus::Pending,
             cancellation_token: CancellationToken::new(),
             trace_id: TraceId::new(),
             created_at: Utc::now(),
@@ -165,40 +165,40 @@ impl RuntimeTask {
 
     /// Mark the task as preparing.
     pub fn mark_preparing(&mut self) {
-        self.status = RuntimeTaskStatus::Preparing;
+        self.status = RuntimeFacadeTaskStatus::Preparing;
     }
 
     /// Mark the task as started.
     pub fn mark_started(&mut self) {
-        self.status = RuntimeTaskStatus::Running;
+        self.status = RuntimeFacadeTaskStatus::Running;
         self.started_at = Some(Utc::now());
     }
 
     /// Mark the task as waiting for permission.
     pub fn mark_waiting_for_permission(&mut self) {
-        self.status = RuntimeTaskStatus::WaitingForPermission;
+        self.status = RuntimeFacadeTaskStatus::WaitingForPermission;
     }
 
     /// Mark the task as cancelling.
     pub fn mark_cancelling(&mut self) {
-        self.status = RuntimeTaskStatus::Cancelling;
+        self.status = RuntimeFacadeTaskStatus::Cancelling;
     }
 
     /// Mark the task as completed.
     pub fn mark_completed(&mut self) {
-        self.status = RuntimeTaskStatus::Completed;
+        self.status = RuntimeFacadeTaskStatus::Completed;
         self.completed_at = Some(Utc::now());
     }
 
     /// Mark the task as failed.
     pub fn mark_failed(&mut self) {
-        self.status = RuntimeTaskStatus::Failed;
+        self.status = RuntimeFacadeTaskStatus::Failed;
         self.completed_at = Some(Utc::now());
     }
 
     /// Mark the task as cancelled.
     pub fn mark_cancelled(&mut self) {
-        self.status = RuntimeTaskStatus::Cancelled;
+        self.status = RuntimeFacadeTaskStatus::Cancelled;
         self.completed_at = Some(Utc::now());
     }
 
@@ -211,7 +211,7 @@ impl RuntimeTask {
     pub fn is_terminal(&self) -> bool {
         matches!(
             self.status,
-            RuntimeTaskStatus::Completed | RuntimeTaskStatus::Failed | RuntimeTaskStatus::Cancelled
+            RuntimeFacadeTaskStatus::Completed | RuntimeFacadeTaskStatus::Failed | RuntimeFacadeTaskStatus::Cancelled
         )
     }
 
@@ -219,10 +219,10 @@ impl RuntimeTask {
     pub fn can_cancel(&self) -> bool {
         matches!(
             self.status,
-            RuntimeTaskStatus::Pending
-                | RuntimeTaskStatus::Preparing
-                | RuntimeTaskStatus::Running
-                | RuntimeTaskStatus::WaitingForPermission
+            RuntimeFacadeTaskStatus::Pending
+                | RuntimeFacadeTaskStatus::Preparing
+                | RuntimeFacadeTaskStatus::Running
+                | RuntimeFacadeTaskStatus::WaitingForPermission
         )
     }
 }

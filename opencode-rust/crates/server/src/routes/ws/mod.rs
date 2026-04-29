@@ -111,7 +111,7 @@ use actix_web::http::header::{HeaderName, HeaderValue};
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_ws::Message;
 use futures::StreamExt;
-use opencode_core::bus::InternalEvent;
+use opencode_core::events::DomainEvent;
 use opencode_core::{Message as CoreMessage, Session};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -120,6 +120,7 @@ use tracing::{error, info, warn};
 use crate::routes::error::json_error;
 use crate::streaming::conn_state::ConnectionType;
 use crate::streaming::heartbeat::HeartbeatManager;
+use crate::streaming::projections::event_to_stream_message;
 use crate::streaming::{ReplayEntry, StreamMessage};
 use crate::ServerState;
 
@@ -355,7 +356,7 @@ pub async fn ws_index(
                     event = bus_rx.recv() => {
                         match event {
                             Ok(evt) => {
-                                if let Some(message) = event_to_stream_message(evt, &session_filter) {
+                                if let Some(message) = event_to_stream_message(&evt, &session_filter) {
                                     if tx_bus.send(message).await.is_err() {
                                         break;
                                     }
@@ -602,15 +603,6 @@ fn parse_query(query: &str) -> HashMap<String, String> {
             Some((key.to_string(), value.to_string()))
         })
         .collect()
-}
-
-fn event_to_stream_message(event: InternalEvent, session_id: &str) -> Option<StreamMessage> {
-    let candidate = StreamMessage::from_internal_event(&event)?;
-    match candidate.session_id() {
-        Some(source_session) if source_session == session_id => Some(candidate),
-        Some(_) => None,
-        None => Some(candidate),
-    }
 }
 
 /// Initializes WebSocket routes in the Actix Web service configuration.
@@ -1082,10 +1074,10 @@ mod ws_lifecycle_tests {
     }
 
     fn event_to_stream_message(
-        event: opencode_core::bus::InternalEvent,
+        event: opencode_core::events::DomainEvent,
         session_id: &str,
     ) -> Option<crate::streaming::StreamMessage> {
-        let candidate = crate::streaming::StreamMessage::from_internal_event(&event)?;
+        let candidate = crate::streaming::StreamMessage::from_domain_event(&event)?;
         match candidate.session_id() {
             Some(source_session) if source_session == session_id => Some(candidate),
             Some(_) => None,
@@ -1095,21 +1087,21 @@ mod ws_lifecycle_tests {
 
     #[test]
     fn test_ws_event_to_stream_message_filters_by_session() {
-        let event = opencode_core::bus::InternalEvent::SessionStarted("other-session".to_string());
+        let event = opencode_core::bus::DomainEvent::SessionStarted("other-session".to_string());
         let result = event_to_stream_message(event, "my-session");
         assert!(result.is_none());
     }
 
     #[test]
     fn test_ws_event_to_stream_message_passes_when_session_matches() {
-        let event = opencode_core::bus::InternalEvent::SessionStarted("my-session".to_string());
+        let event = opencode_core::bus::DomainEvent::SessionStarted("my-session".to_string());
         let result = event_to_stream_message(event, "my-session");
         assert!(result.is_some());
     }
 
     #[test]
     fn test_ws_event_to_stream_message_handles_error_without_session() {
-        let event = opencode_core::bus::InternalEvent::Error {
+        let event = opencode_core::bus::DomainEvent::Error {
             source: "test".to_string(),
             message: "error".to_string(),
         };
@@ -1119,7 +1111,7 @@ mod ws_lifecycle_tests {
 
     #[test]
     fn test_ws_event_to_stream_message_message_added() {
-        let event = opencode_core::bus::InternalEvent::MessageAdded {
+        let event = opencode_core::bus::DomainEvent::MessageAdded {
             session_id: "my-session".to_string(),
             message_id: "msg-123".to_string(),
         };
@@ -1129,7 +1121,7 @@ mod ws_lifecycle_tests {
 
     #[test]
     fn test_ws_event_to_stream_message_session_ended() {
-        let event = opencode_core::bus::InternalEvent::SessionEnded("my-session".to_string());
+        let event = opencode_core::bus::DomainEvent::SessionEnded("my-session".to_string());
         let result = event_to_stream_message(event, "my-session");
         assert!(result.is_some());
     }

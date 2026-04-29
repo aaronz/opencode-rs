@@ -11,7 +11,7 @@ use futures::stream::Stream;
 use opencode_agent::{Agent, AgentType};
 use opencode_core::{Message, OpenCodeError, Session, TurnId};
 use opencode_llm::{AnthropicProvider, OllamaProvider, OpenAiProvider, Provider};
-use opencode_runtime::{RuntimeCommand, SubmitUserInput};
+use opencode_runtime::{RuntimeFacadeCommand, SubmitUserInput};
 use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -121,7 +121,7 @@ async fn run_prompt_with_agent_execution(
 
     let runtime_turn_id = state
         .runtime
-        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+        .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: Some(session_id.clone()),
             input: req.prompt.clone(),
         }))

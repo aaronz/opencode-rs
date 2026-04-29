@@ -238,7 +238,7 @@ impl AcpClient {
                         let server_id = state.lock().unwrap().server_id.clone().unwrap();
                         let capabilities = state.lock().unwrap().capabilities.clone();
                         this.bus
-                            .publish(opencode_core::bus::InternalEvent::AcpConnected {
+                            .publish(opencode_core::events::DomainEvent::AcpConnected {
                                 server_id,
                                 capabilities,
                             });
@@ -394,7 +394,7 @@ impl AcpClient {
         }
 
         self.bus
-            .publish(opencode_core::bus::InternalEvent::AcpDisconnected);
+            .publish(opencode_core::events::DomainEvent::AcpDisconnected);
 
         Ok(())
     }

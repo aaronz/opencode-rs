@@ -6,11 +6,11 @@ use opencode_storage::StorageService;
 use crate::errors::RuntimeFacadeError;
 
 #[derive(Clone)]
-pub struct RuntimeSessionStore {
+pub struct RuntimeFacadeSessionStore {
     storage: Arc<StorageService>,
 }
 
-impl RuntimeSessionStore {
+impl RuntimeFacadeSessionStore {
     pub fn new(storage: Arc<StorageService>) -> Self {
         Self { storage }
     }

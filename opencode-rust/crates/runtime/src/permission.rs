@@ -5,20 +5,20 @@ use opencode_permission::{AuditLog, PermissionScope};
 use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RuntimePermissionDecision {
+pub enum RuntimeFacadePermissionDecision {
     Allow,
     Deny,
     RequiresApproval,
 }
 
 #[derive(Clone)]
-pub struct RuntimePermissionAdapter {
+pub struct RuntimeFacadePermissionAdapter {
     manager: Arc<RwLock<PermissionManager>>,
     approval_queue: Arc<RwLock<opencode_permission::ApprovalQueue>>,
     audit_log: Option<Arc<AuditLog>>,
 }
 
-impl RuntimePermissionAdapter {
+impl RuntimeFacadePermissionAdapter {
     pub fn new(
         manager: Arc<RwLock<PermissionManager>>,
         approval_queue: Arc<RwLock<opencode_permission::ApprovalQueue>>,
@@ -31,22 +31,22 @@ impl RuntimePermissionAdapter {
         }
     }
 
-    pub fn check(&self, permission: Permission, pattern: &str) -> RuntimePermissionDecision {
-        let manager = self.manager.blocking_read();
+    pub async fn check(&self, permission: Permission, pattern: &str) -> RuntimeFacadePermissionDecision {
+        let manager = self.manager.read().await;
         if manager.check(&permission, pattern) {
-            RuntimePermissionDecision::Allow
+            RuntimeFacadePermissionDecision::Allow
         } else {
-            RuntimePermissionDecision::Deny
+            RuntimeFacadePermissionDecision::Deny
         }
     }
 
-    pub fn check_tool(&self, tool_name: &str) -> RuntimePermissionDecision {
-        let queue = self.approval_queue.blocking_read();
+    pub async fn check_tool(&self, tool_name: &str) -> RuntimeFacadePermissionDecision {
+        let queue = self.approval_queue.read().await;
         match queue.check(tool_name) {
-            opencode_permission::ApprovalResult::AutoApprove => RuntimePermissionDecision::Allow,
-            opencode_permission::ApprovalResult::Denied => RuntimePermissionDecision::Deny,
+            opencode_permission::ApprovalResult::AutoApprove => RuntimeFacadePermissionDecision::Allow,
+            opencode_permission::ApprovalResult::Denied => RuntimeFacadePermissionDecision::Deny,
             opencode_permission::ApprovalResult::RequireApproval => {
-                RuntimePermissionDecision::RequiresApproval
+                RuntimeFacadePermissionDecision::RequiresApproval
             }
         }
     }
@@ -60,7 +60,7 @@ impl RuntimePermissionAdapter {
     }
 }
 
-impl Default for RuntimePermissionAdapter {
+impl Default for RuntimeFacadePermissionAdapter {
     fn default() -> Self {
         Self::new(
             Arc::new(RwLock::new(PermissionManager::default())),

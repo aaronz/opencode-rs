@@ -21,7 +21,7 @@ use opencode_core::{Config, Session};
 use opencode_llm::ModelRegistry;
 use opencode_permission::{ApprovalQueue, AuditLog, PermissionScope};
 use opencode_runtime::{
-    Runtime as OpenCodeRuntime, RuntimeServices, RuntimeTaskStore, RuntimeToolRouter,
+    RuntimeFacade as OpenCodeRuntime, RuntimeFacadeServices, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -114,13 +114,13 @@ pub fn build_placeholder_runtime() -> Arc<OpenCodeRuntime> {
         AgentType::Build,
     )));
 
-    Arc::new(OpenCodeRuntime::new(RuntimeServices::new(
+    Arc::new(OpenCodeRuntime::new(RuntimeFacadeServices::new(
         event_bus,
         permission_manager,
         storage,
         agent_runtime,
-        Arc::new(RuntimeTaskStore::new()),
-        Arc::new(RuntimeToolRouter::default()),
+        Arc::new(RuntimeFacadeTaskStore::new()),
+        Arc::new(RuntimeFacadeToolRouter::default()),
     )))
 }
 

@@ -12,19 +12,19 @@ pub mod tool_router;
 pub mod trace_store;
 pub mod types;
 
-pub use checkpoint::{Checkpoint, CheckpointStore, RuntimeCheckpointStore};
-pub use commands::{PermissionResponse, RuntimeCommand, SubmitUserInput, TaskControlCommand};
-pub use context_view::RuntimeContextSummary;
+pub use checkpoint::{Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore};
+pub use commands::{PermissionResponse, RuntimeFacadeCommand, SubmitUserInput, TaskControlCommand};
+pub use context_view::RuntimeFacadeContextSummary;
 pub use errors::RuntimeFacadeError;
-pub use events::RuntimeEvent;
-pub use permission::{RuntimePermissionAdapter, RuntimePermissionDecision};
-pub use persistence::RuntimeSessionStore;
-pub use runtime::{Runtime, RuntimeHandle};
-pub use services::RuntimeServices;
-pub use task_store::RuntimeTaskStore;
-pub use tool_router::RuntimeToolRouter;
-pub use trace_store::{RuntimeTrace, RuntimeTraceStore, RuntimeTraceSummary, TokenUsageSummary};
+pub use events::RuntimeFacadeEvent;
+pub use permission::{RuntimeFacadePermissionAdapter, RuntimeFacadePermissionDecision};
+pub use persistence::RuntimeFacadeSessionStore;
+pub use runtime::{RuntimeFacade, RuntimeFacadeHandle};
+pub use services::RuntimeFacadeServices;
+pub use task_store::RuntimeFacadeTaskStore;
+pub use tool_router::RuntimeFacadeToolRouter;
+pub use trace_store::{RuntimeFacadeTrace, RuntimeFacadeTraceStore, RuntimeFacadeTraceSummary, TokenUsageSummary};
 pub use types::{
-    RuntimeResponse, RuntimeStatus, RuntimeTask, RuntimeTaskId, RuntimeTaskStatus, TaskKind,
+    RuntimeFacadeResponse, RuntimeFacadeStatus, RuntimeFacadeTask, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus, TaskKind,
     TraceId,
 };

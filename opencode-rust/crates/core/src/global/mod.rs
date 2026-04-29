@@ -1,6 +1,8 @@
 mod types;
 pub use types::GlobalState;
 
+use crate::events::DomainEvent;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -47,7 +49,7 @@ mod tests {
         let mut rx = bus_clone.subscribe();
         state
             .event_bus
-            .publish(crate::bus::InternalEvent::ConfigUpdated);
+            .publish(crate::bus::DomainEvent::ConfigUpdated);
         assert!(rx.try_recv().is_ok());
     }
 

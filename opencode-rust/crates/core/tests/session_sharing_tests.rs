@@ -202,7 +202,7 @@ mod session_sharing_tests {
         let event = rx.try_recv();
         assert!(event.is_ok());
         match event.unwrap() {
-            opencode_core::bus::InternalEvent::SessionStarted(id) => {
+            opencode_core::events::DomainEvent::SessionStarted(id) => {
                 assert_eq!(id, session_id);
             }
             _ => panic!("Expected SessionStarted event"),

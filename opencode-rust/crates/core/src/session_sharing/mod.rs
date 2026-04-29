@@ -4,7 +4,8 @@ use std::sync::{Arc, RwLock};
 
 use uuid::Uuid;
 
-use crate::bus::{EventBus, InternalEvent, SharedEventBus};
+use crate::bus::{EventBus, SharedEventBus};
+use crate::events::DomainEvent;
 use crate::session::{Session, SessionInfo};
 
 #[derive(Debug, Clone)]
@@ -95,7 +96,7 @@ impl SessionSharing {
         }
 
         self.event_bus
-            .publish(InternalEvent::SessionStarted(session.id.to_string()));
+            .publish(DomainEvent::SessionStarted(session.id.to_string()));
 
         Ok(session)
     }
@@ -166,7 +167,7 @@ impl SessionSharing {
             }
         }
 
-        self.event_bus.publish(InternalEvent::MessageUpdated {
+        self.event_bus.publish(DomainEvent::MessageUpdated {
             session_id: id_str,
             message_id: session.id.to_string(),
         });
@@ -190,7 +191,7 @@ impl SessionSharing {
             sessions.remove(&id_str);
         }
 
-        self.event_bus.publish(InternalEvent::SessionEnded(id_str));
+        self.event_bus.publish(DomainEvent::SessionEnded(id_str));
         Ok(())
     }
 
@@ -288,7 +289,7 @@ impl SessionSharing {
             sessions.insert(child.id.to_string(), entry);
         }
 
-        self.event_bus.publish(InternalEvent::SessionForked {
+        self.event_bus.publish(DomainEvent::SessionForked {
             original_id: parent_id.to_string(),
             new_id: child.id.to_string(),
             fork_point: parent.messages.len(),

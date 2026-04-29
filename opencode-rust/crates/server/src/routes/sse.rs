@@ -4,7 +4,7 @@ use actix_web::{web, Error, HttpRequest, HttpResponse};
 use futures::stream::{self, Stream};
 
 use crate::routes::error::ErrorResponse;
-use opencode_core::bus::InternalEvent;
+use opencode_core::events::DomainEvent;
 use opencode_core::{Message as CoreMessage, Session};
 use serde::Deserialize;
 use tokio::sync::mpsc;
@@ -12,6 +12,7 @@ use tracing::{debug, info, warn};
 
 use crate::streaming::conn_state::ConnectionType;
 use crate::streaming::heartbeat::HeartbeatManager;
+use crate::streaming::projections::event_to_stream_message;
 use crate::streaming::{ReplayEntry, StreamMessage};
 use crate::ServerState;
 
@@ -161,7 +162,7 @@ fn create_event_stream(
         loop {
             match bus_rx.recv().await {
                 Ok(event) => {
-                    if let Some(message) = event_to_stream_message(event, &session_filter) {
+                    if let Some(message) = event_to_stream_message(&event, &session_filter) {
                         if tx_bus
                             .send(OutboundSse {
                                 message,
@@ -267,15 +268,7 @@ fn message_event_type(message: &StreamMessage) -> &'static str {
         StreamMessage::Heartbeat { .. } => "heartbeat",
         StreamMessage::Error { .. } => "error",
         StreamMessage::Connected { .. } => "connected",
-    }
-}
-
-fn event_to_stream_message(event: InternalEvent, session_id: &str) -> Option<StreamMessage> {
-    let candidate = StreamMessage::from_internal_event(&event)?;
-    match candidate.session_id() {
-        Some(source_session) if source_session == session_id => Some(candidate),
-        Some(_) => None,
-        None => Some(candidate),
+        StreamMessage::LlmError { .. } => "llm_error",
     }
 }
 
@@ -405,15 +398,15 @@ mod tests {
 
     #[test]
     fn test_event_to_stream_message_filters_by_session() {
-        let event = InternalEvent::SessionStarted("other-session".to_string());
-        let result = event_to_stream_message(event, "my-session");
+        let event = DomainEvent::SessionStarted("other-session".to_string());
+        let result = event_to_stream_message(&event, "my-session");
         assert!(result.is_none());
     }
 
     #[test]
     fn test_event_to_stream_message_passes_through_when_session_matches() {
-        let event = InternalEvent::SessionStarted("my-session".to_string());
-        let result = event_to_stream_message(event, "my-session");
+        let event = DomainEvent::SessionStarted("my-session".to_string());
+        let result = event_to_stream_message(&event, "my-session");
         assert!(result.is_some());
         match result.unwrap() {
             StreamMessage::SessionUpdate { session_id, status } => {
@@ -426,21 +419,21 @@ mod tests {
 
     #[test]
     fn test_event_to_stream_message_handles_message_added() {
-        let event = InternalEvent::MessageAdded {
+        let event = DomainEvent::MessageAdded {
             session_id: "my-session".to_string(),
             message_id: "msg-123".to_string(),
         };
-        let result = event_to_stream_message(event, "my-session");
+        let result = event_to_stream_message(&event, "my-session");
         assert!(result.is_some());
     }
 
     #[test]
     fn test_event_to_stream_message_with_no_session_id_in_event() {
-        let event = InternalEvent::Error {
+        let event = DomainEvent::Error {
             source: "test".to_string(),
             message: "error occurred".to_string(),
         };
-        let result = event_to_stream_message(event, "any-session");
+        let result = event_to_stream_message(&event, "any-session");
         assert!(result.is_some());
     }
 
@@ -485,8 +478,8 @@ mod tests {
 
     #[test]
     fn test_event_to_stream_message_session_ended() {
-        let event = InternalEvent::SessionEnded("my-session".to_string());
-        let result = event_to_stream_message(event, "my-session");
+        let event = DomainEvent::SessionEnded("my-session".to_string());
+        let result = event_to_stream_message(&event, "my-session");
         assert!(result.is_some());
     }
 
@@ -594,27 +587,27 @@ mod tests {
 
     #[test]
     fn test_event_to_stream_message_all_internal_event_types() {
-        use opencode_core::bus::InternalEvent;
+        use opencode_core::events::DomainEvent;
 
         let test_cases = vec![
-            (InternalEvent::SessionStarted("sess".to_string()), true),
-            (InternalEvent::SessionEnded("sess".to_string()), true),
+            (DomainEvent::SessionStarted("sess".to_string()), true),
+            (DomainEvent::SessionEnded("sess".to_string()), true),
             (
-                InternalEvent::MessageAdded {
+                DomainEvent::MessageAdded {
                     session_id: "sess".to_string(),
                     message_id: "msg".to_string(),
                 },
                 true,
             ),
             (
-                InternalEvent::MessageUpdated {
+                DomainEvent::MessageUpdated {
                     session_id: "sess".to_string(),
                     message_id: "msg".to_string(),
                 },
                 true,
             ),
             (
-                InternalEvent::ToolCallStarted {
+                DomainEvent::ToolCallStarted {
                     session_id: "sess".to_string(),
                     tool_name: "read".to_string(),
                     call_id: "c1".to_string(),
@@ -622,7 +615,7 @@ mod tests {
                 true,
             ),
             (
-                InternalEvent::ToolCallEnded {
+                DomainEvent::ToolCallEnded {
                     session_id: "sess".to_string(),
                     call_id: "c1".to_string(),
                     success: true,
@@ -630,7 +623,7 @@ mod tests {
                 true,
             ),
             (
-                InternalEvent::ToolCallOutput {
+                DomainEvent::ToolCallOutput {
                     session_id: "sess".to_string(),
                     call_id: "c1".to_string(),
                     output: "out".to_string(),
@@ -638,21 +631,21 @@ mod tests {
                 true,
             ),
             (
-                InternalEvent::AgentStatusChanged {
+                DomainEvent::AgentStatusChanged {
                     session_id: "sess".to_string(),
                     status: "running".to_string(),
                 },
                 true,
             ),
             (
-                InternalEvent::Error {
+                DomainEvent::Error {
                     source: "src".to_string(),
                     message: "msg".to_string(),
                 },
                 true,
             ),
             (
-                InternalEvent::AgentStarted {
+                DomainEvent::AgentStarted {
                     session_id: "sess".to_string(),
                     agent: "agent".to_string(),
                 },
@@ -661,7 +654,7 @@ mod tests {
         ];
 
         for (event, should_convert) in test_cases {
-            let result = event_to_stream_message(event.clone(), "sess");
+            let result = event_to_stream_message(&event, "sess");
             if should_convert {
                 assert!(result.is_some(), "Expected Some for {:?}", event);
             }

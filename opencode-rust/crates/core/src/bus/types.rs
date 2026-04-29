@@ -1,191 +1,11 @@
-use serde::{Deserialize, Serialize};
+//! Event bus types.
+
 use std::sync::Arc;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum InternalEvent {
-    SessionStarted(String),
-    SessionEnded(String),
-    SessionForked {
-        original_id: String,
-        new_id: String,
-        fork_point: usize,
-    },
-    SessionShared {
-        session_id: String,
-        share_url: String,
-    },
-    MessageAdded {
-        session_id: String,
-        message_id: String,
-    },
-    MessageUpdated {
-        session_id: String,
-        message_id: String,
-    },
-    ToolCallStarted {
-        session_id: String,
-        tool_name: String,
-        call_id: String,
-    },
-    ToolCallEnded {
-        session_id: String,
-        call_id: String,
-        success: bool,
-    },
-    ToolCallOutput {
-        session_id: String,
-        call_id: String,
-        output: String,
-    },
-    AgentStatusChanged {
-        session_id: String,
-        status: String,
-    },
-    AgentStarted {
-        session_id: String,
-        agent: String,
-    },
-    AgentStopped {
-        session_id: String,
-        agent: String,
-    },
-    ProviderChanged {
-        provider: String,
-        model: String,
-    },
-    ModelChanged {
-        model: String,
-    },
-    CompactionTriggered {
-        session_id: String,
-        pruned_count: usize,
-    },
-    CompactionCompleted {
-        session_id: String,
-        summary_inserted: bool,
-    },
-    ConfigUpdated,
-    AuthChanged {
-        user_id: Option<String>,
-    },
-    PermissionGranted {
-        user_id: String,
-        permission: String,
-    },
-    PermissionDenied {
-        user_id: String,
-        permission: String,
-    },
-    FileWatchEvent {
-        path: String,
-        kind: String,
-    },
-    LspDiagnosticsUpdated {
-        path: String,
-        count: usize,
-    },
-    ShellEnvChanged {
-        key: String,
-        value: String,
-    },
-    UiToastShow {
-        message: String,
-        level: String,
-    },
-    PermissionAsked {
-        session_id: String,
-        request_id: String,
-        permission: String,
-    },
-    PermissionReplied {
-        session_id: String,
-        request_id: String,
-        granted: bool,
-    },
-    PluginLoaded {
-        name: String,
-    },
-    PluginUnloaded {
-        name: String,
-    },
-    McpServerConnected {
-        name: String,
-    },
-    McpServerDisconnected {
-        name: String,
-    },
-    AcpEventReceived {
-        agent_id: String,
-        event_type: String,
-    },
-    AcpConnected {
-        server_id: String,
-        capabilities: Vec<String>,
-    },
-    AcpDisconnected,
-    ServerStarted {
-        port: u16,
-    },
-    ServerStopped,
-    Error {
-        source: String,
-        message: String,
-    },
-    TaskStarted {
-        session_id: String,
-        turn_id: String,
-        task_id: String,
-        task_kind: String,
-    },
-    TaskProgress {
-        session_id: String,
-        turn_id: String,
-        task_id: String,
-        message: String,
-    },
-    TaskCompleted {
-        session_id: String,
-        turn_id: String,
-        task_id: String,
-    },
-    TaskFailed {
-        session_id: String,
-        turn_id: String,
-        task_id: String,
-        error: String,
-    },
-    TaskCancelled {
-        session_id: String,
-        turn_id: String,
-        task_id: String,
-    },
-}
-
-impl InternalEvent {
-    pub fn session_id(&self) -> Option<&str> {
-        match self {
-            Self::SessionStarted(id) | Self::SessionEnded(id) => Some(id),
-            Self::SessionForked { original_id, .. } => Some(original_id),
-            Self::SessionShared { session_id, .. } => Some(session_id),
-            Self::MessageAdded { session_id, .. } => Some(session_id),
-            Self::MessageUpdated { session_id, .. } => Some(session_id),
-            Self::ToolCallStarted { session_id, .. } => Some(session_id),
-            Self::ToolCallEnded { session_id, .. } => Some(session_id),
-            Self::ToolCallOutput { session_id, .. } => Some(session_id),
-            Self::AgentStatusChanged { session_id, .. } => Some(session_id),
-            Self::AgentStarted { session_id, .. } => Some(session_id),
-            Self::AgentStopped { session_id, .. } => Some(session_id),
-            Self::CompactionTriggered { session_id, .. } => Some(session_id),
-            Self::CompactionCompleted { session_id, .. } => Some(session_id),
-            _ => None,
-        }
-    }
-}
 
 pub type SharedEventBus = Arc<EventBus>;
 
 pub struct EventBus {
-    tx: tokio::sync::broadcast::Sender<InternalEvent>,
+    tx: tokio::sync::broadcast::Sender<crate::events::DomainEvent>,
 }
 
 impl EventBus {
@@ -194,11 +14,11 @@ impl EventBus {
         Self { tx }
     }
 
-    pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<InternalEvent> {
+    pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<crate::events::DomainEvent> {
         self.tx.subscribe()
     }
 
-    pub fn publish(&self, event: InternalEvent) {
+    pub fn publish(&self, event: crate::events::DomainEvent) {
         let _ = self.tx.send(event);
     }
 
