@@ -160,10 +160,9 @@ mod tests {
 
     #[test]
     fn test_finalize_tui_run_result_reports_cleanup_failure() {
-        let result = finalize_tui_run_result(
-            Err(std::io::Error::other("draw failed")),
-            || Err(std::io::Error::other("restore failed")),
-        );
+        let result = finalize_tui_run_result(Err(std::io::Error::other("draw failed")), || {
+            Err(std::io::Error::other("restore failed"))
+        });
 
         assert_eq!(
             result.unwrap_err(),

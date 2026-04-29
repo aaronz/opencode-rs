@@ -25,14 +25,16 @@ fn test_plugin_install_persists_to_config() {
     let config: serde_json::Value = serde_json::from_str(&config_content).unwrap();
     let plugins = config.get("plugin").and_then(|p| p.as_array());
     // Plugin is stored as {"Simple": "test-plugin"} object, not a plain string
-    let has_test_plugin = plugins.map(|p| {
-        p.iter().any(|item| {
-            item.get("Simple")
-                .and_then(|s| s.as_str())
-                .map(|s| s == "test-plugin")
-                .unwrap_or(false)
+    let has_test_plugin = plugins
+        .map(|p| {
+            p.iter().any(|item| {
+                item.get("Simple")
+                    .and_then(|s| s.as_str())
+                    .map(|s| s == "test-plugin")
+                    .unwrap_or(false)
+            })
         })
-    }).unwrap_or(false);
+        .unwrap_or(false);
     assert!(
         has_test_plugin,
         "plugin list should contain 'test-plugin' after install, got: {:?}",

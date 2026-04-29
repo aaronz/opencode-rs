@@ -463,7 +463,8 @@ pub(crate) fn run(args: RunArgs) {
         app.agent = agent;
     }
 
-    if let Err(message) = crate::finalize_tui_run_result(app.run(), App::restore_terminal_after_error)
+    if let Err(message) =
+        crate::finalize_tui_run_result(app.run(), App::restore_terminal_after_error)
     {
         tracing::error!(error = %message, "TUI run failed");
     }
