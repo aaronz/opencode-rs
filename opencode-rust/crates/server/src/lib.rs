@@ -20,7 +20,9 @@ use opencode_core::config::ServerConfig;
 use opencode_core::{Config, Session};
 use opencode_llm::ModelRegistry;
 use opencode_permission::{ApprovalQueue, AuditLog, PermissionScope};
-use opencode_runtime::{Runtime as OpenCodeRuntime, RuntimeServices, RuntimeTaskStore};
+use opencode_runtime::{
+    Runtime as OpenCodeRuntime, RuntimeServices, RuntimeTaskStore, RuntimeToolRouter,
+};
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
 };
@@ -118,6 +120,7 @@ pub fn build_placeholder_runtime() -> Arc<OpenCodeRuntime> {
         storage,
         agent_runtime,
         Arc::new(RuntimeTaskStore::new()),
+        Arc::new(RuntimeToolRouter::default()),
     )))
 }
 

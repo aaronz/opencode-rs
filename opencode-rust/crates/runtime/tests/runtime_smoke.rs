@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use opencode_permission::PermissionScope;
 use tokio::sync::RwLock;
 
 use opencode_agent::{AgentRuntime, AgentType};
@@ -13,7 +14,7 @@ use opencode_core::{
 use opencode_runtime::{
     Runtime, RuntimeCommand, RuntimeContextSummary, RuntimeEvent, RuntimeFacadeError,
     RuntimePermissionAdapter, RuntimePermissionDecision, RuntimeServices, RuntimeSessionStore,
-    RuntimeStatus, RuntimeTaskStore, SubmitUserInput, TaskControlCommand,
+    RuntimeStatus, RuntimeTaskStore, RuntimeToolRouter, SubmitUserInput, TaskControlCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -42,6 +43,7 @@ fn build_runtime() -> (Runtime, Arc<StorageService>) {
             storage.clone(),
             agent_runtime,
             Arc::new(RuntimeTaskStore::new()),
+            Arc::new(RuntimeToolRouter::new(opencode_tools::ToolRegistry::new())),
         )),
         storage,
     )
@@ -127,7 +129,13 @@ fn runtime_permission_adapter_denies_blocked_patterns() {
 
     let mut config = PermissionConfig::default();
     config.always_denied.push(".env".to_string());
-    let adapter = RuntimePermissionAdapter::new(PermissionManager::new(config));
+    let adapter = RuntimePermissionAdapter::new(
+        Arc::new(RwLock::new(PermissionManager::new(config))),
+        Arc::new(RwLock::new(opencode_permission::ApprovalQueue::new(
+            PermissionScope::default(),
+        ))),
+        None,
+    );
 
     let decision = adapter.check(Permission::FileRead, ".env");
 
@@ -361,6 +369,7 @@ async fn runtime_task_events_published_after_submit() {
         storage,
         agent_runtime,
         Arc::new(RuntimeTaskStore::new()),
+        Arc::new(RuntimeToolRouter::new(opencode_tools::ToolRegistry::new())),
     ));
 
     runtime

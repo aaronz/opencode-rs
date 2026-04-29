@@ -41,7 +41,9 @@ use opencode_llm::{
 use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
 use opencode_mcp::McpManager;
-use opencode_runtime::{Runtime as OpenCodeRuntime, RuntimeServices, RuntimeTaskStore};
+use opencode_runtime::{
+    Runtime as OpenCodeRuntime, RuntimeServices, RuntimeTaskStore, RuntimeToolRouter,
+};
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
 };
@@ -6704,6 +6706,7 @@ fn build_placeholder_runtime() -> Arc<OpenCodeRuntime> {
         storage,
         agent_runtime,
         Arc::new(RuntimeTaskStore::new()),
+        Arc::new(RuntimeToolRouter::default()),
     )))
 }
 
