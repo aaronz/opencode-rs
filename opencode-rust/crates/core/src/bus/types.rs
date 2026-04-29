@@ -131,6 +131,34 @@ pub enum InternalEvent {
         source: String,
         message: String,
     },
+    TaskStarted {
+        session_id: String,
+        turn_id: String,
+        task_id: String,
+        task_kind: String,
+    },
+    TaskProgress {
+        session_id: String,
+        turn_id: String,
+        task_id: String,
+        message: String,
+    },
+    TaskCompleted {
+        session_id: String,
+        turn_id: String,
+        task_id: String,
+    },
+    TaskFailed {
+        session_id: String,
+        turn_id: String,
+        task_id: String,
+        error: String,
+    },
+    TaskCancelled {
+        session_id: String,
+        turn_id: String,
+        task_id: String,
+    },
 }
 
 impl InternalEvent {

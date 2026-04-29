@@ -9,9 +9,12 @@ license.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+uuid.workspace = true
+chrono.workspace = true
 opencode-agent.workspace = true
 opencode-core.workspace = true
 opencode-storage.workspace = true
+opencode-llm.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

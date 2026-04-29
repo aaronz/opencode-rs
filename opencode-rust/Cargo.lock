@@ -5127,13 +5127,16 @@ dependencies = [
 name = "opencode-runtime"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "opencode-agent",
  "opencode-core",
+ "opencode-llm",
  "opencode-storage",
  "serde",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

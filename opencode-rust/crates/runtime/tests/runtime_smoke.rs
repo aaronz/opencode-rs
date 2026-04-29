@@ -13,7 +13,7 @@ use opencode_core::{
 use opencode_runtime::{
     Runtime, RuntimeCommand, RuntimeContextSummary, RuntimeEvent, RuntimeFacadeError,
     RuntimePermissionAdapter, RuntimePermissionDecision, RuntimeServices, RuntimeSessionStore,
-    RuntimeStatus, SubmitUserInput, TaskControlCommand,
+    RuntimeStatus, RuntimeTaskStore, SubmitUserInput, TaskControlCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -41,6 +41,7 @@ fn build_runtime() -> (Runtime, Arc<StorageService>) {
             permission_manager,
             storage.clone(),
             agent_runtime,
+            Arc::new(RuntimeTaskStore::new()),
         )),
         storage,
     )
@@ -69,18 +70,15 @@ async fn runtime_accepts_submit_command_shape() {
 }
 
 #[tokio::test]
-async fn runtime_unimplemented_commands_return_explicit_errors() {
+async fn runtime_task_control_cancel_nonexistent_returns_error() {
     let (runtime, _) = build_runtime();
     let result = runtime
         .execute(RuntimeCommand::TaskControl(TaskControlCommand::Cancel {
-            task_id: "task-1".to_string(),
+            task_id: "00000000-0000-0000-0000-000000000001".to_string(),
         }))
         .await;
 
-    assert!(matches!(
-        result,
-        Err(RuntimeFacadeError::NotImplemented("task control"))
-    ));
+    assert!(matches!(result, Err(RuntimeFacadeError::Dependency(_))));
 }
 
 #[test]
@@ -281,4 +279,168 @@ async fn runtime_submit_with_session_id_persists_turn_to_storage() {
         stored.active_turn_id.map(|t| t.0.to_string()),
         result.turn_id
     );
+}
+
+#[tokio::test]
+async fn runtime_submit_creates_task() {
+    let (runtime, _) = build_runtime();
+    let result = runtime
+        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+            session_id: None,
+            input: "fix the bug".to_string(),
+        }))
+        .await
+        .expect("submit should succeed");
+
+    assert!(result.accepted);
+    let task_count = runtime.task_store().active_count().await;
+    assert_eq!(task_count, 1, "one active task should exist after submit");
+}
+
+#[tokio::test]
+async fn runtime_task_cancel_requests_cancellation() {
+    let (runtime, _) = build_runtime();
+    let result = runtime
+        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+            session_id: None,
+            input: "do work".to_string(),
+        }))
+        .await
+        .expect("submit should succeed");
+
+    let task_id = runtime.task_store().list_active_tasks().await[0]
+        .id
+        .0
+        .to_string();
+
+    let cancel_result = runtime
+        .execute(RuntimeCommand::TaskControl(TaskControlCommand::Cancel {
+            task_id: task_id.clone(),
+        }))
+        .await
+        .expect("cancel should succeed");
+
+    assert!(cancel_result.accepted);
+    assert_eq!(cancel_result.session_id, result.session_id);
+    assert_eq!(cancel_result.turn_id, result.turn_id);
+}
+
+#[tokio::test]
+async fn runtime_task_cancel_nonexistent_returns_error() {
+    let (runtime, _) = build_runtime();
+    let result = runtime
+        .execute(RuntimeCommand::TaskControl(TaskControlCommand::Cancel {
+            task_id: "00000000-0000-0000-0000-000000000999".to_string(),
+        }))
+        .await;
+
+    assert!(matches!(result, Err(RuntimeFacadeError::Dependency(_))));
+}
+
+#[tokio::test]
+async fn runtime_task_events_published_after_submit() {
+    let event_bus = Arc::new(EventBus::new());
+    let permission_manager = Arc::new(RwLock::new(PermissionManager::default()));
+    let session_repo = Arc::new(InMemorySessionRepository::default());
+    let project_repo = Arc::new(InMemoryProjectRepository::default());
+    let temp_dir = tempfile::tempdir().expect("temp dir");
+    let db_path = temp_dir.path().join("runtime-task-events.db");
+    let pool = StoragePool::new(&db_path).expect("storage pool");
+    let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
+    let agent_runtime = Arc::new(RwLock::new(AgentRuntime::new(
+        Session::default(),
+        AgentType::Build,
+    )));
+    std::mem::forget(temp_dir);
+
+    let mut rx = event_bus.subscribe();
+
+    let runtime = Runtime::new(RuntimeServices::new(
+        event_bus,
+        permission_manager,
+        storage,
+        agent_runtime,
+        Arc::new(RuntimeTaskStore::new()),
+    ));
+
+    runtime
+        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+            session_id: None,
+            input: "hello".to_string(),
+        }))
+        .await
+        .expect("submit should succeed");
+
+    let mut found_task_started = false;
+    while let Ok(event) = rx.recv().await {
+        if matches!(event, InternalEvent::TaskStarted { .. }) {
+            found_task_started = true;
+            break;
+        }
+    }
+    assert!(
+        found_task_started,
+        "TaskStarted event should be published after submit"
+    );
+}
+
+#[test]
+fn runtime_task_status_state_machine() {
+    use opencode_runtime::{RuntimeTask, RuntimeTaskStatus, TaskKind};
+    use uuid::Uuid;
+
+    let mut task = RuntimeTask::new(
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        TaskKind::Agent,
+        "test task".to_string(),
+        None,
+    );
+
+    assert_eq!(task.status, RuntimeTaskStatus::Pending);
+    assert!(!task.is_terminal());
+    assert!(task.can_cancel());
+
+    task.mark_preparing();
+    assert_eq!(task.status, RuntimeTaskStatus::Preparing);
+    assert!(task.can_cancel());
+
+    task.mark_started();
+    assert_eq!(task.status, RuntimeTaskStatus::Running);
+    assert!(task.can_cancel());
+
+    task.mark_waiting_for_permission();
+    assert_eq!(task.status, RuntimeTaskStatus::WaitingForPermission);
+    assert!(task.can_cancel());
+
+    task.mark_started();
+    task.mark_completed();
+    assert_eq!(task.status, RuntimeTaskStatus::Completed);
+    assert!(task.is_terminal());
+    assert!(!task.can_cancel());
+
+    let mut task2 = RuntimeTask::new(
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        TaskKind::Agent,
+        "test task 2".to_string(),
+        None,
+    );
+    task2.mark_started();
+    task2.mark_failed();
+    assert_eq!(task2.status, RuntimeTaskStatus::Failed);
+    assert!(task2.is_terminal());
+
+    let mut task3 = RuntimeTask::new(
+        Uuid::new_v4(),
+        Uuid::new_v4(),
+        TaskKind::Agent,
+        "test task 3".to_string(),
+        None,
+    );
+    task3.mark_cancelling();
+    assert_eq!(task3.status, RuntimeTaskStatus::Cancelling);
+    task3.mark_cancelled();
+    assert_eq!(task3.status, RuntimeTaskStatus::Cancelled);
+    assert!(task3.is_terminal());
 }

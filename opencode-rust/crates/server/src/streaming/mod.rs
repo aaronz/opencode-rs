@@ -139,6 +139,11 @@ impl StreamMessage {
                 code: source.clone(),
                 message: message.clone(),
             }),
+            RuntimeEvent::TaskStarted { .. }
+            | RuntimeEvent::TaskProgress { .. }
+            | RuntimeEvent::TaskCompleted { .. }
+            | RuntimeEvent::TaskFailed { .. }
+            | RuntimeEvent::TaskCancelled { .. } => None,
         }
     }
 }
