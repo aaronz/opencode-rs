@@ -6,7 +6,8 @@ use opencode_agent::{AgentRuntime, AgentType};
 use opencode_core::{bus::EventBus, bus::InternalEvent, permission::PermissionManager, Session};
 use opencode_runtime::{
     Runtime, RuntimeCommand, RuntimeEvent, RuntimeFacadeError, RuntimePermissionAdapter,
-    RuntimePermissionDecision, RuntimeServices, RuntimeStatus, SubmitUserInput, TaskControlCommand,
+    RuntimePermissionDecision, RuntimeServices, RuntimeSessionStore, RuntimeStatus,
+    SubmitUserInput, TaskControlCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -127,6 +128,40 @@ fn runtime_permission_adapter_denies_blocked_patterns() {
     let decision = adapter.check(Permission::FileRead, ".env");
 
     assert_eq!(decision, RuntimePermissionDecision::Deny);
+}
+
+#[tokio::test]
+async fn runtime_session_store_round_trips_session() {
+    let (_, storage) = build_runtime();
+    let store = RuntimeSessionStore::new(storage.clone());
+    let session = Session::default();
+    let session_id = session.id.to_string();
+
+    store
+        .save_session(&session)
+        .await
+        .expect("session should save through runtime store");
+
+    let loaded = store
+        .load_session(&session_id)
+        .await
+        .expect("session load should succeed")
+        .expect("session should exist");
+
+    assert_eq!(loaded.id.to_string(), session_id);
+}
+
+#[tokio::test]
+async fn runtime_session_store_returns_none_for_missing_session() {
+    let (_, storage) = build_runtime();
+    let store = RuntimeSessionStore::new(storage);
+
+    let loaded = store
+        .load_session("00000000-0000-0000-0000-000000000000")
+        .await
+        .expect("missing session lookup should succeed");
+
+    assert!(loaded.is_none());
 }
 
 #[tokio::test]
