@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/config",
     "crates/core",
+    "crates/runtime",
     "crates/format",
     "crates/logging",
     "crates/cli",
@@ -83,6 +84,7 @@ opencode-config = { path = "crates/config" }
 opencode-core = { path = "crates/core" }
 opencode-llm = { path = "crates/llm" }
 opencode-tools = { path = "crates/tools" }
+opencode-runtime = { path = "crates/runtime" }
 opencode-tui = { path = "crates/tui" }
 opencode-agent = { path = "crates/agent" }
 opencode-lsp = { path = "crates/lsp" }

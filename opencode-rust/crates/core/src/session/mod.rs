@@ -16,6 +16,7 @@ use crate::config::{CompactionConfig as RuntimeCompactionConfig, ShareMode};
 use crate::context::{Context, ContextBuilder};
 use crate::message::{Message, Role};
 use crate::session_state::{is_valid_transition, SessionState, StateTransitionError};
+use crate::turn::{Turn, TurnId, TurnStatus};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -54,6 +55,10 @@ pub struct Session {
     pub share_mode: Option<ShareMode>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub share_expires_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub turns: Vec<Turn>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub active_turn_id: Option<TurnId>,
 }
 
 impl Default for Session {
@@ -81,6 +86,8 @@ impl Session {
             shared_id: None,
             share_mode: None,
             share_expires_at: None,
+            turns: Vec::new(),
+            active_turn_id: None,
         }
     }
 
@@ -103,6 +110,8 @@ impl Session {
             shared_id: None,
             share_mode: self.share_mode.clone(),
             share_expires_at: self.share_expires_at,
+            turns: Vec::new(),
+            active_turn_id: None,
         }
     }
 
@@ -131,7 +140,47 @@ impl Session {
             shared_id: None,
             share_mode: self.share_mode.clone(),
             share_expires_at: self.share_expires_at,
+            turns: Vec::new(),
+            active_turn_id: None,
         })
+    }
+
+    pub fn start_turn(&mut self, user_message_id: Option<String>) -> TurnId {
+        let turn = Turn {
+            id: TurnId::new(),
+            session_id: self.id,
+            user_message_id,
+            status: TurnStatus::Running,
+            started_at: Utc::now(),
+            completed_at: None,
+        };
+        let turn_id = turn.id;
+        self.active_turn_id = Some(turn_id);
+        self.turns.push(turn);
+        self.updated_at = Utc::now();
+        turn_id
+    }
+
+    pub fn complete_turn(&mut self, turn_id: TurnId) {
+        if let Some(turn) = self.turns.iter_mut().find(|turn| turn.id == turn_id) {
+            turn.status = TurnStatus::Completed;
+            turn.completed_at = Some(Utc::now());
+        }
+        if self.active_turn_id == Some(turn_id) {
+            self.active_turn_id = None;
+        }
+        self.updated_at = Utc::now();
+    }
+
+    pub fn fail_turn(&mut self, turn_id: TurnId) {
+        if let Some(turn) = self.turns.iter_mut().find(|turn| turn.id == turn_id) {
+            turn.status = TurnStatus::Failed;
+            turn.completed_at = Some(Utc::now());
+        }
+        if self.active_turn_id == Some(turn_id) {
+            self.active_turn_id = None;
+        }
+        self.updated_at = Utc::now();
     }
 
     pub fn compute_lineage_path(&self) -> Option<String> {
@@ -688,6 +737,38 @@ mod tests {
 
         assert_eq!(session.messages.len(), 1);
         assert!(session.updated_at >= session.created_at);
+    }
+
+    #[test]
+    fn session_start_turn_sets_active_turn() {
+        let mut session = Session::new();
+        let turn_id = session.start_turn(None);
+
+        assert_eq!(session.active_turn_id, Some(turn_id));
+        assert_eq!(session.turns.len(), 1);
+        assert_eq!(session.turns[0].status, crate::TurnStatus::Running);
+    }
+
+    #[test]
+    fn session_complete_turn_clears_active_turn() {
+        let mut session = Session::new();
+        let turn_id = session.start_turn(None);
+
+        session.complete_turn(turn_id);
+
+        assert_eq!(session.active_turn_id, None);
+        assert_eq!(session.turns[0].status, crate::TurnStatus::Completed);
+        assert!(session.turns[0].completed_at.is_some());
+    }
+
+    #[test]
+    fn session_fail_turn_marks_failed() {
+        let mut session = Session::new();
+        let turn_id = session.start_turn(None);
+
+        session.fail_turn(turn_id);
+
+        assert_eq!(session.turns[0].status, crate::TurnStatus::Failed);
     }
 
     #[test]

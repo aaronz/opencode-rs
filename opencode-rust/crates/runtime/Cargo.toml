@@ -1,0 +1,17 @@
+[package]
+name = "opencode-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+opencode-agent.workspace = true
+opencode-core.workspace = true
+opencode-storage.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

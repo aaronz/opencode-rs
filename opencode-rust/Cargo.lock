@@ -5124,6 +5124,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "opencode-runtime"
+version = "0.1.0"
+dependencies = [
+ "opencode-agent",
+ "opencode-core",
+ "opencode-storage",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "opencode-sdk"
 version = "0.1.0"
 dependencies = [
@@ -5165,6 +5178,7 @@ dependencies = [
  "opencode-llm",
  "opencode-mcp",
  "opencode-permission",
+ "opencode-runtime",
  "opencode-storage",
  "opencode-tools",
  "rand 0.8.6",
@@ -5248,6 +5262,8 @@ dependencies = [
  "opencode-llm",
  "opencode-lsp",
  "opencode-mcp",
+ "opencode-runtime",
+ "opencode-storage",
  "opencode-tools",
  "pulldown-cmark",
  "ratatui 0.30.0",

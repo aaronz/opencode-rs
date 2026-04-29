@@ -59,6 +59,7 @@ pub mod sync;
 pub mod token_counter;
 pub mod tool;
 pub mod tool_config;
+pub mod turn;
 pub mod util;
 pub mod watcher;
 pub mod worktree;
@@ -89,6 +90,7 @@ pub use session::{Session, SessionInfo, SessionSummaryMetadata, ToolInvocationRe
 pub use session_state::{is_valid_transition, SessionState};
 pub use summary::SummaryGenerator;
 pub use token_counter::{CostCalculator, TokenCounter};
+pub use turn::{Turn, TurnId, TurnStatus};
 
 pub use session_sharing::SessionSharing;
 /// Skill management for extending OpenCode with custom capabilities.

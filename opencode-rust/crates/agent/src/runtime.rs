@@ -564,7 +564,12 @@ impl AgentRuntime {
 
             let llm_start = Instant::now();
             let result = agent
-                .run_streaming(&mut *self.session.write().await, provider, tools, events_callback)
+                .run_streaming(
+                    &mut *self.session.write().await,
+                    provider,
+                    tools,
+                    events_callback,
+                )
                 .await;
             let llm_duration = llm_start.elapsed();
 
@@ -712,6 +717,11 @@ impl AgentRuntime {
 
     pub async fn session(&self) -> Session {
         self.session.read().await.clone()
+    }
+
+    pub async fn with_session_mut<R>(&self, f: impl FnOnce(&mut Session) -> R) -> R {
+        let mut guard = self.session.write().await;
+        f(&mut guard)
     }
 
     pub async fn into_session(self) -> Session {

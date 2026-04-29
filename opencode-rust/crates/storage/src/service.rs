@@ -431,6 +431,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn session_with_turns_round_trips_through_storage() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let pool = StoragePool::new(&db_path).unwrap();
+
+        let session_repo = Arc::new(InMemorySessionRepository::new());
+        let project_repo = Arc::new(crate::memory_repository::InMemoryProjectRepository::new());
+
+        let service = StorageService::new(session_repo, project_repo, pool);
+        let mut session = create_test_session();
+        let turn_id = session.start_turn(None);
+        session.complete_turn(turn_id);
+
+        service.save_session(&session).await.unwrap();
+
+        let loaded = service
+            .load_session(&session.id.to_string())
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(loaded.turns.len(), 1);
+        assert_eq!(loaded.active_turn_id, None);
+
+        drop(temp_dir);
+    }
+
+    #[tokio::test]
     async fn test_load_session_not_found() {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
