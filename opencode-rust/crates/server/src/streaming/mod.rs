@@ -2,6 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use opencode_core::bus::InternalEvent;
+use opencode_runtime::RuntimeEvent;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -68,8 +69,13 @@ impl StreamMessage {
     }
 
     pub fn from_internal_event(event: &InternalEvent) -> Option<Self> {
+        let runtime_event = RuntimeEvent::from_internal_event(event)?;
+        Self::from_runtime_event(&runtime_event)
+    }
+
+    pub fn from_runtime_event(event: &RuntimeEvent) -> Option<Self> {
         match event {
-            InternalEvent::MessageAdded {
+            RuntimeEvent::MessageAdded {
                 session_id,
                 message_id,
             } => Some(Self::Message {
@@ -77,7 +83,7 @@ impl StreamMessage {
                 content: format!("message_added:{message_id}"),
                 role: "system".to_string(),
             }),
-            InternalEvent::MessageUpdated {
+            RuntimeEvent::MessageUpdated {
                 session_id,
                 message_id,
             } => Some(Self::Message {
@@ -85,7 +91,7 @@ impl StreamMessage {
                 content: format!("message_updated:{message_id}"),
                 role: "system".to_string(),
             }),
-            InternalEvent::ToolCallStarted {
+            RuntimeEvent::ToolCallStarted {
                 session_id,
                 tool_name,
                 call_id,
@@ -95,7 +101,7 @@ impl StreamMessage {
                 args: serde_json::Value::Null,
                 call_id: call_id.clone(),
             }),
-            InternalEvent::ToolCallEnded {
+            RuntimeEvent::ToolCallEnded {
                 session_id,
                 call_id,
                 success,
@@ -105,7 +111,7 @@ impl StreamMessage {
                 output: String::new(),
                 success: *success,
             }),
-            InternalEvent::ToolCallOutput {
+            RuntimeEvent::ToolCallOutput {
                 session_id,
                 call_id,
                 output,
@@ -115,25 +121,24 @@ impl StreamMessage {
                 output: output.clone(),
                 success: true,
             }),
-            InternalEvent::AgentStatusChanged { session_id, status } => Some(Self::SessionUpdate {
+            RuntimeEvent::AgentStatusChanged { session_id, status } => Some(Self::SessionUpdate {
                 session_id: session_id.clone(),
                 status: status.clone(),
             }),
-            InternalEvent::SessionStarted(session_id) => Some(Self::SessionUpdate {
+            RuntimeEvent::SessionStarted { session_id } => Some(Self::SessionUpdate {
                 session_id: session_id.clone(),
                 status: "started".to_string(),
             }),
-            InternalEvent::SessionEnded(session_id) => Some(Self::SessionUpdate {
+            RuntimeEvent::SessionEnded { session_id } => Some(Self::SessionUpdate {
                 session_id: session_id.clone(),
                 status: "ended".to_string(),
             }),
-            InternalEvent::Error { source, message } => Some(Self::Error {
+            RuntimeEvent::Error { source, message } => Some(Self::Error {
                 session_id: None,
                 error: source.clone(),
                 code: source.clone(),
                 message: message.clone(),
             }),
-            _ => None,
         }
     }
 }
@@ -219,6 +224,7 @@ impl Default for ReconnectionStore {
 mod tests {
     use super::{ReconnectionStore, StreamMessage};
     use opencode_core::bus::InternalEvent;
+    use opencode_runtime::RuntimeEvent;
 
     #[test]
     fn stream_message_serialization_deserialization() {
@@ -664,6 +670,29 @@ mod tests {
         };
         let msg = StreamMessage::from_internal_event(&event);
         assert!(msg.is_none());
+    }
+
+    #[test]
+    fn test_stream_message_from_runtime_event_message_added() {
+        let event = RuntimeEvent::MessageAdded {
+            session_id: "runtime-session".to_string(),
+            message_id: "message-7".to_string(),
+        };
+
+        let msg = StreamMessage::from_runtime_event(&event);
+
+        match msg {
+            Some(StreamMessage::Message {
+                session_id,
+                content,
+                role,
+            }) => {
+                assert_eq!(session_id, "runtime-session");
+                assert_eq!(content, "message_added:message-7");
+                assert_eq!(role, "system");
+            }
+            other => panic!("unexpected stream message: {:?}", other),
+        }
     }
 
     #[test]
