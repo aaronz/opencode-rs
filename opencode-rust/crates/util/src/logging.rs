@@ -95,15 +95,16 @@ impl Logger {
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
         if let Some(file_path) = &self.file_path {
-            let log_dir = file_path.parent().expect("log file path must have a parent directory");
+            let log_dir = file_path
+                .parent()
+                .expect("log file path must have a parent directory");
             let log_prefix = file_path
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("opencode.log");
             std::fs::create_dir_all(log_dir)?;
 
-            let file_appender =
-                RollingFileAppender::new(LogRotation::DAILY, log_dir, log_prefix);
+            let file_appender = RollingFileAppender::new(LogRotation::DAILY, log_dir, log_prefix);
             let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
             let _ = FILE_LOG_GUARD.set(guard);
