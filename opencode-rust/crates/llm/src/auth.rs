@@ -39,6 +39,7 @@ impl ProviderAuth for str {
             "google" | "copilot" => Vec::new(),
             "anthropic" => vec![AuthMethod::ApiKey],
             "openai" => vec![AuthMethod::ApiKey, AuthMethod::Browser],
+            "ollama" | "lmstudio" | "local" => vec![AuthMethod::Local],
             _ => vec![AuthMethod::ApiKey],
         }
     }
