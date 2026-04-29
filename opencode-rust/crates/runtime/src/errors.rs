@@ -7,4 +7,7 @@ pub enum RuntimeFacadeError {
 
     #[error("runtime dependency error: {0}")]
     Dependency(String),
+
+    #[error("serialization error: {0}")]
+    Serialization(String),
 }

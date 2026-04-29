@@ -453,3 +453,169 @@ fn runtime_task_status_state_machine() {
     assert_eq!(task3.status, RuntimeTaskStatus::Cancelled);
     assert!(task3.is_terminal());
 }
+
+#[tokio::test]
+async fn runtime_trace_store_begin_and_end_trace() {
+    use opencode_runtime::RuntimeTraceStore;
+    use uuid::Uuid;
+
+    let store = RuntimeTraceStore::new();
+    let session_id = Uuid::new_v4();
+
+    let trace_id = store
+        .begin_trace(session_id, None, None)
+        .await
+        .expect("trace begins");
+    assert!(trace_id.0 != Uuid::nil());
+
+    store
+        .end_trace(trace_id, true, None)
+        .await
+        .expect("trace ends");
+
+    let retrieved = store.get_trace(&trace_id).await.expect("trace retrieved");
+    assert!(retrieved.is_some());
+    let trace = retrieved.unwrap();
+    assert!(trace.ended_at.is_some());
+    assert!(trace.success);
+    assert!(trace.error.is_none());
+}
+
+#[tokio::test]
+async fn runtime_trace_store_records_tool_calls() {
+    use opencode_runtime::RuntimeTraceStore;
+    use uuid::Uuid;
+
+    let store = RuntimeTraceStore::new();
+    let session_id = Uuid::new_v4();
+
+    let trace_id = store
+        .begin_trace(session_id, None, None)
+        .await
+        .expect("trace begins");
+
+    store
+        .record_tool_call(trace_id, "read")
+        .await
+        .expect("tool call 1");
+    store
+        .record_tool_call(trace_id, "write")
+        .await
+        .expect("tool call 2");
+    store
+        .record_tool_call(trace_id, "grep")
+        .await
+        .expect("tool call 3");
+
+    let retrieved = store.get_trace(&trace_id).await.expect("trace retrieved");
+    assert!(retrieved.is_some());
+    assert_eq!(retrieved.unwrap().tool_call_count, 3);
+}
+
+#[tokio::test]
+async fn runtime_trace_store_list_session_traces() {
+    use opencode_runtime::RuntimeTraceStore;
+    use uuid::Uuid;
+
+    let store = RuntimeTraceStore::new();
+    let session_id = Uuid::new_v4();
+
+    let trace1 = store
+        .begin_trace(session_id, None, None)
+        .await
+        .expect("trace 1");
+    store
+        .end_trace(trace1, true, None)
+        .await
+        .expect("end trace 1");
+
+    let trace2 = store
+        .begin_trace(session_id, None, None)
+        .await
+        .expect("trace 2");
+    store
+        .end_trace(trace2, false, Some("error".to_string()))
+        .await
+        .expect("end trace 2");
+
+    let summaries = store
+        .list_session_traces(&session_id)
+        .await
+        .expect("list traces");
+    assert_eq!(summaries.len(), 2);
+}
+
+#[tokio::test]
+async fn runtime_checkpoint_store_save_and_load() {
+    use opencode_runtime::{
+        Checkpoint, CheckpointStore, RuntimeCheckpointStore, RuntimeTaskId, RuntimeTaskStatus,
+    };
+    use uuid::Uuid;
+
+    let store = RuntimeCheckpointStore::new();
+    let task_id = RuntimeTaskId::new();
+    let session_id = Uuid::new_v4();
+    let turn_id = Uuid::new_v4();
+
+    let checkpoint = Checkpoint::new(
+        task_id,
+        session_id,
+        turn_id,
+        RuntimeTaskStatus::Running,
+        "test task".to_string(),
+        "step 1".to_string(),
+        serde_json::json!({"key": "value"}),
+    );
+    let checkpoint_id = checkpoint.id;
+
+    store
+        .save_checkpoint(&checkpoint)
+        .await
+        .expect("checkpoint saves");
+
+    let loaded = store.load_latest(&task_id).await.expect("checkpoint loads");
+    assert!(loaded.is_some());
+    let loaded = loaded.unwrap();
+    assert_eq!(loaded.id, checkpoint_id);
+    assert_eq!(loaded.task_description, "test task");
+    assert_eq!(loaded.current_step, "step 1");
+}
+
+#[tokio::test]
+async fn runtime_checkpoint_store_multiple_per_task() {
+    use opencode_runtime::{
+        Checkpoint, CheckpointStore, RuntimeCheckpointStore, RuntimeTaskId, RuntimeTaskStatus,
+    };
+    use uuid::Uuid;
+
+    let store = RuntimeCheckpointStore::new();
+    let task_id = RuntimeTaskId::new();
+    let session_id = Uuid::new_v4();
+    let turn_id = Uuid::new_v4();
+
+    let cp1 = Checkpoint::new(
+        task_id,
+        session_id,
+        turn_id,
+        RuntimeTaskStatus::Running,
+        "task".to_string(),
+        "step 1".to_string(),
+        serde_json::json!({}),
+    );
+    let cp2 = Checkpoint::new(
+        task_id,
+        session_id,
+        turn_id,
+        RuntimeTaskStatus::Running,
+        "task".to_string(),
+        "step 2".to_string(),
+        serde_json::json!({}),
+    );
+
+    store.save_checkpoint(&cp1).await.expect("cp1 saves");
+    store.save_checkpoint(&cp2).await.expect("cp2 saves");
+
+    let loaded = store.load_latest(&task_id).await.expect("loads latest");
+    assert!(loaded.is_some());
+    assert_eq!(loaded.unwrap().id, cp2.id);
+}

@@ -7,9 +7,11 @@ use opencode_permission::PermissionScope;
 use opencode_storage::StorageService;
 use tokio::sync::RwLock;
 
+use crate::checkpoint::RuntimeCheckpointStore;
 use crate::permission::RuntimePermissionAdapter;
 use crate::task_store::RuntimeTaskStore;
 use crate::tool_router::RuntimeToolRouter;
+use crate::trace_store::RuntimeTraceStore;
 
 #[derive(Clone)]
 pub struct RuntimeServices {
@@ -20,6 +22,8 @@ pub struct RuntimeServices {
     pub task_store: Arc<RuntimeTaskStore>,
     pub tool_router: Arc<RuntimeToolRouter>,
     pub permission_adapter: RuntimePermissionAdapter,
+    pub trace_store: Arc<RuntimeTraceStore>,
+    pub checkpoint_store: Arc<RuntimeCheckpointStore>,
 }
 
 impl RuntimeServices {
@@ -47,6 +51,8 @@ impl RuntimeServices {
             task_store,
             tool_router,
             permission_adapter,
+            trace_store: Arc::new(RuntimeTraceStore::new()),
+            checkpoint_store: Arc::new(RuntimeCheckpointStore::new()),
         }
     }
 }
