@@ -7,7 +7,7 @@ use opencode_agent::{AgentRuntime, AgentType};
 use opencode_core::{
     bus::EventBus,
     bus::InternalEvent,
-    context::{Context, ContextBudget, ContextItem, ContextLayer, LayerBudgets},
+    context::{Context, ContextBudget, ContextItem, ContextLayer, LayerBudgets, TruncationReport},
     permission::PermissionManager,
     Session,
 };
@@ -200,6 +200,8 @@ fn runtime_context_summary_reports_budget_and_counts() {
             compact_threshold: 0.85,
             continuation_threshold: 0.95,
         },
+        truncation_report: TruncationReport::default(),
+        provenance: vec![],
     };
 
     let summary = RuntimeContextSummary::from_context(&context);
@@ -247,6 +249,8 @@ fn runtime_context_summary_preserves_layer_breakdown() {
             compact_threshold: 0.85,
             continuation_threshold: 0.95,
         },
+        truncation_report: TruncationReport::default(),
+        provenance: vec![],
     };
 
     let summary = RuntimeContextSummary::from_context(&context);

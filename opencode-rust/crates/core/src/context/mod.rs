@@ -61,6 +61,77 @@ pub enum ContextUsageLevel {
     ForceNewSession(f64),
 }
 
+/// Reports what context items were dropped during context building due to token budget.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TruncationReport {
+    /// Messages that were dropped due to token budget trimming
+    pub dropped_messages: Vec<DroppedMessage>,
+    /// Total tokens saved by dropping messages
+    pub tokens_saved: usize,
+    /// Number of messages dropped from middle of conversation
+    pub middle_messages_dropped: usize,
+    /// Number of items dropped due to compaction
+    pub compacted_items: usize,
+}
+
+/// A message that was dropped during context building.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DroppedMessage {
+    /// Role of the dropped message
+    pub role: String,
+    /// Preview of dropped content (first 100 chars)
+    pub preview: String,
+    /// Token count of the dropped message
+    pub token_count: usize,
+}
+
+/// Tracks the provenance of a context item - where it came from.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContextProvenance {
+    /// The source that generated this context item
+    pub source: ProvenanceSource,
+    /// Why this item was included
+    pub inclusion_reason: String,
+    /// Token count of this item
+    pub token_count: usize,
+}
+
+/// Possible sources of context items.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ProvenanceSource {
+    /// User explicitly provided this input
+    ExplicitUser,
+    /// Session history / conversation context
+    SessionHistory,
+    /// Project files / repository
+    ProjectContext,
+    /// Structured context (rules, skills, etc.)
+    StructuredContext,
+    /// Compressed memory
+    CompressedMemory,
+    /// Tool execution result
+    ToolResult,
+    /// Git diff or status
+    GitContext,
+    /// LLM or AI generated content
+    Generated,
+}
+
+impl std::fmt::Display for ProvenanceSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProvenanceSource::ExplicitUser => write!(f, "explicit_user"),
+            ProvenanceSource::SessionHistory => write!(f, "session_history"),
+            ProvenanceSource::ProjectContext => write!(f, "project_context"),
+            ProvenanceSource::StructuredContext => write!(f, "structured_context"),
+            ProvenanceSource::CompressedMemory => write!(f, "compressed_memory"),
+            ProvenanceSource::ToolResult => write!(f, "tool_result"),
+            ProvenanceSource::GitContext => write!(f, "git_context"),
+            ProvenanceSource::Generated => write!(f, "generated"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextBudget {
     pub total_tokens: usize,
@@ -182,6 +253,8 @@ pub struct Context {
     pub session_context: Vec<String>,
     pub prompt_messages: Vec<Message>,
     pub budget: ContextBudget,
+    pub truncation_report: TruncationReport,
+    pub provenance: Vec<ContextProvenance>,
 }
 
 pub struct ContextBuilder {
@@ -329,7 +402,7 @@ impl ContextBuilder {
             self.token_budget.continuation_threshold,
         );
 
-        trim_to_budget(&mut self.prompt_messages, &budget);
+        let truncation_report = trim_to_budget(&mut self.prompt_messages, &budget);
 
         let compactor = Compactor::new(CompactionConfig {
             max_tokens,
@@ -352,9 +425,15 @@ impl ContextBuilder {
         );
 
         let mut layers = Vec::new();
+        let mut provenance = Vec::new();
 
         for input in self.explicit_input.iter() {
             let tokens = self.token_counter.count_tokens(input);
+            provenance.push(ContextProvenance {
+                source: ProvenanceSource::ExplicitUser,
+                inclusion_reason: "User explicitly provided input".to_string(),
+                token_count: tokens,
+            });
             layers.push(ContextItem {
                 layer: ContextLayer::L0ExplicitInput,
                 content: input.clone(),
@@ -365,6 +444,11 @@ impl ContextBuilder {
 
         for file in self.file_context.iter() {
             let tokens = self.token_counter.count_tokens(file);
+            provenance.push(ContextProvenance {
+                source: ProvenanceSource::ProjectContext,
+                inclusion_reason: "File referenced in conversation or opened".to_string(),
+                token_count: tokens,
+            });
             layers.push(ContextItem {
                 layer: ContextLayer::L2ProjectContext,
                 content: file.clone(),
@@ -375,6 +459,11 @@ impl ContextBuilder {
 
         for ctx in self.structured_context.iter() {
             let tokens = self.token_counter.count_tokens(ctx);
+            provenance.push(ContextProvenance {
+                source: ProvenanceSource::StructuredContext,
+                inclusion_reason: "Structured context (rules/skills)".to_string(),
+                token_count: tokens,
+            });
             layers.push(ContextItem {
                 layer: ContextLayer::L3StructuredContext,
                 content: ctx.clone(),
@@ -385,6 +474,11 @@ impl ContextBuilder {
 
         for mem in self.compressed_memory.iter() {
             let tokens = self.token_counter.count_tokens(mem);
+            provenance.push(ContextProvenance {
+                source: ProvenanceSource::CompressedMemory,
+                inclusion_reason: "Compressed from prior conversation".to_string(),
+                token_count: tokens,
+            });
             layers.push(ContextItem {
                 layer: ContextLayer::L4CompressedMemory,
                 content: mem.clone(),
@@ -402,6 +496,8 @@ impl ContextBuilder {
             session_context: self.session_context,
             prompt_messages: self.prompt_messages,
             budget,
+            truncation_report,
+            provenance,
         }
     }
 
@@ -433,7 +529,7 @@ pub fn estimate_tokens(text: &str) -> usize {
         .count_tokens(text)
 }
 
-pub fn trim_to_budget(messages: &mut Vec<Message>, budget: &ContextBudget) {
+pub fn trim_to_budget(messages: &mut Vec<Message>, budget: &ContextBudget) -> TruncationReport {
     let total_tokens = |msgs: &[Message]| {
         msgs.iter()
             .map(|m| estimate_tokens(&m.content))
@@ -441,8 +537,10 @@ pub fn trim_to_budget(messages: &mut Vec<Message>, budget: &ContextBudget) {
     };
 
     if total_tokens(messages) <= budget.max_tokens {
-        return;
+        return TruncationReport::default();
     }
+
+    let mut report = TruncationReport::default();
 
     while total_tokens(messages) > budget.max_tokens {
         let len = messages.len();
@@ -464,11 +562,21 @@ pub fn trim_to_budget(messages: &mut Vec<Message>, budget: &ContextBudget) {
 
         match removable_idx {
             Some(idx) => {
-                messages.remove(idx);
+                let removed = messages.remove(idx);
+                let tokens = estimate_tokens(&removed.content);
+                report.tokens_saved += tokens;
+                report.middle_messages_dropped += 1;
+                report.dropped_messages.push(DroppedMessage {
+                    role: format!("{:?}", removed.role),
+                    preview: removed.content.chars().take(100).collect(),
+                    token_count: tokens,
+                });
             }
             None => break,
         }
     }
+
+    report
 }
 
 #[cfg(test)]
@@ -604,5 +712,108 @@ mod tests {
             force_new.usage_level(),
             ContextUsageLevel::ForceNewSession(_)
         ));
+    }
+
+    #[test]
+    fn test_trim_to_budget_returns_truncation_report() {
+        let mut messages = vec![
+            Message::system("system"),
+            Message::user("first message"),
+            Message::assistant("second message"),
+            Message::user("third message"),
+            Message::assistant("fourth message"),
+            Message::user("fifth message"),
+        ];
+
+        let budget = ContextBudget::from_usage(3, 999, Vec::new());
+        let report = trim_to_budget(&mut messages, &budget);
+
+        assert!(report.middle_messages_dropped > 0);
+        assert!(report.tokens_saved > 0);
+        assert!(!report.dropped_messages.is_empty());
+    }
+
+    #[test]
+    fn test_truncation_report_no_trim_when_within_budget() {
+        let mut messages = vec![Message::system("system"), Message::user("hi")];
+
+        let budget = ContextBudget::from_usage(1000, 10, Vec::new());
+        let report = trim_to_budget(&mut messages, &budget);
+
+        assert_eq!(report.middle_messages_dropped, 0);
+        assert_eq!(report.tokens_saved, 0);
+        assert!(report.dropped_messages.is_empty());
+    }
+
+    #[test]
+    fn test_dropped_message_preview_truncated() {
+        let long_content = "a".repeat(200);
+        let mut messages = vec![
+            Message::system("system"),
+            Message::user(&long_content),
+            Message::assistant("recent"),
+        ];
+
+        let budget = ContextBudget::from_usage(3, 999, Vec::new());
+        let report = trim_to_budget(&mut messages, &budget);
+
+        assert!(!report.dropped_messages.is_empty());
+        let dropped = &report.dropped_messages[0];
+        assert!(dropped.preview.len() <= 100);
+    }
+
+    #[test]
+    fn test_context_builder_includes_truncation_report() {
+        let messages = vec![
+            Message::system("system prompt"),
+            Message::user("first"),
+            Message::assistant("second"),
+            Message::user("third"),
+        ];
+
+        let context = ContextBuilder::new(TokenBudget::default())
+            .with_model_name(Some("gpt-4o"))
+            .collect_session_context(&messages)
+            .build();
+
+        assert!(context.truncation_report.middle_messages_dropped >= 0);
+    }
+
+    #[test]
+    fn test_context_builder_includes_provenance() {
+        let messages = vec![Message::user("Hello")];
+
+        let context = ContextBuilder::new(TokenBudget::default())
+            .with_model_name(Some("gpt-4o"))
+            .collect_session_context(&messages)
+            .add_explicit_input("user instruction")
+            .build();
+
+        assert!(!context.provenance.is_empty());
+        assert!(context.truncation_report.tokens_saved >= 0);
+    }
+
+    #[test]
+    fn test_provenance_source_display() {
+        assert_eq!(
+            format!("{}", ProvenanceSource::ExplicitUser),
+            "explicit_user"
+        );
+        assert_eq!(
+            format!("{}", ProvenanceSource::SessionHistory),
+            "session_history"
+        );
+        assert_eq!(
+            format!("{}", ProvenanceSource::ProjectContext),
+            "project_context"
+        );
+    }
+
+    #[test]
+    fn test_truncation_report_default() {
+        let report = TruncationReport::default();
+        assert_eq!(report.dropped_messages.len(), 0);
+        assert_eq!(report.tokens_saved, 0);
+        assert_eq!(report.middle_messages_dropped, 0);
     }
 }
