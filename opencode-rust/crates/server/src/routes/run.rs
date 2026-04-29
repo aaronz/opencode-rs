@@ -9,10 +9,12 @@ use actix_web::http::StatusCode;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use futures::stream::Stream;
 use opencode_agent::{Agent, AgentType};
-use opencode_core::{Message, OpenCodeError, Session};
+use opencode_core::{Message, OpenCodeError, Session, TurnId};
 use opencode_llm::{AnthropicProvider, OllamaProvider, OpenAiProvider, Provider};
+use opencode_runtime::{RuntimeCommand, SubmitUserInput};
 use serde::Deserialize;
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct RunRequest {
@@ -117,6 +119,16 @@ async fn run_prompt_with_agent_execution(
 ) -> Result<Vec<ExecuteEvent>, HttpResponse> {
     tracing::debug!(session_id = %session_id, prompt_len = req.prompt.len(), "Starting prompt execution");
 
+    let runtime_turn_id = state
+        .runtime
+        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+            session_id: Some(session_id.clone()),
+            input: req.prompt.clone(),
+        }))
+        .await
+        .ok()
+        .and_then(|response| response.turn_id);
+
     let config = match state.config.read() {
         Ok(cfg) => cfg.clone(),
         Err(_) => {
@@ -191,6 +203,7 @@ async fn run_prompt_with_agent_execution(
     .await
     {
         Ok(response) => {
+            apply_runtime_turn_outcome(&mut session, runtime_turn_id.as_deref(), true);
             tracing::info!(session_id = %session_id, response_len = response.content.len(), "Agent execution completed");
             events.push(ExecuteEvent::message("assistant", &response.content));
             events.push(ExecuteEvent::complete(serde_json::json!({
@@ -199,10 +212,12 @@ async fn run_prompt_with_agent_execution(
             })));
         }
         Err(OpenCodeError::InternalError(msg)) => {
+            apply_runtime_turn_outcome(&mut session, runtime_turn_id.as_deref(), false);
             tracing::error!(session_id = %session_id, error = %msg, "Internal error during agent execution");
             events.push(ExecuteEvent::error("INTERNAL_ERROR", msg));
         }
         Err(e) => {
+            apply_runtime_turn_outcome(&mut session, runtime_turn_id.as_deref(), false);
             tracing::error!(session_id = %session_id, error = %e, "Execution error");
             events.push(ExecuteEvent::error("EXECUTION_ERROR", e.to_string()));
         }
@@ -219,6 +234,22 @@ async fn run_prompt_with_agent_execution(
 
     tracing::info!(session_id = %session_id, "Session saved successfully");
     Ok(events)
+}
+
+fn apply_runtime_turn_outcome(session: &mut Session, turn_id: Option<&str>, success: bool) {
+    let Some(turn_id) = turn_id else {
+        return;
+    };
+    let Ok(parsed_turn_id) = Uuid::parse_str(turn_id) else {
+        return;
+    };
+
+    let turn_id = TurnId(parsed_turn_id);
+    if success {
+        session.complete_turn(turn_id);
+    } else {
+        session.fail_turn(turn_id);
+    }
 }
 
 async fn run_prompt_streaming(
@@ -603,5 +634,32 @@ mod tests {
         if let Some(val) = was_set {
             std::env::set_var("OPENAI_API_KEY", val);
         }
+    }
+
+    #[test]
+    fn test_apply_runtime_turn_outcome_completes_turn_on_success() {
+        let mut session = Session::default();
+        let turn_id = session.start_turn(None).0.to_string();
+
+        apply_runtime_turn_outcome(&mut session, Some(turn_id.as_str()), true);
+
+        assert!(session.active_turn_id.is_none());
+        assert_eq!(session.turns.len(), 1);
+        assert_eq!(
+            session.turns[0].status,
+            opencode_core::TurnStatus::Completed
+        );
+    }
+
+    #[test]
+    fn test_apply_runtime_turn_outcome_fails_turn_on_error() {
+        let mut session = Session::default();
+        let turn_id = session.start_turn(None).0.to_string();
+
+        apply_runtime_turn_outcome(&mut session, Some(turn_id.as_str()), false);
+
+        assert!(session.active_turn_id.is_none());
+        assert_eq!(session.turns.len(), 1);
+        assert_eq!(session.turns[0].status, opencode_core::TurnStatus::Failed);
     }
 }

@@ -12,7 +12,7 @@ use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
 };
 
-fn build_runtime() -> Runtime {
+fn build_runtime() -> (Runtime, Arc<StorageService>) {
     let event_bus = Arc::new(EventBus::new());
     let permission_manager = Arc::new(RwLock::new(PermissionManager::default()));
     let session_repo = Arc::new(InMemorySessionRepository::default());
@@ -28,23 +28,26 @@ fn build_runtime() -> Runtime {
 
     std::mem::forget(temp_dir);
 
-    Runtime::new(RuntimeServices::new(
-        event_bus,
-        permission_manager,
+    (
+        Runtime::new(RuntimeServices::new(
+            event_bus,
+            permission_manager,
+            storage.clone(),
+            agent_runtime,
+        )),
         storage,
-        agent_runtime,
-    ))
+    )
 }
 
 #[tokio::test]
 async fn runtime_constructs_and_reports_idle_status() {
-    let runtime = build_runtime();
+    let (runtime, _) = build_runtime();
     assert_eq!(runtime.status().await, RuntimeStatus::Idle);
 }
 
 #[tokio::test]
 async fn runtime_accepts_submit_command_shape() {
-    let runtime = build_runtime();
+    let (runtime, _) = build_runtime();
     let result = runtime
         .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
             session_id: None,
@@ -60,7 +63,7 @@ async fn runtime_accepts_submit_command_shape() {
 
 #[tokio::test]
 async fn runtime_unimplemented_commands_return_explicit_errors() {
-    let runtime = build_runtime();
+    let (runtime, _) = build_runtime();
     let result = runtime
         .execute(RuntimeCommand::TaskControl(TaskControlCommand::Cancel {
             task_id: "task-1".to_string(),
@@ -99,4 +102,37 @@ fn runtime_event_ignores_unhandled_internal_variants() {
     };
 
     assert!(RuntimeEvent::from_internal_event(&event).is_none());
+}
+
+#[tokio::test]
+async fn runtime_submit_with_session_id_persists_turn_to_storage() {
+    let (runtime, storage) = build_runtime();
+    let session = Session::default();
+    let session_id = session.id.to_string();
+    storage
+        .save_session(&session)
+        .await
+        .expect("session should save before runtime submit");
+
+    let result = runtime
+        .execute(RuntimeCommand::SubmitUserInput(SubmitUserInput {
+            session_id: Some(session_id.clone()),
+            input: "hello".to_string(),
+        }))
+        .await
+        .expect("submit command should create a persisted turn");
+
+    let stored = storage
+        .load_session(&session_id)
+        .await
+        .expect("session load should succeed")
+        .expect("session should exist");
+
+    assert_eq!(result.session_id.as_deref(), Some(session_id.as_str()));
+    assert!(result.turn_id.is_some());
+    assert_eq!(stored.turns.len(), 1);
+    assert_eq!(
+        stored.active_turn_id.map(|t| t.0.to_string()),
+        result.turn_id
+    );
 }
