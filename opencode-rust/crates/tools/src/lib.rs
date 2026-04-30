@@ -42,7 +42,7 @@ pub use codesearch::CodeSearchTool;
 pub use discovery::{build_default_registry, register_custom_tools};
 pub use log_query::LogQueryTool;
 pub use multiedit::MultiEditTool;
-pub use registry::{ToolRegistry, ToolSource};
+pub use registry::{ToolInfo, ToolParameterInfo, ToolRegistry, ToolSource};
 pub use schema_validation::ToolSchema;
 pub use tool::sealed;
 pub use tool::{Tool, ToolContext, ToolResult};

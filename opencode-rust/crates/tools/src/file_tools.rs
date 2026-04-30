@@ -31,6 +31,27 @@ impl Tool for FileReadTool {
         "Read file contents"
     }
 
+    fn input_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file to read"
+                },
+                "offset": {
+                    "type": "integer",
+                    "description": "Line offset to start reading from (optional)"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of lines to read (optional)"
+                }
+            },
+            "required": ["path"]
+        }))
+    }
+
     fn clone_tool(&self) -> Box<dyn Tool> {
         Box::new(FileReadTool)
     }
@@ -102,6 +123,23 @@ impl Tool for FileWriteTool {
         "Write content to file"
     }
 
+    fn input_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file to write"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Content to write to the file"
+                }
+            },
+            "required": ["path", "content"]
+        }))
+    }
+
     fn clone_tool(&self) -> Box<dyn Tool> {
         Box::new(FileWriteTool)
     }
@@ -146,6 +184,23 @@ impl Tool for GlobTool {
 
     fn description(&self) -> &str {
         "Find files matching pattern"
+    }
+
+    fn input_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "Glob pattern to match files (e.g., '**/*.rs', 'src/**/*.ts')"
+                },
+                "root": {
+                    "type": "string",
+                    "description": "Root directory to search from (optional, defaults to current directory)"
+                }
+            },
+            "required": ["pattern"]
+        }))
     }
 
     fn clone_tool(&self) -> Box<dyn Tool> {

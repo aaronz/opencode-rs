@@ -155,6 +155,31 @@ impl Tool for BashTool {
         "Execute bash commands with permission control"
     }
 
+    fn input_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "The bash command to execute"
+                },
+                "timeout": {
+                    "type": "integer",
+                    "description": "Timeout in milliseconds (optional, default 120000)"
+                },
+                "workdir": {
+                    "type": "string",
+                    "description": "Working directory for command execution (optional)"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Description of what this command does (optional)"
+                }
+            },
+            "required": ["command"]
+        }))
+    }
+
     fn clone_tool(&self) -> Box<dyn Tool> {
         Box::new(BashTool::new())
     }

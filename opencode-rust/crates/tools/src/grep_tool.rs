@@ -29,6 +29,31 @@ impl Tool for GrepTool {
         "Search file contents using regex"
     }
 
+    fn input_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "Regex pattern to search for"
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Path to search in (optional, defaults to current directory)"
+                },
+                "file_type": {
+                    "type": "string",
+                    "description": "Filter by file type/extension (optional, e.g., 'rs', 'py')"
+                },
+                "count": {
+                    "type": "boolean",
+                    "description": "Only show count of matches per file (optional)"
+                }
+            },
+            "required": ["pattern"]
+        }))
+    }
+
     fn clone_tool(&self) -> Box<dyn Tool> {
         Box::new(GrepTool)
     }

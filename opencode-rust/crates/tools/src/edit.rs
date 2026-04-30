@@ -37,6 +37,31 @@ impl Tool for EditTool {
         "Edit files with fuzzy string matching"
     }
 
+    fn input_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "filePath": {
+                    "type": "string",
+                    "description": "Path to the file to edit"
+                },
+                "oldString": {
+                    "type": "string",
+                    "description": "String to replace (can be a substring)"
+                },
+                "newString": {
+                    "type": "string",
+                    "description": "New string to insert"
+                },
+                "replaceAll": {
+                    "type": "boolean",
+                    "description": "Replace all occurrences of oldString (optional, defaults to false)"
+                }
+            },
+            "required": ["filePath", "oldString", "newString"]
+        }))
+    }
+
     fn clone_tool(&self) -> Box<dyn Tool> {
         Box::new(EditTool)
     }

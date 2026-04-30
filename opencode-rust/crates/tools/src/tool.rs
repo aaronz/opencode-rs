@@ -80,6 +80,10 @@ pub trait Tool: Send + Sync + sealed::Sealed {
         ctx: Option<ToolContext>,
     ) -> Result<ToolResult, OpenCodeError>;
 
+    fn input_schema(&self) -> Option<serde_json::Value> {
+        None
+    }
+
     fn is_safe(&self) -> bool {
         false
     }

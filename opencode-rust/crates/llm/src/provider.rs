@@ -194,6 +194,64 @@ pub enum LlmEvent {
     Error(String),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolSchema {
+    #[serde(rename = "type")]
+    pub tool_type: String,
+    pub function: FunctionSchema,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FunctionSchema {
+    pub name: String,
+    pub description: String,
+    pub parameters: ToolParameters,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolParameters {
+    #[serde(rename = "type")]
+    pub param_type: String,
+    pub properties: HashMap<String, ToolProperty>,
+    pub required: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolProperty {
+    #[serde(rename = "type")]
+    pub prop_type: String,
+    pub description: String,
+}
+
+impl ToolSchema {
+    pub fn new(name: &str, description: &str, parameters: ToolParameters) -> Self {
+        Self {
+            tool_type: "function".to_string(),
+            function: FunctionSchema {
+                name: name.to_string(),
+                description: description.to_string(),
+                parameters,
+            },
+        }
+    }
+}
+
+impl ToolParameters {
+    pub fn new() -> Self {
+        Self {
+            param_type: "object".to_string(),
+            properties: HashMap::new(),
+            required: Vec::new(),
+        }
+    }
+}
+
+impl Default for ToolParameters {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub type EventCallback = Box<dyn FnMut(LlmEvent) + Send>;
 
 #[async_trait]
@@ -229,6 +287,14 @@ pub trait Provider: Send + Sync + sealed::Sealed {
             .join("\n");
         let content = self.complete(&prompt, None).await?;
         Ok(ChatResponse::new(content, String::new()))
+    }
+
+    async fn chat_with_tools(
+        &self,
+        messages: &[ChatMessage],
+        _tools: &[ToolSchema],
+    ) -> Result<ChatResponse, OpenCodeError> {
+        self.chat(messages).await
     }
 
     fn get_models(&self) -> Vec<Model> {

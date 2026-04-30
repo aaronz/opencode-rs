@@ -1,5 +1,6 @@
 use crate::{Tool, ToolContext, ToolResult};
 use opencode_core::OpenCodeError;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -9,6 +10,21 @@ use tokio::sync::RwLock;
 
 const CACHE_KEY_PREFIX: &str = "tool_cache:";
 const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolInfo {
+    pub name: String,
+    pub description: String,
+    pub parameters: Vec<ToolParameterInfo>,
+    pub required_params: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolParameterInfo {
+    pub name: String,
+    pub description: String,
+    pub param_type: String,
+}
 
 struct CachedToolResult {
     result: ToolResult,
@@ -381,6 +397,44 @@ impl ToolRegistry {
                 )
             })
             .collect()
+    }
+
+    pub async fn tool_infos(&self) -> Vec<ToolInfo> {
+        let tools = self.tools.read().await;
+        tools
+            .iter()
+            .filter(|(name, _)| !self.is_disabled(name))
+            .map(|(name, entry)| {
+                let tool = entry.tool.clone_tool();
+                ToolInfo {
+                    name: name.clone(),
+                    description: tool.description().to_string(),
+                    parameters: Vec::new(),
+                    required_params: Vec::new(),
+                }
+            })
+            .collect()
+    }
+
+    pub async fn tool_schemas(&self) -> Vec<serde_json::Value> {
+        let tools = self.tools.read().await;
+        tools
+            .iter()
+            .filter(|(name, _)| !self.is_disabled(name))
+            .filter_map(|(_, entry)| entry.tool.input_schema())
+            .collect()
+    }
+
+    pub fn all_tool_schemas(&self) -> Vec<serde_json::Value> {
+        if let Ok(tools) = self.tools.try_read() {
+            tools
+                .iter()
+                .filter(|(name, _)| !self.is_disabled(name))
+                .filter_map(|(_, entry)| entry.tool.input_schema())
+                .collect()
+        } else {
+            Vec::new()
+        }
     }
 
     pub async fn get_with_status(&self, name: &str) -> Option<(Box<dyn Tool>, bool)> {
