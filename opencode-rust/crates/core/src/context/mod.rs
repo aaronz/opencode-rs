@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
+use crate::compaction::types::ContextRanking;
 use crate::compaction::{
     CompactionConfig, Compactor, TokenBudget, COMPACTION_FORCE_THRESHOLD,
     COMPACTION_START_THRESHOLD, COMPACTION_WARN_THRESHOLD,
@@ -544,21 +545,38 @@ pub fn trim_to_budget(messages: &mut Vec<Message>, budget: &ContextBudget) -> Tr
 
     while total_tokens(messages) > budget.max_tokens {
         let len = messages.len();
-        if len <= PRESERVE_LAST_MESSAGES {
+        if len < PRESERVE_LAST_MESSAGES {
             break;
         }
 
-        let preserve_from = len.saturating_sub(PRESERVE_LAST_MESSAGES);
+        let preserve_from = if len <= PRESERVE_LAST_MESSAGES {
+            len
+        } else {
+            len.saturating_sub(PRESERVE_LAST_MESSAGES)
+        };
 
-        let removable_idx = messages.iter().enumerate().find_map(|(idx, msg)| {
-            let is_protected_system = msg.role == Role::System;
-            let is_protected_recent = idx >= preserve_from;
-            if is_protected_system || is_protected_recent {
-                None
-            } else {
-                Some(idx)
-            }
-        });
+        // Compute fresh rankings for current messages - rankings depend on current position
+        let rankings: Vec<ContextRanking> = messages
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| ContextRanking::default_for_index(idx, len))
+            .collect();
+
+        // Find the removable message with the lowest ranking (least important)
+        // among messages that are not system and not in the preserved recent range
+        let removable_idx = rankings
+            .iter()
+            .enumerate()
+            .find_map(|(idx, ranking)| {
+                let is_protected_system = messages[idx].role == Role::System;
+                let is_protected_recent = idx >= preserve_from;
+                if is_protected_system || is_protected_recent {
+                    None
+                } else {
+                    Some((idx, ranking.overall))
+                }
+            })
+            .map(|(idx, _)| idx);
 
         match removable_idx {
             Some(idx) => {
