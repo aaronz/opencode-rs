@@ -374,3 +374,58 @@ pub fn format_help_table(commands: &[CommandInfo]) -> String {
 
     lines.join("\n")
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandStep {
+    Run {
+        command: String,
+    },
+    AnalyzeFailure,
+    InvokeAgent {
+        agent_type: String,
+    },
+    InvokeSkill {
+        skill_name: String,
+    },
+    Summarize {
+        include_results: bool,
+    },
+    If {
+        condition: String,
+        then_steps: Vec<CommandStep>,
+        else_steps: Option<Vec<CommandStep>>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandWorkflow {
+    pub name: String,
+    pub description: Option<String>,
+    pub steps: Vec<CommandStep>,
+}
+
+impl CommandWorkflow {
+    pub fn new(name: String, steps: Vec<CommandStep>) -> Self {
+        Self {
+            name,
+            description: None,
+            steps,
+        }
+    }
+
+    pub fn with_description(mut self, description: String) -> Self {
+        self.description = Some(description);
+        self
+    }
+}
+
+#[allow(dead_code)]
+pub struct WorkflowExecutor<C: CommandContextProvider> {
+    context_provider: C,
+}
+
+pub trait CommandContextProvider: Send + Sync {
+    fn get_session(&self) -> Option<&Session>;
+    fn get_config(&self) -> Option<&Config>;
+}
