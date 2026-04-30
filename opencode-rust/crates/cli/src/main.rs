@@ -14,6 +14,7 @@ use cmd::{
     bash::{self, BashArgs},
     completion::{self, CompletionArgs},
     config::{self, ConfigArgs},
+    context::{self, ContextArgs},
     db::{self, DbArgs},
     debug::{self, DebugArgs},
     desktop::{self, DesktopArgs},
@@ -236,6 +237,9 @@ enum Commands {
 
     #[command(about = "Start opencode-rs terminal user interface")]
     Tui(TuiArgs),
+
+    #[command(about = "Inspect context")]
+    Context(ContextArgs),
 }
 
 #[derive(Args, Debug)]
@@ -342,6 +346,12 @@ fn main() -> ExitCode {
         Some(Commands::Prompt(args)) => prompt::run(args),
         Some(Commands::Quick(args)) => quick::run(args),
         Some(Commands::Tui(args)) => run_tui(args),
+        Some(Commands::Context(args)) => {
+            if let Err(e) = context::run_context_command(args) {
+                eprintln!("{}", e);
+                return ExitCode::FAILURE;
+            }
+        }
         None => {
             run_tui(TuiArgs {
                 json: false,

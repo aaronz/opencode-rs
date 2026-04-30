@@ -282,6 +282,8 @@ mod tests {
             shared_id: None,
             share_mode: None,
             share_expires_at: None,
+            turns: vec![],
+            active_turn_id: None,
         }
     }
 

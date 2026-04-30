@@ -12,6 +12,7 @@ pub(crate) mod attach;
 pub(crate) mod bash;
 pub(crate) mod completion;
 pub(crate) mod config;
+pub(crate) mod context;
 pub(crate) mod db;
 pub(crate) mod debug;
 pub(crate) mod desktop;
