@@ -117,7 +117,9 @@ impl Agent for GeneralAgent {
         let response = if tool_schemas.is_empty() {
             provider.chat(&all_messages).await?
         } else {
-            provider.chat_with_tools(&all_messages, &tool_schemas).await?
+            provider
+                .chat_with_tools(&all_messages, &tool_schemas)
+                .await?
         };
 
         session.add_message(Message::assistant(response.content.clone()));

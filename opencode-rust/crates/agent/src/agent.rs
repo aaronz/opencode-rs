@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use opencode_core::tool::ToolCall;
 use opencode_core::{Message, OpenCodeError, Session};
 use opencode_llm::provider::{EventCallback, LlmEvent};
 use opencode_llm::provider_abstraction::ReasoningBudget;
@@ -40,13 +41,6 @@ impl std::fmt::Display for AgentType {
             AgentType::Debug => write!(f, "debug"),
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolCall {
-    pub id: String,
-    pub name: String,
-    pub arguments: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

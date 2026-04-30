@@ -14,7 +14,7 @@ pub(crate) mod runtime;
 pub(crate) mod skills_actions;
 pub(crate) mod system_agents;
 
-pub use agent::{messages_to_llm_format, Agent, AgentResponse, AgentType, ToolCall};
+pub use agent::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 pub use build_agent::BuildAgent;
 pub use debug_agent::DebugAgent;
 pub use delegation::{
@@ -24,6 +24,7 @@ pub use delegation::{
 pub use events::{AgentEvent, AgentEventEmitter, BroadcastEventEmitter};
 pub use explore_agent::ExploreAgent;
 pub use general_agent::GeneralAgent;
+pub use opencode_core::tool::ToolCall;
 pub use plan_agent::PlanAgent;
 pub use refactor_agent::RefactorAgent;
 pub use review_agent::ReviewAgent;
