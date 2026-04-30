@@ -29,10 +29,9 @@ fn build_runtime() -> (RuntimeFacade, Arc<StorageService>) {
     let db_path = temp_dir.path().join("runtime-smoke.db");
     let pool = StoragePool::new(&db_path).expect("storage pool");
     let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
-    let agent_runtime = Arc::new(RwLock::new(AgentRuntime::new(
-        Session::default(),
-        AgentType::Build,
-    )));
+    let agent_runtime = Arc::new(RwLock::new(
+        AgentRuntime::new(Session::default(), AgentType::Build).with_event_bus(event_bus.clone()),
+    ));
 
     std::mem::forget(temp_dir);
 
@@ -44,6 +43,9 @@ fn build_runtime() -> (RuntimeFacade, Arc<StorageService>) {
             agent_runtime,
             Arc::new(RuntimeFacadeTaskStore::new()),
             Arc::new(RuntimeFacadeToolRouter::new(opencode_tools::ToolRegistry::new())),
+            AgentType::Build,
+            None,
+            None,
         )),
         storage,
     )
@@ -90,7 +92,7 @@ fn runtime_event_converts_from_internal_message_added() {
         message_id: "message-1".to_string(),
     };
 
-    let converted = RuntimeFacadeEvent::from_internal_event(&event).expect("runtime event expected");
+    let converted = RuntimeFacadeEvent::from_domain_event(&event).expect("runtime event expected");
 
     assert!(matches!(
         converted,
@@ -108,7 +110,7 @@ fn runtime_event_ignores_unhandled_internal_variants() {
         agent: "build".to_string(),
     };
 
-    assert!(RuntimeFacadeEvent::from_internal_event(&event).is_none());
+    assert!(RuntimeFacadeEvent::from_domain_event(&event).is_none());
 }
 
 #[tokio::test]
@@ -398,13 +400,16 @@ async fn runtime_task_events_published_after_submit() {
 
     let mut rx = event_bus.subscribe();
 
-    let runtime = Runtime::new(RuntimeServices::new(
+    let runtime = RuntimeFacade::new(RuntimeFacadeServices::new(
         event_bus,
         permission_manager,
         storage,
         agent_runtime,
-        Arc::new(RuntimeTaskStore::new()),
-        Arc::new(RuntimeToolRouter::new(opencode_tools::ToolRegistry::new())),
+        Arc::new(RuntimeFacadeTaskStore::new()),
+        Arc::new(RuntimeFacadeToolRouter::new(opencode_tools::ToolRegistry::new())),
+        AgentType::Build,
+        None,
+        None,
     ));
 
     runtime
@@ -501,7 +506,7 @@ fn runtime_task_status_state_machine() {
 
 #[tokio::test]
 async fn runtime_trace_store_begin_and_end_trace() {
-    use opencode_runtime::RuntimeTraceStore;
+    use opencode_runtime::RuntimeFacadeTraceStore;
     use uuid::Uuid;
 
     let store = RuntimeFacadeTraceStore::new();
@@ -528,7 +533,7 @@ async fn runtime_trace_store_begin_and_end_trace() {
 
 #[tokio::test]
 async fn runtime_trace_store_records_tool_calls() {
-    use opencode_runtime::RuntimeTraceStore;
+    use opencode_runtime::RuntimeFacadeTraceStore;
     use uuid::Uuid;
 
     let store = RuntimeFacadeTraceStore::new();
@@ -559,7 +564,7 @@ async fn runtime_trace_store_records_tool_calls() {
 
 #[tokio::test]
 async fn runtime_trace_store_list_session_traces() {
-    use opencode_runtime::RuntimeTraceStore;
+    use opencode_runtime::RuntimeFacadeTraceStore;
     use uuid::Uuid;
 
     let store = RuntimeFacadeTraceStore::new();

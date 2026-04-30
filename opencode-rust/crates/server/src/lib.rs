@@ -109,10 +109,9 @@ pub fn build_placeholder_runtime() -> Arc<OpenCodeRuntime> {
     ));
     let pool = StoragePool::new(&db_path).expect("placeholder storage pool");
     let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
-    let agent_runtime = Arc::new(tokio::sync::RwLock::new(AgentRuntime::new(
-        Session::default(),
-        AgentType::Build,
-    )));
+    let agent_runtime = Arc::new(tokio::sync::RwLock::new(
+        AgentRuntime::new(Session::default(), AgentType::Build).with_event_bus(event_bus.clone()),
+    ));
 
     Arc::new(OpenCodeRuntime::new(RuntimeFacadeServices::new(
         event_bus,
@@ -121,6 +120,9 @@ pub fn build_placeholder_runtime() -> Arc<OpenCodeRuntime> {
         agent_runtime,
         Arc::new(RuntimeFacadeTaskStore::new()),
         Arc::new(RuntimeFacadeToolRouter::default()),
+        AgentType::Build,
+        None,
+        None,
     )))
 }
 

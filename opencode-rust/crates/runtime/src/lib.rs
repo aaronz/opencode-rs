@@ -13,7 +13,7 @@ pub mod trace_store;
 pub mod types;
 
 pub use checkpoint::{Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore};
-pub use commands::{PermissionResponse, RuntimeFacadeCommand, SubmitUserInput, TaskControlCommand};
+pub use commands::{ExecuteShellCommand, PermissionResponse, RuntimeFacadeCommand, RunAgentCommand, SubmitUserInput, TaskControlCommand};
 pub use context_view::RuntimeFacadeContextSummary;
 pub use errors::RuntimeFacadeError;
 pub use events::RuntimeFacadeEvent;
