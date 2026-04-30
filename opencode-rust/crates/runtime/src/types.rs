@@ -17,6 +17,8 @@ pub struct RuntimeFacadeResponse {
     pub turn_id: Option<String>,
     pub accepted: bool,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<opencode_core::Session>,
 }
 
 /// Unique identifier for a trace.

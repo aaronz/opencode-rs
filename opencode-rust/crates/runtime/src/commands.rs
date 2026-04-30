@@ -7,6 +7,27 @@ pub struct SubmitUserInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunAgentCommand {
+    pub session: opencode_core::Session,
+    pub agent_type: opencode_agent::AgentType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecuteShellCommand {
+    pub command: String,
+    pub timeout_secs: Option<u64>,
+    pub workdir: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ContextCommand {
+    Inspect { session_id: Option<String> },
+    Explain { session_id: Option<String> },
+    Dump { turn_id: String, session_id: Option<String> },
+    Why { file: String, session_id: Option<String> },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskControlCommand {
     Cancel { task_id: String },
 }
@@ -20,6 +41,10 @@ pub struct PermissionResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RuntimeFacadeCommand {
     SubmitUserInput(SubmitUserInput),
+    #[serde(skip)]
+    RunAgent(Box<RunAgentCommand>),
+    ExecuteShell(ExecuteShellCommand),
+    Context(ContextCommand),
     TaskControl(TaskControlCommand),
     PermissionResponse(PermissionResponse),
 }
