@@ -11,7 +11,9 @@ use crate::context_view::RuntimeFacadeContextSummary;
 use crate::errors::RuntimeFacadeError;
 use crate::services::RuntimeFacadeServices;
 use crate::task_store::RuntimeFacadeTaskStore;
-use crate::types::{RuntimeFacadeResponse, RuntimeFacadeStatus, RuntimeFacadeTask, RuntimeFacadeTaskId, TaskKind};
+use crate::types::{
+    RuntimeFacadeResponse, RuntimeFacadeStatus, RuntimeFacadeTask, RuntimeFacadeTaskId, TaskKind,
+};
 
 pub struct RuntimeFacade {
     services: RuntimeFacadeServices,
@@ -102,45 +104,47 @@ impl RuntimeFacade {
     ) -> Result<RuntimeFacadeResponse, RuntimeFacadeError> {
         match command {
             RuntimeFacadeCommand::SubmitUserInput(cmd) => {
-                let (session, turn_uuid, _task_id, session_id_str) = if let Some(ref session_id) = cmd.session_id {
-                    let mut session = services
-                        .storage
-                        .load_session(session_id)
-                        .await
-                        .map_err(|e| RuntimeFacadeError::Dependency(e.to_string()))?
-                        .ok_or_else(|| {
-                            RuntimeFacadeError::Dependency(format!(
-                                "session not found: {session_id}"
-                            ))
-                        })?;
+                let (session, turn_uuid, _task_id, session_id_str) =
+                    if let Some(ref session_id) = cmd.session_id {
+                        let mut session = services
+                            .storage
+                            .load_session(session_id)
+                            .await
+                            .map_err(|e| RuntimeFacadeError::Dependency(e.to_string()))?
+                            .ok_or_else(|| {
+                                RuntimeFacadeError::Dependency(format!(
+                                    "session not found: {session_id}"
+                                ))
+                            })?;
 
-                    let turn_uuid = session.start_turn(None);
-                    let task_id = RuntimeFacadeTaskId(Uuid::new_v4());
+                        let turn_uuid = session.start_turn(None);
+                        let task_id = RuntimeFacadeTaskId(Uuid::new_v4());
 
-                    services
-                        .storage
-                        .save_session(&session)
-                        .await
-                        .map_err(|e| RuntimeFacadeError::Dependency(e.to_string()))?;
+                        services
+                            .storage
+                            .save_session(&session)
+                            .await
+                            .map_err(|e| RuntimeFacadeError::Dependency(e.to_string()))?;
 
-                    (session, turn_uuid.0, task_id, session_id.clone())
-                } else {
-                    let (session, turn_uuid, task_id) = services
-                        .agent_runtime
-                        .read()
-                        .await
-                        .with_session_mut(|session| {
-                            let turn_id = session.start_turn(None);
-                            let task_id = RuntimeFacadeTaskId(Uuid::new_v4());
-                            (session.clone(), turn_id, task_id)
-                        })
-                        .await;
+                        (session, turn_uuid.0, task_id, session_id.clone())
+                    } else {
+                        let (session, turn_uuid, task_id) = services
+                            .agent_runtime
+                            .read()
+                            .await
+                            .with_session_mut(|session| {
+                                let turn_id = session.start_turn(None);
+                                let task_id = RuntimeFacadeTaskId(Uuid::new_v4());
+                                (session.clone(), turn_id, task_id)
+                            })
+                            .await;
 
-                    (session, turn_uuid.0, task_id, task_id.0.to_string())
-                };
+                        (session, turn_uuid.0, task_id, task_id.0.to_string())
+                    };
 
                 let turn_id_str = turn_uuid.to_string();
-                let session_id_for_task = Uuid::parse_str(&session_id_str).unwrap_or(Uuid::new_v4());
+                let session_id_for_task =
+                    Uuid::parse_str(&session_id_str).unwrap_or(Uuid::new_v4());
 
                 let task = RuntimeFacadeTask::new(
                     session_id_for_task,
@@ -165,25 +169,22 @@ impl RuntimeFacade {
                         ))
                     })?;
 
-                services.event_bus.publish(
-                    DomainEvent::TaskStarted {
-                        session_id: session_id_str.clone(),
-                        turn_id: turn_id_str.clone(),
-                        task_id: started_task.id.0.to_string(),
-                        task_kind: "agent".to_string(),
-                    },
-                );
+                services.event_bus.publish(DomainEvent::TaskStarted {
+                    session_id: session_id_str.clone(),
+                    turn_id: turn_id_str.clone(),
+                    task_id: started_task.id.0.to_string(),
+                    task_kind: "agent".to_string(),
+                });
 
-                let runtime = AgentRuntime::new(session, services.agent_type).with_event_bus(services.event_bus.clone());
+                let runtime = AgentRuntime::new(session, services.agent_type)
+                    .with_event_bus(services.event_bus.clone());
                 let provider = services.provider.read().await;
                 let provider = provider.as_ref().map(|p| p.as_ref());
                 let tools = services.tools.as_ref().map(|t| t.as_ref());
                 let agent_ref = services.agent.as_ref().as_ref();
 
                 let result = if let (Some(p), Some(t)) = (provider, tools) {
-                    runtime
-                        .run_loop_streaming(agent_ref, p, t, None)
-                        .await
+                    runtime.run_loop_streaming(agent_ref, p, t, None).await
                 } else {
                     tracing::error!("Provider or tools not available");
                     Err(opencode_agent::RuntimeError::ToolExecutionFailed {
@@ -243,12 +244,20 @@ impl RuntimeFacade {
             RuntimeFacadeCommand::RunAgent(cmd) => {
                 let agent: Box<dyn Agent> = match cmd.agent_type {
                     opencode_agent::AgentType::Build => Box::new(opencode_agent::BuildAgent::new()),
-                    opencode_agent::AgentType::Explore => Box::new(opencode_agent::ExploreAgent::new()),
+                    opencode_agent::AgentType::Explore => {
+                        Box::new(opencode_agent::ExploreAgent::new())
+                    }
                     opencode_agent::AgentType::Debug => Box::new(opencode_agent::DebugAgent::new()),
                     opencode_agent::AgentType::Plan => Box::new(opencode_agent::PlanAgent::new()),
-                    opencode_agent::AgentType::Refactor => Box::new(opencode_agent::RefactorAgent::new()),
-                    opencode_agent::AgentType::Review => Box::new(opencode_agent::ReviewAgent::new()),
-                    opencode_agent::AgentType::General => Box::new(opencode_agent::GeneralAgent::new()),
+                    opencode_agent::AgentType::Refactor => {
+                        Box::new(opencode_agent::RefactorAgent::new())
+                    }
+                    opencode_agent::AgentType::Review => {
+                        Box::new(opencode_agent::ReviewAgent::new())
+                    }
+                    opencode_agent::AgentType::General => {
+                        Box::new(opencode_agent::GeneralAgent::new())
+                    }
                     _ => Box::new(opencode_agent::BuildAgent::new()),
                 };
 
@@ -299,18 +308,29 @@ impl RuntimeFacade {
             }
             RuntimeFacadeCommand::Context(cmd) => {
                 let session_id = match &cmd {
-                    ContextCommand::Inspect { session_id } => session_id.clone().unwrap_or_default(),
-                    ContextCommand::Explain { session_id } => session_id.clone().unwrap_or_default(),
-                    ContextCommand::Dump { session_id, .. } => session_id.clone().unwrap_or_default(),
-                    ContextCommand::Why { session_id, .. } => session_id.clone().unwrap_or_default(),
+                    ContextCommand::Inspect { session_id } => {
+                        session_id.clone().unwrap_or_default()
+                    }
+                    ContextCommand::Explain { session_id } => {
+                        session_id.clone().unwrap_or_default()
+                    }
+                    ContextCommand::Dump { session_id, .. } => {
+                        session_id.clone().unwrap_or_default()
+                    }
+                    ContextCommand::Why { session_id, .. } => {
+                        session_id.clone().unwrap_or_default()
+                    }
                 };
 
                 let session = if session_id.is_empty() {
-                    services.storage.load_session(&session_id).await.map_err(|e| {
-                        RuntimeFacadeError::Dependency(e.to_string())
-                    })?.ok_or_else(|| {
-                        RuntimeFacadeError::Dependency("session not found".to_string())
-                    })?
+                    services
+                        .storage
+                        .load_session(&session_id)
+                        .await
+                        .map_err(|e| RuntimeFacadeError::Dependency(e.to_string()))?
+                        .ok_or_else(|| {
+                            RuntimeFacadeError::Dependency("session not found".to_string())
+                        })?
                 } else {
                     services.agent_runtime.read().await.session().await
                 };
@@ -400,13 +420,11 @@ impl RuntimeFacade {
                             ))
                         })?;
 
-                    services.event_bus.publish(
-                        DomainEvent::TaskCancelled {
-                            session_id: task.session_id.to_string(),
-                            turn_id: task.turn_id.to_string(),
-                            task_id: task.id.0.to_string(),
-                        },
-                    );
+                    services.event_bus.publish(DomainEvent::TaskCancelled {
+                        session_id: task.session_id.to_string(),
+                        turn_id: task.turn_id.to_string(),
+                        task_id: task.id.0.to_string(),
+                    });
 
                     Ok(RuntimeFacadeResponse {
                         session_id: Some(task.session_id.to_string()),

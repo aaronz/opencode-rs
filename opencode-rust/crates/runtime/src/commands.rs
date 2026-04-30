@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubmitUserInput {
     pub session_id: Option<String>,
+    pub workspace: Option<PathBuf>,
     pub input: String,
 }
 
@@ -21,10 +23,20 @@ pub struct ExecuteShellCommand {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ContextCommand {
-    Inspect { session_id: Option<String> },
-    Explain { session_id: Option<String> },
-    Dump { turn_id: String, session_id: Option<String> },
-    Why { file: String, session_id: Option<String> },
+    Inspect {
+        session_id: Option<String>,
+    },
+    Explain {
+        session_id: Option<String>,
+    },
+    Dump {
+        turn_id: String,
+        session_id: Option<String>,
+    },
+    Why {
+        file: String,
+        session_id: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

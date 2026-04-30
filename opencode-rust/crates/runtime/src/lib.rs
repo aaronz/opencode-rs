@@ -13,7 +13,10 @@ pub mod trace_store;
 pub mod types;
 
 pub use checkpoint::{Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore};
-pub use commands::{ExecuteShellCommand, PermissionResponse, RuntimeFacadeCommand, RunAgentCommand, SubmitUserInput, TaskControlCommand};
+pub use commands::{
+    ExecuteShellCommand, PermissionResponse, RunAgentCommand, RuntimeFacadeCommand,
+    SubmitUserInput, TaskControlCommand,
+};
 pub use context_view::RuntimeFacadeContextSummary;
 pub use errors::RuntimeFacadeError;
 pub use events::RuntimeFacadeEvent;
@@ -23,8 +26,10 @@ pub use runtime::{RuntimeFacade, RuntimeFacadeHandle};
 pub use services::RuntimeFacadeServices;
 pub use task_store::RuntimeFacadeTaskStore;
 pub use tool_router::RuntimeFacadeToolRouter;
-pub use trace_store::{RuntimeFacadeTrace, RuntimeFacadeTraceStore, RuntimeFacadeTraceSummary, TokenUsageSummary};
+pub use trace_store::{
+    RuntimeFacadeTrace, RuntimeFacadeTraceStore, RuntimeFacadeTraceSummary, TokenUsageSummary,
+};
 pub use types::{
-    RuntimeFacadeResponse, RuntimeFacadeStatus, RuntimeFacadeTask, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus, TaskKind,
-    TraceId,
+    RuntimeFacadeResponse, RuntimeFacadeStatus, RuntimeFacadeTask, RuntimeFacadeTaskId,
+    RuntimeFacadeTaskStatus, TaskKind, TraceId,
 };
