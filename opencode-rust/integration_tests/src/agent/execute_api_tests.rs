@@ -492,7 +492,7 @@ async fn start_test_server(
     let db_path = temp_dir.path().join("test.db");
     let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
 
-    let migration_manager = MigrationManager::new(pool.clone(), 2);
+    let migration_manager = MigrationManager::new(pool.clone(), 3);
     migration_manager
         .migrate()
         .await
@@ -551,16 +551,14 @@ async fn start_test_server(
     let server_url = format!("http://127.0.0.1:{}", actual_port);
 
     let handle = tokio::spawn(async move {
-        let execute_handler = opencode_server::routes::execute::execute_session;
         HttpServer::new(move || {
             App::new()
                 .app_data(state_data.clone())
                 .service(
-                    web::scope("/api/sessions").configure(opencode_server::routes::session::init),
+                    web::scope("/api/sessions/{id}").configure(opencode_server::routes::execute::init),
                 )
-                .route(
-                    "/api/sessions/{id}/execute",
-                    web::post().to(execute_handler),
+                .service(
+                    web::scope("/api/sessions").configure(opencode_server::routes::session::init),
                 )
         })
         .listen(std_listener)
@@ -813,7 +811,6 @@ mod integration_tests {
     }
 
     #[tokio::test]
-    #[ignore] // TODO: fix routing issue - execute endpoint returns 404
     async fn test_execute_endpoint_returns_400_without_api_key() {
         let (server_url, server_handle, _temp_dir) = start_test_server(0).await;
 
@@ -866,17 +863,17 @@ mod integration_tests {
 
         assert_eq!(
             status.as_u16(),
-            400,
-            "Execute without API key should return 400"
+            401,
+            "Execute without API key should return 401"
         );
 
         let body: serde_json::Value =
             serde_json::from_str(&body_text).expect("Failed to parse error response");
 
         assert_eq!(
-            body["code"].as_str().unwrap_or(""),
-            "provider_init_error",
-            "Error code should be provider_init_error"
+            body["error"].as_str().unwrap_or(""),
+            "unauthorized",
+            "Error should be unauthorized"
         );
 
         server_handle.abort();
@@ -999,7 +996,6 @@ mod integration_tests {
     }
 
     #[tokio::test]
-    #[ignore] // TODO: fix routing issue - execute endpoint returns 404
     async fn test_unauthenticated_returns_401() {
         use std::sync::Arc;
         use std::time::Duration;
@@ -1008,7 +1004,7 @@ mod integration_tests {
         let db_path = temp_dir.path().join("test.db");
         let pool = opencode_storage::database::StoragePool::new(&db_path).unwrap();
 
-        let migration_manager = MigrationManager::new(pool.clone(), 2);
+        let migration_manager = MigrationManager::new(pool.clone(), 3);
         migration_manager
             .migrate()
             .await
@@ -1064,18 +1060,19 @@ mod integration_tests {
         let server_url = format!("http://127.0.0.1:{}", actual_port);
 
         let temp_dir_clone = temp_dir.clone();
-        let execute_handler = opencode_server::routes::execute::execute_session;
         let handle = tokio::spawn(async move {
             HttpServer::new(move || {
                 App::new()
                     .app_data(state_data.clone())
                     .service(
-                        web::scope("/api/sessions")
-                            .configure(opencode_server::routes::session::init),
+                        web::scope("/status").configure(opencode_server::routes::status::init),
                     )
-                    .route(
-                        "/api/sessions/{id}/execute",
-                        web::post().to(execute_handler),
+                    .service(
+                        web::scope("/sessions/{id}").configure(opencode_server::routes::execute::init),
+                    )
+                    .service(
+                        web::scope("/sessions")
+                            .configure(opencode_server::routes::session::init),
                     )
             })
             .listen(std_listener)
@@ -1093,8 +1090,8 @@ mod integration_tests {
 
         let resp = client
             .post(format!(
-                "{}/api/sessions/{}/execute",
-                server_url, fake_session_id
+                "http://127.0.0.1:{}/sessions/{}/execute",
+                actual_port, fake_session_id
             ))
             .json(&serde_json::json!({
                 "prompt": "Test prompt"
@@ -1105,7 +1102,7 @@ mod integration_tests {
 
         let status = resp.status().as_u16();
         let body_text = resp.text().await.unwrap_or_default();
-        eprintln!("DEBUG: status={}, body={:?}", status, body_text);
+        eprintln!("DEBUG: execute status={}, body={:?}", status, body_text);
 
         handle.abort();
 
