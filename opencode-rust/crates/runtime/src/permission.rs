@@ -31,7 +31,11 @@ impl RuntimeFacadePermissionAdapter {
         }
     }
 
-    pub async fn check(&self, permission: Permission, pattern: &str) -> RuntimeFacadePermissionDecision {
+    pub async fn check(
+        &self,
+        permission: Permission,
+        pattern: &str,
+    ) -> RuntimeFacadePermissionDecision {
         let manager = self.manager.read().await;
         if manager.check(&permission, pattern) {
             RuntimeFacadePermissionDecision::Allow
@@ -43,7 +47,9 @@ impl RuntimeFacadePermissionAdapter {
     pub async fn check_tool(&self, tool_name: &str) -> RuntimeFacadePermissionDecision {
         let queue = self.approval_queue.read().await;
         match queue.check(tool_name) {
-            opencode_permission::ApprovalResult::AutoApprove => RuntimeFacadePermissionDecision::Allow,
+            opencode_permission::ApprovalResult::AutoApprove => {
+                RuntimeFacadePermissionDecision::Allow
+            }
             opencode_permission::ApprovalResult::Denied => RuntimeFacadePermissionDecision::Deny,
             opencode_permission::ApprovalResult::RequireApproval => {
                 RuntimeFacadePermissionDecision::RequiresApproval

@@ -555,7 +555,8 @@ async fn start_test_server(
             App::new()
                 .app_data(state_data.clone())
                 .service(
-                    web::scope("/api/sessions/{id}").configure(opencode_server::routes::execute::init),
+                    web::scope("/api/sessions/{id}")
+                        .configure(opencode_server::routes::execute::init),
                 )
                 .service(
                     web::scope("/api/sessions").configure(opencode_server::routes::session::init),
@@ -1064,15 +1065,13 @@ mod integration_tests {
             HttpServer::new(move || {
                 App::new()
                     .app_data(state_data.clone())
+                    .service(web::scope("/status").configure(opencode_server::routes::status::init))
                     .service(
-                        web::scope("/status").configure(opencode_server::routes::status::init),
+                        web::scope("/sessions/{id}")
+                            .configure(opencode_server::routes::execute::init),
                     )
                     .service(
-                        web::scope("/sessions/{id}").configure(opencode_server::routes::execute::init),
-                    )
-                    .service(
-                        web::scope("/sessions")
-                            .configure(opencode_server::routes::session::init),
+                        web::scope("/sessions").configure(opencode_server::routes::session::init),
                     )
             })
             .listen(std_listener)

@@ -132,10 +132,12 @@ impl StreamMessage {
                 output: output.clone(),
                 success: true,
             }),
-            RuntimeFacadeEvent::AgentStatusChanged { session_id, status } => Some(Self::SessionUpdate {
-                session_id: session_id.clone(),
-                status: status.clone(),
-            }),
+            RuntimeFacadeEvent::AgentStatusChanged { session_id, status } => {
+                Some(Self::SessionUpdate {
+                    session_id: session_id.clone(),
+                    status: status.clone(),
+                })
+            }
             RuntimeFacadeEvent::SessionStarted { session_id } => Some(Self::SessionUpdate {
                 session_id: session_id.clone(),
                 status: "started".to_string(),

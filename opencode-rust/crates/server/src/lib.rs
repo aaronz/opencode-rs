@@ -21,7 +21,8 @@ use opencode_core::{Config, Session};
 use opencode_llm::ModelRegistry;
 use opencode_permission::{ApprovalQueue, AuditLog, PermissionScope};
 use opencode_runtime::{
-    RuntimeFacade as OpenCodeRuntime, RuntimeFacadeServices, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter,
+    RuntimeFacade as OpenCodeRuntime, RuntimeFacadeServices, RuntimeFacadeTaskStore,
+    RuntimeFacadeToolRouter,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,

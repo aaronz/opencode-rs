@@ -1,9 +1,13 @@
 pub mod codesearch;
 pub mod discovery;
+pub mod fs;
 pub mod log_query;
 pub mod multiedit;
 pub mod registry;
+pub mod risk;
+pub mod rollback;
 pub mod schema_validation;
+pub mod shell;
 pub mod tool;
 pub mod truncation_dir;
 

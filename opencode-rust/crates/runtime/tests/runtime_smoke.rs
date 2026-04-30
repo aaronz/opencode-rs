@@ -6,15 +6,16 @@ use tokio::sync::RwLock;
 use opencode_agent::{AgentRuntime, AgentType};
 use opencode_core::{
     bus::EventBus,
-    events::DomainEvent,
     context::{Context, ContextBudget, ContextItem, ContextLayer, LayerBudgets, TruncationReport},
+    events::DomainEvent,
     permission::PermissionManager,
     Session,
 };
 use opencode_runtime::{
-    RuntimeFacade, RuntimeFacadeCommand, RuntimeFacadeContextSummary, RuntimeFacadeEvent, RuntimeFacadeError,
-    RuntimeFacadePermissionAdapter, RuntimeFacadePermissionDecision, RuntimeFacadeServices, RuntimeFacadeSessionStore,
-    RuntimeFacadeStatus, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter, SubmitUserInput, TaskControlCommand,
+    RuntimeFacade, RuntimeFacadeCommand, RuntimeFacadeContextSummary, RuntimeFacadeError,
+    RuntimeFacadeEvent, RuntimeFacadePermissionAdapter, RuntimeFacadePermissionDecision,
+    RuntimeFacadeServices, RuntimeFacadeSessionStore, RuntimeFacadeStatus, RuntimeFacadeTaskStore,
+    RuntimeFacadeToolRouter, SubmitUserInput, TaskControlCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -42,7 +43,9 @@ fn build_runtime() -> (RuntimeFacade, Arc<StorageService>) {
             storage.clone(),
             agent_runtime,
             Arc::new(RuntimeFacadeTaskStore::new()),
-            Arc::new(RuntimeFacadeToolRouter::new(opencode_tools::ToolRegistry::new())),
+            Arc::new(RuntimeFacadeToolRouter::new(
+                opencode_tools::ToolRegistry::new(),
+            )),
             AgentType::Build,
             None,
             None,
@@ -64,6 +67,7 @@ async fn runtime_accepts_submit_command_shape() {
         .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: None,
             input: "hello".to_string(),
+            workspace: None,
         }))
         .await
         .expect("submit command should create a turn");
@@ -77,9 +81,11 @@ async fn runtime_accepts_submit_command_shape() {
 async fn runtime_task_control_cancel_nonexistent_returns_error() {
     let (runtime, _) = build_runtime();
     let result = runtime
-        .execute(RuntimeFacadeCommand::TaskControl(TaskControlCommand::Cancel {
-            task_id: "00000000-0000-0000-0000-000000000001".to_string(),
-        }))
+        .execute(RuntimeFacadeCommand::TaskControl(
+            TaskControlCommand::Cancel {
+                task_id: "00000000-0000-0000-0000-000000000001".to_string(),
+            },
+        ))
         .await;
 
     assert!(matches!(result, Err(RuntimeFacadeError::Dependency(_))));
@@ -278,6 +284,7 @@ async fn runtime_submit_with_session_id_persists_turn_to_storage() {
         .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: Some(session_id.clone()),
             input: "hello".to_string(),
+            workspace: None,
         }))
         .await
         .expect("submit command should create a persisted turn");
@@ -304,6 +311,7 @@ async fn runtime_submit_completes_task() {
         .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: None,
             input: "fix the bug".to_string(),
+            workspace: None,
         }))
         .await
         .expect("submit should succeed");
@@ -346,9 +354,11 @@ async fn runtime_task_cancel_requests_cancellation() {
     runtime.task_store().add_task(task).await;
 
     let cancel_result = runtime
-        .execute(RuntimeFacadeCommand::TaskControl(TaskControlCommand::Cancel {
-            task_id: task_id.clone(),
-        }))
+        .execute(RuntimeFacadeCommand::TaskControl(
+            TaskControlCommand::Cancel {
+                task_id: task_id.clone(),
+            },
+        ))
         .await
         .expect("cancel should succeed");
 
@@ -374,9 +384,11 @@ async fn runtime_task_cancel_requests_cancellation() {
 async fn runtime_task_cancel_nonexistent_returns_error() {
     let (runtime, _) = build_runtime();
     let result = runtime
-        .execute(RuntimeFacadeCommand::TaskControl(TaskControlCommand::Cancel {
-            task_id: "00000000-0000-0000-0000-000000000999".to_string(),
-        }))
+        .execute(RuntimeFacadeCommand::TaskControl(
+            TaskControlCommand::Cancel {
+                task_id: "00000000-0000-0000-0000-000000000999".to_string(),
+            },
+        ))
         .await;
 
     assert!(matches!(result, Err(RuntimeFacadeError::Dependency(_))));
@@ -406,7 +418,9 @@ async fn runtime_task_events_published_after_submit() {
         storage,
         agent_runtime,
         Arc::new(RuntimeFacadeTaskStore::new()),
-        Arc::new(RuntimeFacadeToolRouter::new(opencode_tools::ToolRegistry::new())),
+        Arc::new(RuntimeFacadeToolRouter::new(
+            opencode_tools::ToolRegistry::new(),
+        )),
         AgentType::Build,
         None,
         None,
@@ -416,6 +430,7 @@ async fn runtime_task_events_published_after_submit() {
         .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: None,
             input: "hello".to_string(),
+            workspace: None,
         }))
         .await
         .expect("submit should succeed");
@@ -598,7 +613,8 @@ async fn runtime_trace_store_list_session_traces() {
 #[tokio::test]
 async fn runtime_checkpoint_store_save_and_load() {
     use opencode_runtime::{
-        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus,
+        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId,
+        RuntimeFacadeTaskStatus,
     };
     use uuid::Uuid;
 
@@ -634,7 +650,8 @@ async fn runtime_checkpoint_store_save_and_load() {
 #[tokio::test]
 async fn runtime_checkpoint_store_multiple_per_task() {
     use opencode_runtime::{
-        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus,
+        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId,
+        RuntimeFacadeTaskStatus,
     };
     use uuid::Uuid;
 
@@ -673,7 +690,8 @@ async fn runtime_checkpoint_store_multiple_per_task() {
 #[tokio::test]
 async fn runtime_checkpoint_store_lists_and_deletes_session_checkpoints() {
     use opencode_runtime::{
-        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus,
+        Checkpoint, CheckpointStore, RuntimeFacadeCheckpointStore, RuntimeFacadeTaskId,
+        RuntimeFacadeTaskStatus,
     };
     use uuid::Uuid;
 

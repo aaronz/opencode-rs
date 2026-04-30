@@ -242,10 +242,7 @@ impl RuntimeFacadeEvent {
                 session_id: session_id.clone(),
                 total_tokens: *total_tokens,
             }),
-            DomainEvent::LlmError {
-                session_id,
-                error,
-            } => Some(Self::LlmError {
+            DomainEvent::LlmError { session_id, error } => Some(Self::LlmError {
                 session_id: session_id.clone(),
                 error: error.clone(),
             }),

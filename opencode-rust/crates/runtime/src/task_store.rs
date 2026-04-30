@@ -77,7 +77,8 @@ impl RuntimeFacadeTaskStore {
     }
 
     pub async fn complete_task(&self, id: RuntimeFacadeTaskId) -> Option<RuntimeFacadeTask> {
-        self.update_task(id, RuntimeFacadeTask::mark_completed).await
+        self.update_task(id, RuntimeFacadeTask::mark_completed)
+            .await
     }
 
     pub async fn fail_task(&self, id: RuntimeFacadeTaskId) -> Option<RuntimeFacadeTask> {

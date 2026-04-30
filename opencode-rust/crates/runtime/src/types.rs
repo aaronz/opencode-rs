@@ -213,7 +213,9 @@ impl RuntimeFacadeTask {
     pub fn is_terminal(&self) -> bool {
         matches!(
             self.status,
-            RuntimeFacadeTaskStatus::Completed | RuntimeFacadeTaskStatus::Failed | RuntimeFacadeTaskStatus::Cancelled
+            RuntimeFacadeTaskStatus::Completed
+                | RuntimeFacadeTaskStatus::Failed
+                | RuntimeFacadeTaskStatus::Cancelled
         )
     }
 

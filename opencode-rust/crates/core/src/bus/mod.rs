@@ -1,7 +1,7 @@
 mod types;
 
-pub use types::{EventBus, SharedEventBus};
 pub use crate::events::DomainEvent;
+pub use types::{EventBus, SharedEventBus};
 
 #[cfg(test)]
 mod tests {

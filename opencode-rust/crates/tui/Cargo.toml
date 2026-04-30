@@ -6,6 +6,7 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+async-trait.workspace = true
 opencode-core.workspace = true
 opencode-llm.workspace = true
 opencode-agent = { path = "../agent" }
@@ -17,6 +18,7 @@ opencode-mcp = { path = "../mcp" }
 opencode-lsp = { path = "../lsp" }
 ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
 crossterm = { version = "0.28", features = ["event-stream"] }
+arboard = "3"
 pulldown-cmark = "0.13"
 syntect = "5"
 clap = { version = "4", features = ["derive"] }

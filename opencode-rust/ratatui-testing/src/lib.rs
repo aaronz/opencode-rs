@@ -9,6 +9,7 @@ mod reducer;
 mod snapshot;
 mod state;
 mod tui_harness;
+mod tui_workflow;
 
 pub use action::prelude::*;
 pub use cli::{ChildProcess, CliOutput, CliTester};
@@ -27,6 +28,7 @@ pub use tui_harness::{
     CapturedLog, CapturedLogs, FakeModel, FakeProviderValidator, FakeValidationResult, FocusOwner,
     KeySimulator, TuiTestDiagnostics, TuiTestHarness, TuiTestHarnessBuilder, WorkflowState,
 };
+pub use tui_workflow::{TuiSession, TuiWorkflowBuilder};
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

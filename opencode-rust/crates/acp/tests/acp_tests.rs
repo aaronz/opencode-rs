@@ -901,10 +901,7 @@ async fn test_acp_disconnected_event_published_on_disconnect() {
         .unwrap();
 
     let connected_event = subscriber.recv().await.unwrap();
-    assert!(matches!(
-        connected_event,
-        DomainEvent::AcpConnected { .. }
-    ));
+    assert!(matches!(connected_event, DomainEvent::AcpConnected { .. }));
 
     client.disconnect().await.unwrap();
 

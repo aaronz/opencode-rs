@@ -19,7 +19,9 @@ use crate::shell_handler::ShellHandler;
 use crate::theme::{Theme, ThemeManager};
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
+    event::{
+        self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind,
+    },
     execute,
     terminal::{
         disable_raw_mode, enable_raw_mode, Clear as TermClear, ClearType, EnterAlternateScreen,
@@ -42,8 +44,8 @@ use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
 use opencode_mcp::McpManager;
 use opencode_runtime::{
-    ExecuteShellCommand, RuntimeFacade as OpenCodeRuntime, RuntimeFacadeCommand,
-    RuntimeFacadeServices, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter, RunAgentCommand,
+    ExecuteShellCommand, RunAgentCommand, RuntimeFacade as OpenCodeRuntime, RuntimeFacadeCommand,
+    RuntimeFacadeServices, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -486,6 +488,7 @@ pub struct App {
     pub session_sharing: SessionSharing,
     pub scroll_offset: usize,
     pub scroll_state: ScrollState,
+    pub selection: SelectionState,
     pub timeline_state: ListState,
     pub fork_name_input: String,
     pub show_metadata: bool,
@@ -572,6 +575,14 @@ pub struct App {
     pub lsp_client: Option<LspClient>,
     pub lsp_diagnostics: Vec<Diagnostic>,
     pub catalog_fetcher: ProviderCatalogFetcher,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SelectionState {
+    pub is_selecting: bool,
+    pub start_pos: Option<(u16, u16)>,
+    pub end_pos: Option<(u16, u16)>,
+    pub selected_text: Option<String>,
 }
 
 #[derive(Debug)]
@@ -1308,6 +1319,7 @@ impl App {
             session_sharing: SessionSharing::with_default_path(),
             scroll_offset: 0,
             scroll_state: ScrollState::new(),
+            selection: SelectionState::default(),
             timeline_state,
             fork_name_input: String::new(),
             show_metadata: false,
@@ -1906,7 +1918,10 @@ impl App {
             )));
 
             let rt = tokio::runtime::Handle::current();
-            rt.block_on(self.runtime.set_provider(self.llm_provider.clone().unwrap()));
+            rt.block_on(
+                self.runtime
+                    .set_provider(self.llm_provider.clone().unwrap()),
+            );
 
             let provider_config = crate::config::ProviderConfig {
                 name: "openai".to_string(),
@@ -1940,7 +1955,10 @@ impl App {
             self.llm_provider = Some(std::sync::Arc::new(google_provider));
 
             let rt = tokio::runtime::Handle::current();
-            rt.block_on(self.runtime.set_provider(self.llm_provider.clone().unwrap()));
+            rt.block_on(
+                self.runtime
+                    .set_provider(self.llm_provider.clone().unwrap()),
+            );
 
             let provider_config = crate::config::ProviderConfig {
                 name: "google".to_string(),
@@ -1978,7 +1996,10 @@ impl App {
             self.llm_provider = Some(std::sync::Arc::new(copilot_provider));
 
             let rt = tokio::runtime::Handle::current();
-            rt.block_on(self.runtime.set_provider(self.llm_provider.clone().unwrap()));
+            rt.block_on(
+                self.runtime
+                    .set_provider(self.llm_provider.clone().unwrap()),
+            );
 
             let provider_config = crate::config::ProviderConfig {
                 name: "copilot".to_string(),
@@ -2039,6 +2060,20 @@ impl App {
                     llm_config.model.clone(),
                 ))),
             };
+
+            // Set the provider on the runtime so it can be used for LLM calls
+            if let Ok(rt) = tokio::runtime::Handle::try_current() {
+                rt.block_on(
+                    self.runtime
+                        .set_provider(self.llm_provider.clone().unwrap()),
+                );
+            } else {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(
+                    self.runtime
+                        .set_provider(self.llm_provider.clone().unwrap()),
+                );
+            }
 
             let provider_config = crate::config::ProviderConfig {
                 name: provider_id.clone(),
@@ -2783,6 +2818,7 @@ impl App {
     pub fn run(&mut self) -> io::Result<()> {
         enable_raw_mode()?;
         execute!(io::stdout(), EnterAlternateScreen)?;
+        execute!(io::stdout(), event::EnableMouseCapture)?;
         let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         execute!(
             io::stdout(),
@@ -2862,6 +2898,76 @@ impl App {
                 AppMode::Search => self.handle_search_dialog(&mut terminal)?,
             }
         }
+    }
+
+    #[allow(dead_code)]
+    fn handle_mouse_event(&mut self, event: MouseEvent) {
+        match event.kind {
+            MouseEventKind::Down(_button) => {
+                self.selection.is_selecting = true;
+                self.selection.start_pos = Some((event.column, event.row));
+                self.selection.end_pos = Some((event.column, event.row));
+                self.selection.selected_text = None;
+            }
+            MouseEventKind::Drag(_button) => {
+                if self.selection.is_selecting {
+                    self.selection.end_pos = Some((event.column, event.row));
+                }
+            }
+            MouseEventKind::Up(_button) => {
+                if self.selection.is_selecting {
+                    self.selection.is_selecting = false;
+                    // Extract selected text based on start/end positions
+                    self.extract_selection_text();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[allow(dead_code)]
+    fn extract_selection_text(&mut self) {
+        let (_start, _end) = match (self.selection.start_pos, self.selection.end_pos) {
+            (Some(s), Some(e)) => (s, e),
+            _ => {
+                self.selection.selected_text = None;
+                return;
+            }
+        };
+
+        // Simplified: if selection started in the messages area, select all visible messages
+        // This is a basic implementation - a full implementation would track exact character positions
+        if self.messages.is_empty() {
+            self.selection.selected_text = None;
+            return;
+        }
+
+        // For now, select all message content when user makes a selection in the messages area
+        // A more sophisticated implementation would track exact line/column ranges
+        let mut selected_content = Vec::new();
+        for msg in &self.messages {
+            selected_content.push(msg.content.clone());
+        }
+
+        self.selection.selected_text = Some(selected_content.join("\n\n"));
+    }
+
+    fn copy_selection_to_clipboard(&mut self) -> bool {
+        if let Some(ref text) = self.selection.selected_text {
+            if !text.is_empty() {
+                if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                    return clipboard.set_text(text).is_ok();
+                }
+            }
+        }
+        false
+    }
+
+    fn clear_selection(&mut self) {
+        self.selection.is_selecting = false;
+        self.selection.start_pos = None;
+        self.selection.end_pos = None;
+        self.selection.selected_text = None;
     }
 
     fn check_llm_events(&mut self) {
@@ -3068,13 +3174,21 @@ impl App {
                                 model_count = %model_count,
                                 "Validation succeeded, about to show model selection"
                             );
-                            self.add_message(
+                            // For local connections (Ollama/LMStudio), no API key is used
+                            let is_local_connect =
+                                provider_id == "ollama" || provider_id == "lmstudio";
+                            let message = if is_local_connect {
+                                format!(
+                                    "Connected to {} (local)",
+                                    self.get_provider_name(&provider_id)
+                                )
+                            } else {
                                 format!(
                                     "API key validated successfully for {}",
                                     self.get_provider_name(&provider_id)
-                                ),
-                                false,
-                            );
+                                )
+                            };
+                            self.add_message(message, false);
                             if let Err(e) = self.save_api_key_credential(
                                 &provider_id,
                                 self.pending_api_key_for_validation.as_deref().unwrap_or(""),
@@ -4387,9 +4501,23 @@ OpenCode Agent Configuration
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         if self.is_llm_generating {
                             self.interrupt_llm_generation();
+                        } else if self.selection.selected_text.is_some() {
+                            // Copy selected text to clipboard
+                            if self.copy_selection_to_clipboard() {
+                                self.add_message(
+                                    "Selection copied to clipboard".to_string(),
+                                    false,
+                                );
+                            }
+                            self.clear_selection();
                         } else {
                             disable_raw_mode()?;
                             std::process::exit(0);
+                        }
+                    }
+                    KeyCode::Esc => {
+                        if self.selection.is_selecting || self.selection.selected_text.is_some() {
+                            self.clear_selection();
                         }
                     }
                     KeyCode::Char('x') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -4610,15 +4738,26 @@ OpenCode Agent Configuration
 
                                 let runtime = self.runtime.clone();
                                 let cmd_clone = cmd.clone();
-                                let (tx, rx): (mpsc::Sender<(String, Result<opencode_runtime::RuntimeFacadeResponse, opencode_runtime::RuntimeFacadeError>)>, mpsc::Receiver<_>) = mpsc::channel();
+                                let (tx, rx): (
+                                    mpsc::Sender<(
+                                        String,
+                                        Result<
+                                            opencode_runtime::RuntimeFacadeResponse,
+                                            opencode_runtime::RuntimeFacadeError,
+                                        >,
+                                    )>,
+                                    mpsc::Receiver<_>,
+                                ) = mpsc::channel();
                                 std::thread::spawn(move || {
                                     let rt = tokio::runtime::Runtime::new().unwrap();
                                     rt.block_on(async {
-                                        let shell_cmd = RuntimeFacadeCommand::ExecuteShell(ExecuteShellCommand {
-                                            command: cmd_clone.clone(),
-                                            timeout_secs: None,
-                                            workdir: None,
-                                        });
+                                        let shell_cmd = RuntimeFacadeCommand::ExecuteShell(
+                                            ExecuteShellCommand {
+                                                command: cmd_clone.clone(),
+                                                timeout_secs: None,
+                                                workdir: None,
+                                            },
+                                        );
                                         let result = runtime.execute(shell_cmd).await;
                                         let _ = tx.send((cmd_clone, result));
                                     });
@@ -4627,14 +4766,24 @@ OpenCode Agent Configuration
                                 let received = rx.recv();
                                 let (cmd, result) = match received {
                                     Ok((c, r)) => (c, r),
-                                    Err(_) => (cmd.clone(), Err(opencode_runtime::RuntimeFacadeError::Dependency("Channel error".to_string()))),
+                                    Err(_) => (
+                                        cmd.clone(),
+                                        Err(opencode_runtime::RuntimeFacadeError::Dependency(
+                                            "Channel error".to_string(),
+                                        )),
+                                    ),
                                 };
 
                                 match result {
                                     Ok(response) => {
-                                        let exit_code = if response.accepted { Some(0) } else { Some(1) };
+                                        let exit_code =
+                                            if response.accepted { Some(0) } else { Some(1) };
                                         let stdout = response.message.clone();
-                                        let stderr = if response.accepted { String::new() } else { response.message.clone() };
+                                        let stderr = if response.accepted {
+                                            String::new()
+                                        } else {
+                                            response.message.clone()
+                                        };
 
                                         if !stdout.is_empty() {
                                             self.terminal_panel.add_stdout(&stdout);
@@ -4644,21 +4793,24 @@ OpenCode Agent Configuration
                                         }
                                         let exit_msg = format!(
                                             "[Exit code: {}]",
-                                            exit_code.map(|c| c.to_string()).unwrap_or_else(|| "N/A".to_string())
+                                            exit_code
+                                                .map(|c| c.to_string())
+                                                .unwrap_or_else(|| "N/A".to_string())
                                         );
-                                        self.terminal_panel.add_line(&exit_msg, exit_code != Some(0));
+                                        self.terminal_panel
+                                            .add_line(&exit_msg, exit_code != Some(0));
 
-                                        let tool_result = format!(
-                                            "```\n$ {}\n{}\n```",
-                                            cmd,
-                                            stdout
-                                        );
+                                        let tool_result =
+                                            format!("```\n$ {}\n{}\n```", cmd, stdout);
                                         self.add_message(tool_result, false);
                                     }
                                     Err(e) => {
                                         self.terminal_panel.add_stderr(format!("Error: {}", e));
                                         self.terminal_panel.add_line("[Exit code: 1]", true);
-                                        self.add_message(format!("Shell execution failed: {}", e), false);
+                                        self.add_message(
+                                            format!("Shell execution failed: {}", e),
+                                            false,
+                                        );
                                     }
                                 }
                             }
@@ -4726,8 +4878,8 @@ OpenCode Agent Configuration
                             self.input_widget.clear();
                             self.input_box.set_input(String::new());
 
-                            let context_usage_pct = self.status_bar.context_usage.1 as f64
-                                / self.config.max_context_size() as f64;
+                            let context_usage_pct = self.status_bar.context_usage.0 as f64
+                                / self.status_bar.context_usage.1.max(1) as f64;
                             if context_usage_pct >= 0.95 {
                                 self.add_message(
                                      "⚠️ Context budget exceeded (95%). Please /compact or start a new session.".to_string(), 
@@ -4782,14 +4934,18 @@ OpenCode Agent Configuration
                                     let rt = tokio::runtime::Runtime::new()
                                         .expect("failed to create Tokio runtime");
                                     rt.block_on(async {
-                                        let cmd = RuntimeFacadeCommand::RunAgent(Box::new(RunAgentCommand {
-                                            session,
-                                            agent_type: AgentType::Build,
-                                        }));
+                                        let cmd = RuntimeFacadeCommand::RunAgent(Box::new(
+                                            RunAgentCommand {
+                                                session,
+                                                agent_type: AgentType::Build,
+                                            },
+                                        ));
                                         match runtime.execute(cmd).await {
                                             Ok(response) => {
                                                 if let Some(updated_session) = response.session {
-                                                    let _ = tx.send(LlmEvent::SessionComplete(updated_session));
+                                                    let _ = tx.send(LlmEvent::SessionComplete(
+                                                        updated_session,
+                                                    ));
                                                 }
                                                 let _ = tx.send(LlmEvent::Done);
                                             }
@@ -6673,35 +6829,35 @@ OpenCode Agent Configuration
 }
 
 fn build_placeholder_runtime(
-        provider: Option<Arc<dyn Provider + Send + Sync>>,
-        tools: Option<Arc<ToolsToolRegistry>>,
-    ) -> Arc<OpenCodeRuntime> {
-        let event_bus = Arc::new(opencode_core::bus::EventBus::new());
-        let permission_manager = Arc::new(tokio::sync::RwLock::new(PermissionManager::default()));
-        let session_repo = Arc::new(InMemorySessionRepository::default());
-        let project_repo = Arc::new(InMemoryProjectRepository::default());
-        let db_path = std::env::temp_dir().join(format!(
-            "opencode-tui-runtime-placeholder-{}.db",
-            uuid::Uuid::new_v4()
-        ));
-        let pool = StoragePool::new(&db_path).expect("placeholder storage pool");
-        let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
-        let agent_runtime = Arc::new(tokio::sync::RwLock::new(
-            AgentRuntime::new(Session::default(), AgentType::Build).with_event_bus(event_bus.clone()),
-        ));
+    provider: Option<Arc<dyn Provider + Send + Sync>>,
+    tools: Option<Arc<ToolsToolRegistry>>,
+) -> Arc<OpenCodeRuntime> {
+    let event_bus = Arc::new(opencode_core::bus::EventBus::new());
+    let permission_manager = Arc::new(tokio::sync::RwLock::new(PermissionManager::default()));
+    let session_repo = Arc::new(InMemorySessionRepository::default());
+    let project_repo = Arc::new(InMemoryProjectRepository::default());
+    let db_path = std::env::temp_dir().join(format!(
+        "opencode-tui-runtime-placeholder-{}.db",
+        uuid::Uuid::new_v4()
+    ));
+    let pool = StoragePool::new(&db_path).expect("placeholder storage pool");
+    let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
+    let agent_runtime = Arc::new(tokio::sync::RwLock::new(
+        AgentRuntime::new(Session::default(), AgentType::Build).with_event_bus(event_bus.clone()),
+    ));
 
-        Arc::new(OpenCodeRuntime::new(RuntimeFacadeServices::new(
-            event_bus,
-            permission_manager,
-            storage,
-            agent_runtime,
-            Arc::new(RuntimeFacadeTaskStore::new()),
-            Arc::new(RuntimeFacadeToolRouter::default()),
-            AgentType::Build,
-            provider,
-            tools,
-        )))
-    }
+    Arc::new(OpenCodeRuntime::new(RuntimeFacadeServices::new(
+        event_bus,
+        permission_manager,
+        storage,
+        agent_runtime,
+        Arc::new(RuntimeFacadeTaskStore::new()),
+        Arc::new(RuntimeFacadeToolRouter::default()),
+        AgentType::Build,
+        provider,
+        tools,
+    )))
+}
 
 impl Default for App {
     fn default() -> Self {

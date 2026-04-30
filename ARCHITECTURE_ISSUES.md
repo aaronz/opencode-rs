@@ -17,7 +17,7 @@ The following issues have been fixed:
 | ISSUE-002 | ✅ FIXED | Shell commands now route through Runtime's ToolRouter via `ExecuteShell` command |
 | ISSUE-005 | ✅ FIXED | Added `ToolSchema`, `chat_with_tools()` to Provider, `input_schema()` to Tool, implemented in agents |
 | ISSUE-008 | ✅ FIXED | Fixed `trim_to_budget()` edge case - now properly drops lowest-ranked messages |
-| ISSUE-009 | ✅ PARTIAL | CLI context commands implemented: inspect, explain, dump, why |
+| ISSUE-009 | ✅ FIXED | CLI context commands implemented: inspect, explain, dump, why |
 | ISSUE-011 | ✅ FIXED | PermissionResponse command fully implemented in Runtime |
 | ISSUE-012 | ✅ FIXED | AgentRuntime emits to EventBus via `with_event_bus()` |
 | ISSUE-013 | ✅ FIXED | RuntimeFacade's RunAgent handler calls `run_loop_streaming()` - loop executes in Runtime |

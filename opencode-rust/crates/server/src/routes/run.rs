@@ -123,6 +123,7 @@ async fn run_prompt_with_agent_execution(
         .runtime
         .execute(RuntimeFacadeCommand::SubmitUserInput(SubmitUserInput {
             session_id: Some(session_id.clone()),
+            workspace: None,
             input: req.prompt.clone(),
         }))
         .await

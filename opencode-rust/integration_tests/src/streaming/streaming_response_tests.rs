@@ -627,7 +627,7 @@ fn test_stream_message_from_domain_event_tool_call() {
         call_id: "call-456".to_string(),
     };
 
-let stream_msg = StreamMessage::from_domain_event(&event);
+    let stream_msg = StreamMessage::from_domain_event(&event);
 
     let msg = stream_msg.unwrap();
     match msg {

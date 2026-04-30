@@ -59,14 +59,17 @@ fn load_session(session_id: Option<String>) -> Result<Option<opencode_core::Sess
     let session_uuid = match session_id {
         Some(id) => Uuid::parse_str(&id).map_err(|e| format!("Invalid session ID: {}", e))?,
         None => {
-            let sessions = sharing.list_sessions().map_err(|e| format!("Failed to list sessions: {}", e))?;
+            let sessions = sharing
+                .list_sessions()
+                .map_err(|e| format!("Failed to list sessions: {}", e))?;
             match sessions.into_iter().next() {
                 Some(info) => info.id,
                 None => return Ok(None),
             }
         }
     };
-    sharing.get_session(&session_uuid)
+    sharing
+        .get_session(&session_uuid)
         .map_err(|e| format!("Failed to load session: {}", e))
         .map(Some)
 }
@@ -209,8 +212,7 @@ fn why_file(file: &str, session_id: Option<String>) -> Result<(), String> {
     println!("  - Not referenced in conversation\n");
 
     if let Some(session) = session {
-        let file_mentioned = session.messages.iter()
-            .any(|m| m.content.contains(file));
+        let file_mentioned = session.messages.iter().any(|m| m.content.contains(file));
 
         if file_mentioned {
             println!("This file IS mentioned in the conversation.");

@@ -276,6 +276,9 @@ pub struct TuiArgs {
 
     #[arg(value_name = "PROJECT")]
     pub project: Option<PathBuf>,
+
+    #[arg(long)]
+    pub mock: bool,
 }
 
 fn main() -> ExitCode {
@@ -365,6 +368,7 @@ fn main() -> ExitCode {
                 port: cli.port,
                 hostname: cli.hostname,
                 project: cli.project,
+                mock: false,
             });
         }
     }
