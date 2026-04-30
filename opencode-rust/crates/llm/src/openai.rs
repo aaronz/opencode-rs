@@ -40,6 +40,8 @@ struct ChatRequest {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning: Option<ReasoningRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<crate::provider::ToolSchema>>,
 }
 
 #[derive(Serialize)]
@@ -422,6 +424,7 @@ impl Provider for OpenAiProvider {
             messages,
             stream: false,
             reasoning,
+            tools: None,
         };
 
         let mut req = self
@@ -491,6 +494,7 @@ impl Provider for OpenAiProvider {
             messages,
             stream: true,
             reasoning,
+            tools: None,
         };
 
         let mut req = self
@@ -579,6 +583,7 @@ impl Provider for OpenAiProvider {
             messages,
             stream: true,
             reasoning,
+            tools: None,
         };
 
         let mut req = self
@@ -674,6 +679,100 @@ impl Provider for OpenAiProvider {
         callback(LlmEvent::Done);
         Ok(Some(full_content))
     }
+
+    async fn chat_with_tools(
+        &self,
+        messages: &[crate::provider::ChatMessage],
+        tools: &[crate::provider::ToolSchema],
+    ) -> Result<crate::provider::ChatResponse, OpenCodeError> {
+        tracing::debug!(
+            provider = "openai",
+            model = %self.model,
+            message_count = messages.len(),
+            tool_count = tools.len(),
+            "Starting chat completion with tools"
+        );
+
+        if self.uses_browser_auth() {
+            return Err(OpenCodeError::Llm(
+                "Browser auth does not support tool calling".to_string(),
+            ));
+        }
+
+        let messages: Vec<Message> = messages
+            .iter()
+            .map(|m| Message {
+                role: m.role.clone(),
+                content: m.content.clone(),
+            })
+            .collect();
+
+        let request = ChatRequest {
+            model: self.model.clone(),
+            messages,
+            stream: false,
+            reasoning: self
+                .reasoning_effort
+                .as_ref()
+                .map(|e| ReasoningRequest { effort: e.clone() }),
+            tools: if tools.is_empty() {
+                None
+            } else {
+                Some(tools.to_vec())
+            },
+        };
+
+        let mut req = self
+            .client
+            .post(format!("{}/chat/completions", self.base_url))
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&request);
+
+        for (key, value) in &self.headers {
+            req = req.header(key.as_str(), value.as_str());
+        }
+
+        let response = req.send().await.map_err(|e| {
+            tracing::error!(provider = "openai", error = %e, "LLM tool call request failed");
+            OpenCodeError::Llm(e.to_string())
+        })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            tracing::error!(
+                provider = "openai",
+                status = %status,
+                error = %error_text,
+                "LLM API error during tool call"
+            );
+            return Err(OpenCodeError::Llm(format!(
+                "OpenAI API error {}: {}",
+                status, error_text
+            )));
+        }
+
+        let completion: ChatCompletion = response.json().await.map_err(|e| {
+            tracing::error!(provider = "openai", error = %e, "Failed to parse LLM response");
+            OpenCodeError::Llm(e.to_string())
+        })?;
+
+        let content = completion
+            .choices
+            .first()
+            .map(|c| c.message.content.clone())
+            .unwrap_or_default();
+
+        tracing::info!(
+            provider = "openai",
+            model = %self.model,
+            response_len = content.len(),
+            "LLM tool call completed successfully"
+        );
+
+        Ok(crate::provider::ChatResponse::new(content, String::new()))
+    }
 }
 
 #[cfg(test)]
@@ -762,6 +861,7 @@ mod tests {
             }],
             stream: false,
             reasoning: None,
+            tools: None,
         };
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("gpt-4"));
@@ -781,6 +881,7 @@ mod tests {
             reasoning: Some(ReasoningRequest {
                 effort: "high".to_string(),
             }),
+            tools: None,
         };
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("reasoning"));

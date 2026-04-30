@@ -75,9 +75,9 @@ pub use openai_browser_auth::{
     OpenAiBrowserAuthService, OpenAiBrowserAuthStore, OpenAiBrowserCallback, OpenAiBrowserSession,
 };
 pub use provider::{
-    CancellableProvider, CancellationToken, ChatMessage, ChatResponse, EventCallback, FunctionSchema,
-    LlmEvent, Model, Provider, ProviderConfig, SimpleProvider, StreamChunk, StreamingCallback,
-    ToolParameters, ToolProperty, ToolSchema, Usage,
+    CancellableProvider, CancellationToken, ChatMessage, ChatResponse, EventCallback,
+    FunctionSchema, LlmEvent, Model, Provider, ProviderConfig, SimpleProvider, StreamChunk,
+    StreamingCallback, ToolParameters, ToolProperty, ToolSchema, Usage,
 };
 pub use provider_abstraction::{
     AnthropicThinkingConfig, DynProvider, LmStudioProviderFactory, LocalInferenceProviderFactory,
