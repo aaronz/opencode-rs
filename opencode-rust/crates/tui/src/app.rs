@@ -26,7 +26,7 @@ use crossterm::{
         LeaveAlternateScreen,
     },
 };
-use opencode_agent::{AgentRuntime, AgentType, BuildAgent};
+use opencode_agent::{AgentRuntime, AgentType};
 use opencode_auth::CredentialStore;
 use opencode_core::{
     AgentExecutor, CostCalculator, Message, PermissionManager, Session, SessionSharing,
@@ -42,7 +42,8 @@ use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
 use opencode_mcp::McpManager;
 use opencode_runtime::{
-    RuntimeFacade as OpenCodeRuntime, RuntimeFacadeServices, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter,
+    ExecuteShellCommand, RuntimeFacade as OpenCodeRuntime, RuntimeFacadeCommand,
+    RuntimeFacadeServices, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter, RunAgentCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -63,6 +64,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+#[allow(clippy::large_enum_variant)]
 pub enum LlmEvent {
     Chunk(String),
     ToolCall {
@@ -558,6 +560,7 @@ pub struct App {
     #[allow(dead_code)]
     file_ref_handler: FileRefHandler,
     pub config: Config,
+    #[allow(dead_code)]
     tool_registry: Arc<ToolsToolRegistry>,
     #[allow(dead_code)]
     runtime: Arc<OpenCodeRuntime>,
@@ -1278,7 +1281,7 @@ impl App {
         };
         drop(_span);
 
-        let runtime = build_placeholder_runtime();
+        let runtime = build_placeholder_runtime(None, Some(tool_registry.clone()));
 
         Self {
             messages: Vec::new(),
@@ -1902,6 +1905,9 @@ impl App {
                 store,
             )));
 
+            let rt = tokio::runtime::Handle::current();
+            rt.block_on(self.runtime.set_provider(self.llm_provider.clone().unwrap()));
+
             let provider_config = crate::config::ProviderConfig {
                 name: "openai".to_string(),
                 api_key: None,
@@ -1932,6 +1938,9 @@ impl App {
                 model_id.clone(),
             );
             self.llm_provider = Some(std::sync::Arc::new(google_provider));
+
+            let rt = tokio::runtime::Handle::current();
+            rt.block_on(self.runtime.set_provider(self.llm_provider.clone().unwrap()));
 
             let provider_config = crate::config::ProviderConfig {
                 name: "google".to_string(),
@@ -1967,6 +1976,9 @@ impl App {
                     headers: std::collections::HashMap::new(),
                 });
             self.llm_provider = Some(std::sync::Arc::new(copilot_provider));
+
+            let rt = tokio::runtime::Handle::current();
+            rt.block_on(self.runtime.set_provider(self.llm_provider.clone().unwrap()));
 
             let provider_config = crate::config::ProviderConfig {
                 name: "copilot".to_string(),
@@ -4595,41 +4607,60 @@ OpenCode Agent Configuration
                                 self.pending_shell_command = Some(cmd.clone());
                                 self.show_terminal = true;
                                 self.terminal_panel.add_line(format!("$ {cmd}",), false);
-                                let result = self.shell_handler.execute(cmd);
-                                if !result.stdout.is_empty() {
-                                    self.terminal_panel.add_stdout(&result.stdout);
-                                }
-                                if !result.stderr.is_empty() {
-                                    self.terminal_panel.add_stderr(&result.stderr);
-                                }
-                                if result.timed_out {
-                                    self.terminal_panel.add_line("Command timed out", true);
-                                }
-                                if result.truncated {
-                                    self.terminal_panel.add_line("Output was truncated", true);
-                                }
-                                let exit_msg = format!(
-                                    "[Exit code: {}]",
-                                    result
-                                        .exit_code
-                                        .map(|c| c.to_string())
-                                        .unwrap_or_else(|| "N/A".to_string())
-                                );
-                                self.terminal_panel
-                                    .add_line(&exit_msg, result.exit_code != Some(0));
 
-                                // Add shell result to conversation as tool result
-                                let tool_result = format!(
-                                    "```\n$ {}\n{}\n```\n{}",
-                                    cmd,
-                                    result.stdout,
-                                    if result.stderr.is_empty() {
-                                        String::new()
-                                    } else {
-                                        format!("stderr: {}", result.stderr)
+                                let runtime = self.runtime.clone();
+                                let cmd_clone = cmd.clone();
+                                let (tx, rx): (mpsc::Sender<(String, Result<opencode_runtime::RuntimeFacadeResponse, opencode_runtime::RuntimeFacadeError>)>, mpsc::Receiver<_>) = mpsc::channel();
+                                std::thread::spawn(move || {
+                                    let rt = tokio::runtime::Runtime::new().unwrap();
+                                    rt.block_on(async {
+                                        let shell_cmd = RuntimeFacadeCommand::ExecuteShell(ExecuteShellCommand {
+                                            command: cmd_clone.clone(),
+                                            timeout_secs: None,
+                                            workdir: None,
+                                        });
+                                        let result = runtime.execute(shell_cmd).await;
+                                        let _ = tx.send((cmd_clone, result));
+                                    });
+                                });
+
+                                let received = rx.recv();
+                                let (cmd, result) = match received {
+                                    Ok((c, r)) => (c, r),
+                                    Err(_) => (cmd.clone(), Err(opencode_runtime::RuntimeFacadeError::Dependency("Channel error".to_string()))),
+                                };
+
+                                match result {
+                                    Ok(response) => {
+                                        let exit_code = if response.accepted { Some(0) } else { Some(1) };
+                                        let stdout = response.message.clone();
+                                        let stderr = if response.accepted { String::new() } else { response.message.clone() };
+
+                                        if !stdout.is_empty() {
+                                            self.terminal_panel.add_stdout(&stdout);
+                                        }
+                                        if !stderr.is_empty() {
+                                            self.terminal_panel.add_stderr(&stderr);
+                                        }
+                                        let exit_msg = format!(
+                                            "[Exit code: {}]",
+                                            exit_code.map(|c| c.to_string()).unwrap_or_else(|| "N/A".to_string())
+                                        );
+                                        self.terminal_panel.add_line(&exit_msg, exit_code != Some(0));
+
+                                        let tool_result = format!(
+                                            "```\n$ {}\n{}\n```",
+                                            cmd,
+                                            stdout
+                                        );
+                                        self.add_message(tool_result, false);
                                     }
-                                );
-                                self.add_message(tool_result, false);
+                                    Err(e) => {
+                                        self.terminal_panel.add_stderr(format!("Error: {}", e));
+                                        self.terminal_panel.add_line("[Exit code: 1]", true);
+                                        self.add_message(format!("Shell execution failed: {}", e), false);
+                                    }
+                                }
                             }
 
                             let parsed_files = parsed_input
@@ -4728,12 +4759,6 @@ OpenCode Agent Configuration
 
                                 let (tx, rx) = mpsc::channel();
                                 self.llm_rx = Some(rx);
-                                #[expect(clippy::expect_used)]
-                                let provider_clone = self
-                                    .llm_provider
-                                    .as_ref()
-                                    .expect("llm_provider is Some per is_some check")
-                                    .clone();
                                 let auto_enabled = self.skill_resolver.match_and_enable(&input);
                                 for skill in auto_enabled {
                                     self.skills_panel.set_enabled(&skill.name, true);
@@ -4750,60 +4775,23 @@ OpenCode Agent Configuration
                                     )
                                 };
                                 let session = self.runtime_session_for_input(&llm_input);
-                                let tools: Arc<ToolsToolRegistry> = Arc::clone(&self.tool_registry);
 
+                                let runtime = self.runtime.clone();
                                 std::thread::spawn(move || {
                                     #[expect(clippy::expect_used)]
                                     let rt = tokio::runtime::Runtime::new()
                                         .expect("failed to create Tokio runtime");
                                     rt.block_on(async {
-                                        let runtime = AgentRuntime::new(session, AgentType::Build);
-                                        let agent = BuildAgent::new();
-                                        let tx_callback = tx.clone();
-                                        let callback: opencode_llm::EventCallback =
-                                            Box::new(move |event| match event {
-                                                opencode_llm::LlmEvent::TextChunk(text) => {
-                                                    let _ = tx_callback.send(LlmEvent::Chunk(text));
+                                        let cmd = RuntimeFacadeCommand::RunAgent(Box::new(RunAgentCommand {
+                                            session,
+                                            agent_type: AgentType::Build,
+                                        }));
+                                        match runtime.execute(cmd).await {
+                                            Ok(response) => {
+                                                if let Some(updated_session) = response.session {
+                                                    let _ = tx.send(LlmEvent::SessionComplete(updated_session));
                                                 }
-                                                opencode_llm::LlmEvent::ToolCall {
-                                                    name,
-                                                    arguments,
-                                                    id,
-                                                } => {
-                                                    let _ = tx_callback.send(LlmEvent::ToolCall {
-                                                        name,
-                                                        arguments,
-                                                        id,
-                                                    });
-                                                }
-                                                opencode_llm::LlmEvent::ToolResult {
-                                                    id,
-                                                    output,
-                                                } => {
-                                                    let _ = tx_callback
-                                                        .send(LlmEvent::ToolResult { id, output });
-                                                }
-                                                opencode_llm::LlmEvent::Done => {
-                                                    let _ = tx_callback.send(LlmEvent::Done);
-                                                }
-                                                opencode_llm::LlmEvent::Error(e) => {
-                                                    let _ = tx_callback.send(LlmEvent::Error(e));
-                                                }
-                                            });
-                                        match runtime
-                                            .run_loop_streaming(
-                                                &agent,
-                                                provider_clone.as_ref(),
-                                                tools.as_ref(),
-                                                Some(callback),
-                                            )
-                                            .await
-                                        {
-                                            Ok(_) => {
-                                                let updated_session = runtime.session().await;
-                                                let _ = tx.send(LlmEvent::SessionComplete(
-                                                    updated_session,
-                                                ));
+                                                let _ = tx.send(LlmEvent::Done);
                                             }
                                             Err(e) => {
                                                 let _ = tx.send(LlmEvent::Error(e.to_string()));
@@ -6684,31 +6672,36 @@ OpenCode Agent Configuration
     }
 }
 
-fn build_placeholder_runtime() -> Arc<OpenCodeRuntime> {
-    let event_bus = Arc::new(opencode_core::bus::EventBus::new());
-    let permission_manager = Arc::new(tokio::sync::RwLock::new(PermissionManager::default()));
-    let session_repo = Arc::new(InMemorySessionRepository::default());
-    let project_repo = Arc::new(InMemoryProjectRepository::default());
-    let db_path = std::env::temp_dir().join(format!(
-        "opencode-tui-runtime-placeholder-{}.db",
-        uuid::Uuid::new_v4()
-    ));
-    let pool = StoragePool::new(&db_path).expect("placeholder storage pool");
-    let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
-    let agent_runtime = Arc::new(tokio::sync::RwLock::new(AgentRuntime::new(
-        Session::default(),
-        AgentType::Build,
-    )));
+fn build_placeholder_runtime(
+        provider: Option<Arc<dyn Provider + Send + Sync>>,
+        tools: Option<Arc<ToolsToolRegistry>>,
+    ) -> Arc<OpenCodeRuntime> {
+        let event_bus = Arc::new(opencode_core::bus::EventBus::new());
+        let permission_manager = Arc::new(tokio::sync::RwLock::new(PermissionManager::default()));
+        let session_repo = Arc::new(InMemorySessionRepository::default());
+        let project_repo = Arc::new(InMemoryProjectRepository::default());
+        let db_path = std::env::temp_dir().join(format!(
+            "opencode-tui-runtime-placeholder-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+        let pool = StoragePool::new(&db_path).expect("placeholder storage pool");
+        let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
+        let agent_runtime = Arc::new(tokio::sync::RwLock::new(
+            AgentRuntime::new(Session::default(), AgentType::Build).with_event_bus(event_bus.clone()),
+        ));
 
-    Arc::new(OpenCodeRuntime::new(RuntimeFacadeServices::new(
-        event_bus,
-        permission_manager,
-        storage,
-        agent_runtime,
-        Arc::new(RuntimeFacadeTaskStore::new()),
-        Arc::new(RuntimeFacadeToolRouter::default()),
-    )))
-}
+        Arc::new(OpenCodeRuntime::new(RuntimeFacadeServices::new(
+            event_bus,
+            permission_manager,
+            storage,
+            agent_runtime,
+            Arc::new(RuntimeFacadeTaskStore::new()),
+            Arc::new(RuntimeFacadeToolRouter::default()),
+            AgentType::Build,
+            provider,
+            tools,
+        )))
+    }
 
 impl Default for App {
     fn default() -> Self {
