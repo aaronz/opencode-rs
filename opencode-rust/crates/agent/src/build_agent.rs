@@ -2,7 +2,7 @@ use crate::sealed;
 use crate::{messages_to_llm_format, Agent, AgentResponse, AgentType};
 use async_trait::async_trait;
 use opencode_core::{Message, OpenCodeError, Session, TokenBudget};
-use opencode_llm::provider::EventCallback;
+use opencode_llm::provider::{EventCallback, ToolSchema};
 use opencode_llm::provider_abstraction::ReasoningBudget;
 use opencode_llm::{ChatMessage, Provider};
 use opencode_tools::ToolRegistry;
@@ -133,7 +133,7 @@ impl Agent for BuildAgent {
         &self,
         session: &mut Session,
         provider: &dyn Provider,
-        _tools: &ToolRegistry,
+        tools: &ToolRegistry,
     ) -> Result<AgentResponse, OpenCodeError> {
         let mut all_messages: Vec<ChatMessage> = vec![ChatMessage {
             role: "system".to_string(),
@@ -144,7 +144,17 @@ impl Agent for BuildAgent {
             session.prepare_messages_for_prompt(TokenBudget::default().main_context_tokens());
         all_messages.extend(messages_to_llm_format(&prompt_messages));
 
-        let response = provider.chat(&all_messages).await?;
+        let tool_schemas: Vec<ToolSchema> = tools
+            .all_tool_schemas()
+            .iter()
+            .filter_map(|json| serde_json::from_value(json.clone()).ok())
+            .collect();
+
+        let response = if tool_schemas.is_empty() {
+            provider.chat(&all_messages).await?
+        } else {
+            provider.chat_with_tools(&all_messages, &tool_schemas).await?
+        };
 
         session.add_message(Message::assistant(response.content.clone()));
 

@@ -319,11 +319,15 @@ impl AgentRuntime {
         self
     }
 
+    pub fn set_event_bus(&mut self, event_bus: SharedEventBus) {
+        self.event_bus = Some(event_bus);
+    }
+
     pub fn session_id(&self) -> String {
         self.session.blocking_read().id.to_string()
     }
 
-    pub async fn run_loop<A: Agent>(
+    pub async fn run_loop<A: Agent + ?Sized>(
         &self,
         agent: &A,
         provider: &dyn Provider,
@@ -472,7 +476,7 @@ impl AgentRuntime {
         Ok(final_response)
     }
 
-    pub async fn run_loop_streaming<A: Agent>(
+    pub async fn run_loop_streaming<A: Agent + ?Sized>(
         &self,
         agent: &A,
         provider: &dyn Provider,
