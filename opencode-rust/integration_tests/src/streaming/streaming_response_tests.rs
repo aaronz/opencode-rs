@@ -618,17 +618,16 @@ async fn test_run_endpoint_validation_rejects_invalid_agent() {
 }
 
 #[test]
-fn test_stream_message_from_internal_event_tool_call() {
-    use opencode_core::bus::InternalEvent;
+fn test_stream_message_from_domain_event_tool_call() {
+    use opencode_core::DomainEvent;
 
-    let event = InternalEvent::ToolCallStarted {
+    let event = DomainEvent::ToolCallStarted {
         session_id: "test-session".to_string(),
         tool_name: "read".to_string(),
         call_id: "call-456".to_string(),
     };
 
-    let stream_msg = StreamMessage::from_internal_event(&event);
-    assert!(stream_msg.is_some());
+let stream_msg = StreamMessage::from_domain_event(&event);
 
     let msg = stream_msg.unwrap();
     match msg {
@@ -647,15 +646,15 @@ fn test_stream_message_from_internal_event_tool_call() {
 }
 
 #[test]
-fn test_stream_message_from_internal_event_agent_status() {
-    use opencode_core::bus::InternalEvent;
+fn test_stream_message_from_domain_event_agent_status() {
+    use opencode_core::DomainEvent;
 
-    let event = InternalEvent::AgentStatusChanged {
+    let event = DomainEvent::AgentStatusChanged {
         session_id: "test-session".to_string(),
         status: "thinking".to_string(),
     };
 
-    let stream_msg = StreamMessage::from_internal_event(&event);
+    let stream_msg = StreamMessage::from_domain_event(&event);
     assert!(stream_msg.is_some());
 
     let msg = stream_msg.unwrap();
@@ -669,12 +668,12 @@ fn test_stream_message_from_internal_event_agent_status() {
 }
 
 #[test]
-fn test_stream_message_from_internal_event_session_ended() {
-    use opencode_core::bus::InternalEvent;
+fn test_stream_message_from_domain_event_session_ended() {
+    use opencode_core::DomainEvent;
 
-    let event = InternalEvent::SessionEnded("session-end-test".to_string());
+    let event = DomainEvent::SessionEnded("session-end-test".to_string());
 
-    let stream_msg = StreamMessage::from_internal_event(&event);
+    let stream_msg = StreamMessage::from_domain_event(&event);
     assert!(stream_msg.is_some());
 
     let msg = stream_msg.unwrap();

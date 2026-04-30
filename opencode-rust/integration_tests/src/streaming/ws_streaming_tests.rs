@@ -681,7 +681,7 @@ async fn ws_close(
 
 #[tokio::test]
 async fn test_tool_events_stream_realtime() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -707,7 +707,7 @@ async fn test_tool_events_stream_realtime() {
     );
 
     let event_bus = &state_data.event_bus;
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "test-tool-session".to_string(),
         tool_name: "read".to_string(),
         call_id: "call-test-123".to_string(),
@@ -742,7 +742,7 @@ async fn test_tool_events_stream_realtime() {
         "Call ID should match"
     );
 
-    event_bus.publish(InternalEvent::ToolCallEnded {
+    event_bus.publish(DomainEvent::ToolCallEnded {
         session_id: "test-tool-session".to_string(),
         call_id: "call-test-123".to_string(),
         success: true,
@@ -785,7 +785,7 @@ async fn test_tool_events_stream_realtime() {
 
 #[tokio::test]
 async fn test_multiple_clients_receive_same_events() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -848,7 +848,7 @@ async fn test_multiple_clients_receive_same_events() {
 
     let event_bus = &state_data.event_bus;
 
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "test-multi-client-session".to_string(),
         tool_name: "read".to_string(),
         call_id: "call-multi-123".to_string(),
@@ -910,7 +910,7 @@ async fn test_multiple_clients_receive_same_events() {
         "Second client call ID should match"
     );
 
-    event_bus.publish(InternalEvent::ToolCallEnded {
+    event_bus.publish(DomainEvent::ToolCallEnded {
         session_id: "test-multi-client-session".to_string(),
         call_id: "call-multi-123".to_string(),
         success: true,
@@ -952,7 +952,7 @@ async fn test_multiple_clients_receive_same_events() {
         "Second client success should be true"
     );
 
-    event_bus.publish(InternalEvent::AgentStatusChanged {
+    event_bus.publish(DomainEvent::AgentStatusChanged {
         session_id: "test-multi-client-session".to_string(),
         status: "processing".to_string(),
     });

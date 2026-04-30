@@ -120,7 +120,7 @@ async fn test_ws_connect() {
 
 #[tokio::test]
 async fn test_ws_execute_stream() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -146,7 +146,7 @@ async fn test_ws_execute_stream() {
     );
 
     let event_bus = &state_data.event_bus;
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "execute-stream-session".to_string(),
         tool_name: "read".to_string(),
         call_id: "call-exec-123".to_string(),
@@ -181,7 +181,7 @@ async fn test_ws_execute_stream() {
         "Call ID should match"
     );
 
-    event_bus.publish(InternalEvent::ToolCallEnded {
+    event_bus.publish(DomainEvent::ToolCallEnded {
         session_id: "execute-stream-session".to_string(),
         call_id: "call-exec-123".to_string(),
         success: true,
@@ -217,7 +217,7 @@ async fn test_ws_execute_stream() {
 
 #[tokio::test]
 async fn test_ws_multiple_streams() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -280,13 +280,13 @@ async fn test_ws_multiple_streams() {
 
     let event_bus = &state_data.event_bus;
 
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "stream-session-1".to_string(),
         tool_name: "read".to_string(),
         call_id: "call-s1-123".to_string(),
     });
 
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "stream-session-2".to_string(),
         tool_name: "write".to_string(),
         call_id: "call-s2-456".to_string(),
@@ -338,13 +338,13 @@ async fn test_ws_multiple_streams() {
         "Second client tool name should be 'write'"
     );
 
-    event_bus.publish(InternalEvent::ToolCallEnded {
+    event_bus.publish(DomainEvent::ToolCallEnded {
         session_id: "stream-session-1".to_string(),
         call_id: "call-s1-123".to_string(),
         success: true,
     });
 
-    event_bus.publish(InternalEvent::ToolCallEnded {
+    event_bus.publish(DomainEvent::ToolCallEnded {
         session_id: "stream-session-2".to_string(),
         call_id: "call-s2-456".to_string(),
         success: true,
@@ -393,7 +393,7 @@ async fn test_ws_multiple_streams() {
 
 #[tokio::test]
 async fn test_ws_empty_response() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -408,24 +408,24 @@ async fn test_ws_empty_response() {
 
     let event_bus = &state_data.event_bus;
 
-    event_bus.publish(InternalEvent::MessageAdded {
+    event_bus.publish(DomainEvent::MessageAdded {
         session_id: "empty-response-session".to_string(),
         message_id: "msg-empty-001".to_string(),
     });
 
     tokio::time::sleep(Duration::from_millis(200)).await;
 
-    event_bus.publish(InternalEvent::AgentStatusChanged {
+    event_bus.publish(DomainEvent::AgentStatusChanged {
         session_id: "empty-response-session".to_string(),
         status: "processing".to_string(),
     });
 
-    event_bus.publish(InternalEvent::MessageAdded {
+    event_bus.publish(DomainEvent::MessageAdded {
         session_id: "empty-response-session".to_string(),
         message_id: "msg-empty-002".to_string(),
     });
 
-    event_bus.publish(InternalEvent::AgentStatusChanged {
+    event_bus.publish(DomainEvent::AgentStatusChanged {
         session_id: "empty-response-session".to_string(),
         status: "completed".to_string(),
     });
@@ -469,7 +469,7 @@ async fn test_ws_empty_response() {
 
 #[tokio::test]
 async fn test_ws_long_response() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -484,24 +484,24 @@ async fn test_ws_long_response() {
 
     let event_bus = &state_data.event_bus;
 
-    event_bus.publish(InternalEvent::MessageAdded {
+    event_bus.publish(DomainEvent::MessageAdded {
         session_id: "long-response-session".to_string(),
         message_id: "msg-long-001".to_string(),
     });
 
     tokio::time::sleep(Duration::from_millis(200)).await;
 
-    event_bus.publish(InternalEvent::MessageUpdated {
+    event_bus.publish(DomainEvent::MessageUpdated {
         session_id: "long-response-session".to_string(),
         message_id: "msg-long-001".to_string(),
     });
 
-    event_bus.publish(InternalEvent::MessageAdded {
+    event_bus.publish(DomainEvent::MessageAdded {
         session_id: "long-response-session".to_string(),
         message_id: "msg-long-002".to_string(),
     });
 
-    event_bus.publish(InternalEvent::MessageUpdated {
+    event_bus.publish(DomainEvent::MessageUpdated {
         session_id: "long-response-session".to_string(),
         message_id: "msg-long-002".to_string(),
     });
@@ -538,7 +538,7 @@ async fn test_ws_long_response() {
 
 #[tokio::test]
 async fn test_ws_connection_drop() {
-    use opencode_core::bus::InternalEvent;
+    use opencode_core::DomainEvent;
 
     let (ws_url, server_handle, state_data) = start_ws_test_server_with_state(0).await;
 
@@ -553,7 +553,7 @@ async fn test_ws_connection_drop() {
 
     let event_bus = &state_data.event_bus;
 
-    event_bus.publish(InternalEvent::ToolCallStarted {
+    event_bus.publish(DomainEvent::ToolCallStarted {
         session_id: "drop-test-session".to_string(),
         tool_name: "read".to_string(),
         call_id: "call-drop-001".to_string(),
@@ -566,7 +566,7 @@ async fn test_ws_connection_drop() {
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    event_bus.publish(InternalEvent::ToolCallEnded {
+    event_bus.publish(DomainEvent::ToolCallEnded {
         session_id: "drop-test-session".to_string(),
         call_id: "call-drop-001".to_string(),
         success: false,
