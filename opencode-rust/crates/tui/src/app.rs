@@ -2841,6 +2841,16 @@ impl App {
             self.check_llm_events();
             self.check_connect_events();
 
+            // Handle mouse events for text selection (non-blocking poll)
+            if event::poll(std::time::Duration::from_millis(1))? {
+                if let Event::Mouse(mouse_event) = event::read()? {
+                    // Only handle selection in Chat mode with messages
+                    if self.mode == AppMode::Chat && !self.messages.is_empty() {
+                        self.handle_mouse_selection(mouse_event);
+                    }
+                }
+            }
+
             if let Some(ref mut ts) = self.input_widget.typewriter_state {
                 if ts.is_streaming {
                     ts.tick();
