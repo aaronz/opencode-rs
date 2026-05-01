@@ -85,6 +85,21 @@ pub enum RuntimeFacadeEvent {
         session_id: String,
         error: String,
     },
+    StructuredLog {
+        session_id: String,
+        level: LogLevel,
+        message: String,
+        details: Option<serde_json::Value>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    Debug,
+    Info,
+    Warn,
+    Error,
 }
 
 impl RuntimeFacadeEvent {
@@ -107,7 +122,8 @@ impl RuntimeFacadeEvent {
             | Self::LlmRequestStarted { session_id, .. }
             | Self::LlmTokenStreamed { session_id, .. }
             | Self::LlmResponseCompleted { session_id, .. }
-            | Self::LlmError { session_id, .. } => Some(session_id),
+            | Self::LlmError { session_id, .. }
+            | Self::StructuredLog { session_id, .. } => Some(session_id),
             Self::Error { .. } => None,
         }
     }
@@ -246,6 +262,16 @@ impl RuntimeFacadeEvent {
                 session_id: session_id.clone(),
                 error: error.clone(),
             }),
+            DomainEvent::RuntimeStatusChanged {
+                session_id,
+                from_status,
+                to_status,
+            } => Some(Self::StructuredLog {
+                session_id: session_id.clone().unwrap_or_default(),
+                level: LogLevel::Debug,
+                message: format!("Runtime status: {} -> {}", from_status, to_status),
+                details: None,
+            }),
             _ => None,
         }
     }
@@ -253,5 +279,66 @@ impl RuntimeFacadeEvent {
     #[deprecated(since = "0.1.0", note = "use from_domain_event instead")]
     pub fn from_internal_event(event: &DomainEvent) -> Option<Self> {
         Self::from_domain_event(event)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_log_level_serialization() {
+        let debug = LogLevel::Debug;
+        let info = LogLevel::Info;
+        let warn = LogLevel::Warn;
+        let error = LogLevel::Error;
+
+        assert_eq!(serde_json::to_string(&debug).unwrap(), "\"debug\"");
+        assert_eq!(serde_json::to_string(&info).unwrap(), "\"info\"");
+        assert_eq!(serde_json::to_string(&warn).unwrap(), "\"warn\"");
+        assert_eq!(serde_json::to_string(&error).unwrap(), "\"error\"");
+    }
+
+    #[test]
+    fn test_log_level_deserialization() {
+        let debug: LogLevel = serde_json::from_str("\"debug\"").unwrap();
+        let info: LogLevel = serde_json::from_str("\"info\"").unwrap();
+        let warn: LogLevel = serde_json::from_str("\"warn\"").unwrap();
+        let error: LogLevel = serde_json::from_str("\"error\"").unwrap();
+
+        assert_eq!(debug, LogLevel::Debug);
+        assert_eq!(info, LogLevel::Info);
+        assert_eq!(warn, LogLevel::Warn);
+        assert_eq!(error, LogLevel::Error);
+    }
+
+    #[test]
+    fn test_structured_log_session_id() {
+        let event = RuntimeFacadeEvent::StructuredLog {
+            session_id: "test-session".to_string(),
+            level: LogLevel::Info,
+            message: "Test message".to_string(),
+            details: None,
+        };
+
+        assert_eq!(event.session_id(), Some("test-session"));
+    }
+
+    #[test]
+    fn test_structured_log_with_details() {
+        let details = serde_json::json!({"key": "value", "count": 42});
+
+        let event = RuntimeFacadeEvent::StructuredLog {
+            session_id: "test-session".to_string(),
+            level: LogLevel::Warn,
+            message: "Warning occurred".to_string(),
+            details: Some(details.clone()),
+        };
+
+        if let RuntimeFacadeEvent::StructuredLog { details: event_details, .. } = event {
+            assert_eq!(event_details, Some(details));
+        } else {
+            panic!("Expected StructuredLog variant");
+        }
     }
 }
