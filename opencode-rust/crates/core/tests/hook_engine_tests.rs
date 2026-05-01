@@ -442,3 +442,19 @@ async fn test_hook_engine_hook_result_failure() {
     assert!(result.output.is_none());
     assert_eq!(result.error, Some("failed".to_string()));
 }
+
+#[test]
+fn test_hook_id_cost_tier() {
+    assert_eq!(HookId::Builtin(1).cost_tier(), 0);
+    assert_eq!(HookId::Project(1).cost_tier(), 1);
+    assert_eq!(HookId::User(1).cost_tier(), 2);
+    assert_eq!(HookId::Plugin(1).cost_tier(), 3);
+}
+
+#[test]
+fn test_hook_id_estimated_context_tokens() {
+    assert_eq!(HookId::Builtin(1).estimated_context_tokens(), 0);
+    assert_eq!(HookId::Project(1).estimated_context_tokens(), 50);
+    assert_eq!(HookId::User(1).estimated_context_tokens(), 150);
+    assert_eq!(HookId::Plugin(1).estimated_context_tokens(), 500);
+}
