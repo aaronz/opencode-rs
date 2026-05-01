@@ -94,17 +94,21 @@ impl RuntimeFacadeHandle {
         let from_status = *self.status.read().await;
         let from_status_str = format!("{:?}", from_status);
 
-        let result = RuntimeFacade::execute_standalone(&self.services, Arc::clone(&self.status), command).await;
+        let result =
+            RuntimeFacade::execute_standalone(&self.services, Arc::clone(&self.status), command)
+                .await;
 
         let to_status = *self.status.read().await;
         let to_status_str = format!("{:?}", to_status);
 
         if from_status != to_status {
-            self.services.event_bus.publish(DomainEvent::RuntimeStatusChanged {
-                session_id: None,
-                from_status: from_status_str,
-                to_status: to_status_str,
-            });
+            self.services
+                .event_bus
+                .publish(DomainEvent::RuntimeStatusChanged {
+                    session_id: None,
+                    from_status: from_status_str,
+                    to_status: to_status_str,
+                });
         }
 
         result
@@ -333,7 +337,11 @@ impl RuntimeFacade {
                     "workdir": cmd.workdir,
                 });
 
-                match services.tool_router.execute_with_validation("bash", args, None).await {
+                match services
+                    .tool_router
+                    .execute_with_validation("bash", args, None)
+                    .await
+                {
                     Ok(result) => Ok(RuntimeFacadeResponse {
                         session_id: None,
                         turn_id: None,

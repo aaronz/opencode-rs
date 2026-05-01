@@ -120,7 +120,10 @@ impl ProviderGateway for FakeProviderGateway {
     async fn stream_chat(
         &self,
         _request: ProviderRequest,
-    ) -> std::result::Result<BoxStream<'static, std::result::Result<ProviderStreamEvent, ProviderError>>, ProviderError> {
+    ) -> std::result::Result<
+        BoxStream<'static, std::result::Result<ProviderStreamEvent, ProviderError>>,
+        ProviderError,
+    > {
         let should_error = *self.should_error.read().unwrap();
         if should_error {
             let kind = self.error_kind.read().unwrap().clone();
@@ -130,11 +133,7 @@ impl ProviderGateway for FakeProviderGateway {
         let responses = self.responses.read().unwrap();
         let events: Vec<_> = responses.clone();
 
-        let stream = stream::iter(
-            events
-                .into_iter()
-                .map(Ok::<_, ProviderError>)
-        );
+        let stream = stream::iter(events.into_iter().map(Ok::<_, ProviderError>));
 
         Ok(stream.boxed())
     }
@@ -204,8 +203,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fake_provider_stream_returns_error_when_configured() {
-        let gateway = Arc::new(FakeProviderGateway::new())
-            .with_error(ProviderErrorKind::Network);
+        let gateway = Arc::new(FakeProviderGateway::new()).with_error(ProviderErrorKind::Network);
 
         let request = ProviderRequest {
             provider: "test".to_string(),

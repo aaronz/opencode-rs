@@ -25,21 +25,21 @@ pub use commands::{
 pub use context_view::RuntimeFacadeContextSummary;
 pub use errors::RuntimeFacadeError;
 pub use events::{LogLevel, RuntimeFacadeEvent};
+pub use handle::{DynRuntimeHandle, RuntimeHandle, StreamingRuntimeHandle};
+pub use llm_gateway::LlmProviderGateway;
 pub use permission::{RuntimeFacadePermissionAdapter, RuntimeFacadePermissionDecision};
 pub use persistence::RuntimeFacadeSessionStore;
-pub use llm_gateway::LlmProviderGateway;
 pub use provider_gateway::{
     ModelCapabilities, ModelInfo, NormalizedToolCall, ProviderError, ProviderErrorKind,
-    ProviderMessage, ProviderRequest, ProviderRequestMetadata, ProviderStreamEvent, ProviderStatus,
-    ToolChoice, ToolDescriptor, TokenUsage,
+    ProviderMessage, ProviderRequest, ProviderRequestMetadata, ProviderStatus, ProviderStreamEvent,
+    TokenUsage, ToolChoice, ToolDescriptor,
 };
 pub use runtime::{RuntimeFacade, RuntimeFacadeHandle};
-pub use handle::{RuntimeHandle, StreamingRuntimeHandle, DynRuntimeHandle};
 pub use services::RuntimeFacadeServices;
 pub use task_store::RuntimeFacadeTaskStore;
 pub use tool_router::RuntimeFacadeToolRouter;
 pub use trace_store::{
-    RuntimeFacadeTrace, RuntimeFacadeTraceSummary, RuntimeFacadeTraceStore, TokenUsageSummary,
+    RuntimeFacadeTrace, RuntimeFacadeTraceStore, RuntimeFacadeTraceSummary, TokenUsageSummary,
     TraceEvent,
 };
 pub use types::{

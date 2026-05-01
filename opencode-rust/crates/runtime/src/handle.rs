@@ -46,5 +46,8 @@ pub trait StreamingRuntimeHandle: RuntimeHandle {
     async fn execute_streaming(
         &self,
         command: RuntimeFacadeCommand,
-    ) -> Result<Box<dyn Stream<Item = Result<RuntimeFacadeResponse, RuntimeFacadeError>> + Send>, RuntimeFacadeError>;
+    ) -> Result<
+        Box<dyn Stream<Item = Result<RuntimeFacadeResponse, RuntimeFacadeError>> + Send>,
+        RuntimeFacadeError,
+    >;
 }

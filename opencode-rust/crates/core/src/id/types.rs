@@ -76,3 +76,4 @@ macro_rules! define_id_newtype {
 define_id_newtype!(SessionId, "session:");
 define_id_newtype!(UserId, "user:");
 define_id_newtype!(ProjectId, "project:");
+define_id_newtype!(WorkspaceId, "workspace:");

@@ -31,6 +31,8 @@ pub use tool_invocation::ToolInvocationRecord;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
     pub id: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<Uuid>,
     pub messages: Vec<Message>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -73,6 +75,7 @@ impl Session {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),
+            workspace_id: None,
             messages: Vec::new(),
             created_at: now,
             updated_at: now,
@@ -97,6 +100,7 @@ impl Session {
 
         Self {
             id: new_session_id,
+            workspace_id: self.workspace_id,
             messages: self.messages.clone(),
             created_at: now,
             updated_at: now,
@@ -127,6 +131,7 @@ impl Session {
         let new_lineage_path = self.compute_lineage_path();
         Ok(Session {
             id: Uuid::new_v4(),
+            workspace_id: self.workspace_id,
             messages: self.messages[..=message_index].to_vec(),
             created_at: now,
             updated_at: now,

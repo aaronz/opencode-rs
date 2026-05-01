@@ -794,7 +794,7 @@ mod tests {
             .collect_session_context(&messages)
             .build();
 
-        assert!(context.truncation_report.middle_messages_dropped >= 0);
+        assert_eq!(context.truncation_report.middle_messages_dropped, 0);
     }
 
     #[test]
@@ -808,7 +808,7 @@ mod tests {
             .build();
 
         assert!(!context.provenance.is_empty());
-        assert!(context.truncation_report.tokens_saved >= 0);
+        assert_eq!(context.truncation_report.tokens_saved, 0);
     }
 
     #[test]

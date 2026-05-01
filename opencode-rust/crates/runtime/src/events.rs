@@ -335,7 +335,11 @@ mod tests {
             details: Some(details.clone()),
         };
 
-        if let RuntimeFacadeEvent::StructuredLog { details: event_details, .. } = event {
+        if let RuntimeFacadeEvent::StructuredLog {
+            details: event_details,
+            ..
+        } = event
+        {
             assert_eq!(event_details, Some(details));
         } else {
             panic!("Expected StructuredLog variant");

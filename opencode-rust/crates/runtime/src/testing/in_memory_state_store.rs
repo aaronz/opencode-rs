@@ -26,10 +26,7 @@ impl InMemoryStateStore {
     }
 
     pub fn with_session(self: Arc<Self>, session: Session) -> Arc<Self> {
-        self.sessions
-            .write()
-            .unwrap()
-            .insert(session.id, session);
+        self.sessions.write().unwrap().insert(session.id, session);
         self
     }
 
@@ -57,8 +54,12 @@ impl StateStore for InMemoryStateStore {
     }
 
     async fn load_session(&self, session_id: &str) -> Result<Option<Session>, RuntimeFacadeError> {
-        let uuid = Uuid::parse_str(session_id)
-            .map_err(|_| RuntimeFacadeError::InvalidConfiguration(format!("Invalid session ID format: {}", session_id)))?;
+        let uuid = Uuid::parse_str(session_id).map_err(|_| {
+            RuntimeFacadeError::InvalidConfiguration(format!(
+                "Invalid session ID format: {}",
+                session_id
+            ))
+        })?;
         Ok(self.sessions.read().unwrap().get(&uuid).cloned())
     }
 }
@@ -91,7 +92,10 @@ mod tests {
     async fn test_in_memory_store_returns_none_for_missing_session() {
         let store = Arc::new(InMemoryStateStore::new());
 
-        let loaded = store.load_session("00000000-0000-0000-0000-000000000000").await.unwrap();
+        let loaded = store
+            .load_session("00000000-0000-0000-0000-000000000000")
+            .await
+            .unwrap();
         assert!(loaded.is_none());
     }
 

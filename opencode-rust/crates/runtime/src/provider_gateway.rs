@@ -111,16 +111,26 @@ impl std::fmt::Display for ProviderError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProviderStreamEvent {
-    Started { request_id: ProviderRequestId },
-    Token { text: String },
+    Started {
+        request_id: ProviderRequestId,
+    },
+    Token {
+        text: String,
+    },
     ToolCallDelta {
         call_id: String,
         name: Option<String>,
         arguments_delta: String,
     },
-    ToolCallCompleted { call: NormalizedToolCall },
-    Completed { usage: Option<TokenUsage> },
-    Error { error: ProviderError },
+    ToolCallCompleted {
+        call: NormalizedToolCall,
+    },
+    Completed {
+        usage: Option<TokenUsage>,
+    },
+    Error {
+        error: ProviderError,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -166,7 +176,10 @@ pub trait ProviderGateway: Send + Sync {
     async fn stream_chat(
         &self,
         request: ProviderRequest,
-    ) -> std::result::Result<BoxStream<'static, std::result::Result<ProviderStreamEvent, ProviderError>>, ProviderError>;
+    ) -> std::result::Result<
+        BoxStream<'static, std::result::Result<ProviderStreamEvent, ProviderError>>,
+        ProviderError,
+    >;
 }
 
 #[cfg(test)]

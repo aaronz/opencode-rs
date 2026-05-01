@@ -2,6 +2,7 @@ use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use opencode_core::{TokenCounter, ToolDefinition, ToolExecutor, ToolParameter, ToolRegistry};
+use opencode_core::tool::RiskLevel;
 use serde_json::Value;
 
 use crate::client::{McpClient, McpTool};
@@ -75,6 +76,7 @@ impl McpToolAdapter {
                 schema: self.tool.input_schema.clone(),
             }],
             requires_approval: self.requires_approval,
+            risk_level: RiskLevel::Medium,
         }
     }
 

@@ -187,7 +187,7 @@ pub(crate) use formatter::{FormatterEngine, FormatterError};
 pub use global::GlobalState;
 
 // id — public for external crates
-pub use id::{IdGenerator, IdParseError, ProjectId, SessionId, UserId};
+pub use id::{IdGenerator, IdParseError, ProjectId, SessionId, UserId, WorkspaceId};
 
 // ide
 pub(crate) use ide::{Ide, IdeExtension, IdeManager, Position};

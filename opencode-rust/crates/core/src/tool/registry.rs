@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::types::{ToolDefinition, ToolExecutor, ToolParameter};
+use super::types::{RiskLevel, ToolDefinition, ToolExecutor, ToolParameter};
 
 #[derive(Default)]
 pub struct ToolRegistry {
@@ -35,8 +35,12 @@ impl ToolRegistry {
     pub fn requires_approval(&self, name: &str) -> bool {
         self.tools
             .get(name)
-            .map(|def| def.requires_approval)
+            .map(|def| def.requires_approval || def.risk_level.requires_approval())
             .unwrap_or(false)
+    }
+
+    pub fn risk_level(&self, name: &str) -> Option<RiskLevel> {
+        self.tools.get(name).map(|def| def.risk_level)
     }
 
     pub fn register(&mut self, definition: ToolDefinition, executor: ToolExecutor) {
@@ -345,6 +349,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 schema: serde_json::json!({ "type": "string" }),
             }],
             requires_approval: true,
+            risk_level: RiskLevel::High,
         },
         Arc::new(|args| {
             let command = args
@@ -501,6 +506,7 @@ pub fn build_default_registry() -> ToolRegistry {
                 schema: serde_json::json!({ "type": "string" }),
             }],
             requires_approval: true,
+            risk_level: RiskLevel::High,
         },
         Arc::new(|args| {
             let command = args

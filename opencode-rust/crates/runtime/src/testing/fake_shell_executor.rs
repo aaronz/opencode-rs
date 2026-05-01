@@ -27,13 +27,24 @@ impl FakeShellExecutor {
         }
     }
 
-    pub fn with_command(self: Arc<Self>, cmd: impl Into<String>, output: CommandOutput) -> Arc<Self> {
+    pub fn with_command(
+        self: Arc<Self>,
+        cmd: impl Into<String>,
+        output: CommandOutput,
+    ) -> Arc<Self> {
         self.commands.write().unwrap().insert(cmd.into(), output);
         self
     }
 
-    pub fn with_error(self: Arc<Self>, cmd: impl Into<String>, error: impl Into<String>) -> Arc<Self> {
-        self.should_error.write().unwrap().insert(cmd.into(), error.into());
+    pub fn with_error(
+        self: Arc<Self>,
+        cmd: impl Into<String>,
+        error: impl Into<String>,
+    ) -> Arc<Self> {
+        self.should_error
+            .write()
+            .unwrap()
+            .insert(cmd.into(), error.into());
         self
     }
 
@@ -129,8 +140,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_fake_shell_returns_configured_error() {
-        let executor = Arc::new(FakeShellExecutor::new())
-            .with_error("echo hello", "Permission denied");
+        let executor =
+            Arc::new(FakeShellExecutor::new()).with_error("echo hello", "Permission denied");
 
         let request = CommandRequest::new("echo hello".to_string());
         let result = executor.execute(request).await;
@@ -140,14 +151,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_fake_shell_tracks_executed_commands() {
-        let executor = Arc::new(FakeShellExecutor::new())
-            .with_command("echo hello", CommandOutput {
+        let executor = Arc::new(FakeShellExecutor::new()).with_command(
+            "echo hello",
+            CommandOutput {
                 stdout: "hello".to_string(),
                 stderr: "".to_string(),
                 exit_code: Some(0),
                 timed_out: false,
                 truncated: false,
-            });
+            },
+        );
 
         let request1 = CommandRequest::new("echo hello".to_string());
         let request2 = CommandRequest::new("echo hello".to_string());

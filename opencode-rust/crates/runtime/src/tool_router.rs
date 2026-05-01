@@ -30,16 +30,23 @@ impl RuntimeFacadeToolRouter {
         args: serde_json::Value,
         ctx: Option<ToolContext>,
     ) -> Result<ToolResult, OpenCodeError> {
+        // Deny-First: tool MUST exist in registry
         let tool = self.registry.read().await.get(name).await;
-        if let Some(tool) = tool {
-            if let Some(schema) = tool.input_schema() {
-                if let Some(errors) = validate_json_schema(&args, &schema) {
-                    return Ok(ToolResult::err(format!(
-                        "Invalid arguments for tool '{}': {}",
-                        name,
-                        errors.join("; ")
-                    )));
-                }
+        let Some(tool) = tool else {
+            return Ok(ToolResult::err(format!(
+                "Tool '{}' not found or not available. Access denied.",
+                name
+            )));
+        };
+
+        // Validate JSON schema if provided
+        if let Some(schema) = tool.input_schema() {
+            if let Some(errors) = validate_json_schema(&args, &schema) {
+                return Ok(ToolResult::err(format!(
+                    "Invalid arguments for tool '{}': {}",
+                    name,
+                    errors.join("; ")
+                )));
             }
         }
         self.execute(name, args, ctx).await
@@ -70,7 +77,10 @@ impl RuntimeFacadeToolRouter {
     }
 }
 
-fn validate_json_schema(args: &serde_json::Value, schema: &serde_json::Value) -> Option<Vec<String>> {
+fn validate_json_schema(
+    args: &serde_json::Value,
+    schema: &serde_json::Value,
+) -> Option<Vec<String>> {
     let mut errors = Vec::new();
 
     if let Some(obj) = schema.as_object() {
@@ -88,7 +98,11 @@ fn validate_json_schema(args: &serde_json::Value, schema: &serde_json::Value) ->
             for (field, field_schema) in properties {
                 if let Some(args_val) = args.get(field) {
                     if !args_val.is_null() {
-                        if let Some(expected_type) = field_schema.as_object().and_then(|fo| fo.get("type")).and_then(|t| t.as_str()) {
+                        if let Some(expected_type) = field_schema
+                            .as_object()
+                            .and_then(|fo| fo.get("type"))
+                            .and_then(|t| t.as_str())
+                        {
                             let actual_type = json_type_name(args_val);
                             if actual_type != expected_type {
                                 errors.push(format!(
@@ -139,6 +153,17 @@ impl Default for RuntimeFacadeToolRouter {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[tokio::test]
+    async fn test_deny_first_unknown_tool() {
+        let router = RuntimeFacadeToolRouter::default();
+        let result = router.execute_with_validation("nonexistent_tool", json!({}), None).await;
+        let err_result = result.unwrap();
+        assert!(!err_result.success);
+        assert!(err_result.error.is_some());
+        let error_msg = err_result.error.as_ref().unwrap();
+        assert!(error_msg.contains("not found or not available"), "Got: {}", error_msg);
+    }
 
     #[test]
     fn test_validate_json_schema_valid() {

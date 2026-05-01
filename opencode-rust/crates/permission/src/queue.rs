@@ -14,6 +14,24 @@ pub enum PermissionScope {
     Full,
 }
 
+impl PermissionScope {
+    /// Parse from environment variable `OPENCODE_PERMISSION_SCOPE`.
+    /// Values: "read_only", "restricted", "full". Defaults to `ReadOnly` if invalid.
+    pub fn from_env() -> Self {
+        use std::env;
+        match env::var("OPENCODE_PERMISSION_SCOPE")
+            .as_deref()
+            .map(|s| s.to_lowercase())
+            .as_deref()
+        {
+            Ok("read_only") | Ok("readonly") => Self::ReadOnly,
+            Ok("restricted") => Self::Restricted,
+            Ok("full") => Self::Full,
+            _ => Self::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PendingApproval {
     pub id: Uuid,

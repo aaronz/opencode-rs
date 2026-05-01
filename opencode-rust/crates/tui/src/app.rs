@@ -2921,8 +2921,10 @@ impl App {
         // Helper to check if a position is within the messages area
         let is_in_messages_area = |pos: (u16, u16), area: Option<Rect>| -> bool {
             if let Some(rect) = area {
-                pos.0 >= rect.x && pos.0 < rect.x + rect.width &&
-                pos.1 >= rect.y && pos.1 < rect.y + rect.height
+                pos.0 >= rect.x
+                    && pos.0 < rect.x + rect.width
+                    && pos.1 >= rect.y
+                    && pos.1 < rect.y + rect.height
             } else {
                 false
             }

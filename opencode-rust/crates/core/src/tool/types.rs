@@ -5,6 +5,33 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RiskLevel {
+    #[default]
+    ReadOnly,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+impl RiskLevel {
+    pub fn requires_approval(&self) -> bool {
+        matches!(self, RiskLevel::Medium | RiskLevel::High | RiskLevel::Critical)
+    }
+
+    pub fn default_policy(&self) -> &'static str {
+        match self {
+            RiskLevel::ReadOnly => "allow",
+            RiskLevel::Low => "allow",
+            RiskLevel::Medium => "ask_or_allow_in_trusted_workspace",
+            RiskLevel::High => "ask",
+            RiskLevel::Critical => "always_ask_or_deny_by_default",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolParameter {
     pub name: String,
@@ -22,6 +49,7 @@ pub struct ToolDefinition {
     pub parameters: Vec<ToolParameter>,
     #[serde(default)]
     pub requires_approval: bool,
+    pub risk_level: RiskLevel,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

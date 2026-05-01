@@ -40,7 +40,10 @@ impl RuntimeFacadeSessionStore {
         self.store.save_session(session).await
     }
 
-    pub async fn load_session(&self, session_id: &str) -> Result<Option<Session>, RuntimeFacadeError> {
+    pub async fn load_session(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<Session>, RuntimeFacadeError> {
         self.store.load_session(session_id).await
     }
 }

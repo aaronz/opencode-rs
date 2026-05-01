@@ -51,7 +51,10 @@ pub enum RuntimeStatus {
 pub enum RuntimeFacadeStatus {
     #[deprecated(since = "0.2.0", note = "Use RuntimeStatus::Idle instead")]
     Idle,
-    #[deprecated(since = "0.2.0", note = "Use RuntimeStatus::BuildingContext or other active state")]
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use RuntimeStatus::BuildingContext or other active state"
+    )]
     Busy,
     #[deprecated(since = "0.2.0", note = "Use RuntimeStatus::Degraded instead")]
     Degraded,

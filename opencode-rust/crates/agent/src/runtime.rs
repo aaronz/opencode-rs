@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use opencode_core::bus::SharedEventBus;
 use opencode_core::events::DomainEvent;
+use opencode_core::instance::Instance;
 use opencode_core::{Message, Session};
 use opencode_llm::provider::{EventCallback, LlmEvent};
 use opencode_llm::Provider;
@@ -415,8 +416,8 @@ impl AgentRuntime {
                     session_id: self.session.read().await.id.to_string(),
                     message_id: Uuid::new_v4().to_string(),
                     agent: agent.name().to_string(),
-                    worktree: None,
-                    directory: None,
+                    worktree: Instance::worktree().map(|p| p.to_string_lossy().to_string()),
+                    directory: Instance::directory().map(|p| p.to_string_lossy().to_string()),
                     permission_scope: Some(self.config.permission_scope),
                 };
 
@@ -658,8 +659,8 @@ impl AgentRuntime {
                     session_id: self.session.read().await.id.to_string(),
                     message_id: Uuid::new_v4().to_string(),
                     agent: agent.name().to_string(),
-                    worktree: None,
-                    directory: None,
+                    worktree: Instance::worktree().map(|p| p.to_string_lossy().to_string()),
+                    directory: Instance::directory().map(|p| p.to_string_lossy().to_string()),
                     permission_scope: Some(self.config.permission_scope),
                 };
 

@@ -1,5 +1,5 @@
 use crate::session::ToolInvocationRecord;
-use crate::tool::{ToolCall, ToolRegistry, ToolResult};
+use crate::tool::{RiskLevel, ToolCall, ToolRegistry, ToolResult};
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -258,6 +258,7 @@ mod tests {
                 description: "A tool that requires approval".to_string(),
                 parameters: vec![],
                 requires_approval: true,
+                risk_level: RiskLevel::High,
             },
             Arc::new(|_| Ok("should not execute".to_string())),
         );
@@ -286,6 +287,7 @@ mod tests {
                 description: "A tool that auto-approves".to_string(),
                 parameters: vec![],
                 requires_approval: false,
+                risk_level: RiskLevel::ReadOnly,
             },
             Arc::new(|_| Ok("executed successfully".to_string())),
         );

@@ -103,7 +103,7 @@ impl RuntimeFacadeServices {
         audit_log_path: Option<std::path::PathBuf>,
     ) -> Self {
         let approval_queue = Arc::new(RwLock::new(opencode_permission::ApprovalQueue::new(
-            PermissionScope::default(),
+            PermissionScope::from_env(),
         )));
 
         let audit_log = audit_log_path.and_then(|path| {

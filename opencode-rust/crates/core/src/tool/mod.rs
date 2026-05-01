@@ -65,7 +65,7 @@ pub mod types;
 
 pub(crate) use registry::register_custom_tool;
 pub use registry::{build_default_registry, ToolRegistry};
-pub use types::{ToolCall, ToolDefinition, ToolExecutor, ToolParameter, ToolResult};
+pub use types::{RiskLevel, ToolCall, ToolDefinition, ToolExecutor, ToolParameter, ToolResult};
 
 #[cfg(test)]
 mod tests {

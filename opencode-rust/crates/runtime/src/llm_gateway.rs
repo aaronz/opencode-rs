@@ -8,8 +8,8 @@ use opencode_llm::{ChatMessage, DynProvider, ProviderManager, ProviderSpec};
 use tokio::sync::RwLock;
 
 use crate::provider_gateway::{
-    ModelCapabilities, ModelInfo, ProviderError, ProviderErrorKind, ProviderRef,
-    ProviderRequest, ProviderStreamEvent, ProviderStatus,
+    ModelCapabilities, ModelInfo, ProviderError, ProviderErrorKind, ProviderRef, ProviderRequest,
+    ProviderStatus, ProviderStreamEvent,
 };
 
 pub struct LlmProviderGateway {
@@ -123,11 +123,20 @@ impl crate::provider_gateway::ProviderGateway for LlmProviderGateway {
             Ok(response) => {
                 let events: Vec<std::result::Result<ProviderStreamEvent, ProviderError>> = vec![
                     Ok(ProviderStreamEvent::Started { request_id }),
-                    Ok(ProviderStreamEvent::Token { text: response.content }),
+                    Ok(ProviderStreamEvent::Token {
+                        text: response.content,
+                    }),
                     Ok(ProviderStreamEvent::Completed { usage: None }),
                 ];
                 let stream = stream::iter(events);
-                Ok(Box::pin(stream) as Pin<Box<dyn Stream<Item = std::result::Result<ProviderStreamEvent, ProviderError>> + Send>>)
+                Ok(Box::pin(stream)
+                    as Pin<
+                        Box<
+                            dyn Stream<
+                                    Item = std::result::Result<ProviderStreamEvent, ProviderError>,
+                                > + Send,
+                        >,
+                    >)
             }
             Err(e) => Err(Self::map_error(e)),
         }

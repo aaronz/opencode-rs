@@ -1,6 +1,6 @@
 mod types;
 
-pub use types::{IdGenerator, IdParseError, ProjectId, SessionId, UserId};
+pub use types::{IdGenerator, IdParseError, ProjectId, SessionId, UserId, WorkspaceId};
 
 #[cfg(test)]
 mod tests {

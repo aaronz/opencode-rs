@@ -193,7 +193,7 @@ async fn test_hook_engine_block_action() {
     assert_eq!(results.len(), 1);
     assert!(!results[0].success);
     assert!(results[0].error.is_some());
-    assert!(results[0].error.unwrap().contains("Hook blocked"));
+    assert!(results[0].error.as_ref().unwrap().contains("Hook blocked"));
 }
 
 #[tokio::test]

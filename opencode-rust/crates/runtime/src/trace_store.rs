@@ -215,10 +215,7 @@ impl RuntimeFacadeTraceStore {
         Ok(traces.get(trace_id).cloned())
     }
 
-    pub async fn export_jsonl(
-        &self,
-        trace_id: &TraceId,
-    ) -> Result<String, RuntimeFacadeError> {
+    pub async fn export_jsonl(&self, trace_id: &TraceId) -> Result<String, RuntimeFacadeError> {
         let traces = self.traces.read().await;
         if let Some(trace) = traces.get(trace_id) {
             let mut jsonl = String::new();
@@ -230,7 +227,9 @@ impl RuntimeFacadeTraceStore {
             }
             Ok(jsonl)
         } else {
-            Err(RuntimeFacadeError::InvalidConfiguration("Trace not found".to_string()))
+            Err(RuntimeFacadeError::InvalidConfiguration(
+                "Trace not found".to_string(),
+            ))
         }
     }
 
@@ -246,8 +245,9 @@ impl RuntimeFacadeTraceStore {
             if line.trim().is_empty() {
                 continue;
             }
-            let event: TraceEvent = serde_json::from_str(line)
-                .map_err(|e| RuntimeFacadeError::InvalidConfiguration(format!("Invalid JSONL: {}", e)))?;
+            let event: TraceEvent = serde_json::from_str(line).map_err(|e| {
+                RuntimeFacadeError::InvalidConfiguration(format!("Invalid JSONL: {}", e))
+            })?;
             events.push(event);
         }
 
@@ -261,7 +261,10 @@ impl RuntimeFacadeTraceStore {
             provider: None,
             model: None,
             token_usage: None,
-            tool_call_count: events.iter().filter(|e| matches!(e, TraceEvent::ToolCallCompleted { .. })).count(),
+            tool_call_count: events
+                .iter()
+                .filter(|e| matches!(e, TraceEvent::ToolCallCompleted { .. }))
+                .count(),
             success: true,
             error: None,
             events,
@@ -290,13 +293,23 @@ mod tests {
         let session_id = Uuid::new_v4();
         let trace_id = store.begin_trace(session_id, None, None).await.unwrap();
 
-        store.record_event(trace_id, TraceEvent::UserInput {
-            content: "Hello".to_string(),
-        }).await.unwrap();
+        store
+            .record_event(
+                trace_id,
+                TraceEvent::UserInput {
+                    content: "Hello".to_string(),
+                },
+            )
+            .await
+            .unwrap();
 
-        store.record_event(trace_id, TraceEvent::LlmRequestStarted {
-            messages_count: 1,
-        }).await.unwrap();
+        store
+            .record_event(
+                trace_id,
+                TraceEvent::LlmRequestStarted { messages_count: 1 },
+            )
+            .await
+            .unwrap();
 
         let trace = store.get_trace(&trace_id).await.unwrap().unwrap();
         assert_eq!(trace.events.len(), 2);
@@ -308,9 +321,15 @@ mod tests {
         let session_id = Uuid::new_v4();
         let trace_id = store.begin_trace(session_id, None, None).await.unwrap();
 
-        store.record_event(trace_id, TraceEvent::UserInput {
-            content: "Test input".to_string(),
-        }).await.unwrap();
+        store
+            .record_event(
+                trace_id,
+                TraceEvent::UserInput {
+                    content: "Test input".to_string(),
+                },
+            )
+            .await
+            .unwrap();
 
         let jsonl = store.export_jsonl(&trace_id).await.unwrap();
         assert!(jsonl.contains("UserInput"));

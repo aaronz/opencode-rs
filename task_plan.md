@@ -122,3 +122,38 @@ All phases complete
 - [x] Add trigger_hook helper method to services
 - [x] HookEngine wired into runtime via event bus subscription
 - **Status:** complete
+
+## Fixes Applied (2026-05-01)
+
+### Fix 1: MCP tool_bridge.rs missing risk_level
+- **File:** `crates/mcp/src/tool_bridge.rs`
+- **Issue:** `ToolDefinition` requires `risk_level` field
+- **Fix:** Added `risk_level: RiskLevel::Medium` to `McpToolAdapter::definition()`
+- **Status:** complete
+
+### Fix 2: AgentRuntime ToolContext worktree/directory propagation
+- **File:** `crates/agent/src/runtime.rs`
+- **Issue:** `worktree` and `directory` were set to `None` instead of using `Instance::worktree()` / `Instance::directory()`
+- **Fix:** Changed to use `Instance::worktree().map(|p| p.to_string_lossy().to_string())`
+- **Locations:** Lines ~415 (run_loop) and ~658 (run_loop_streaming)
+- **Status:** complete
+
+### Fix 3: ToolRouter test async issue
+- **File:** `crates/runtime/src/tool_router.rs`
+- **Issue:** Test `test_deny_first_unknown_tool` used `router.block_on()` which doesn't exist
+- **Fix:** Changed `#[test]` to `#[tokio::test]` and removed `block_on` wrapper
+- **Status:** complete
+
+### Fix 4: Context truncation_report assertions (clippy)
+- **File:** `crates/core/src/context/mod.rs`
+- **Issue:** `absurd_extreme_comparisons` clippy error - comparing `usize >= 0` is always true
+- **Fix:** Changed assertions to use `assert_eq!(..., 0)` instead of `assert!(... >= 0)`
+- **Status:** complete
+
+## Summary
+- Build: ✅ Passes with `--all-features`
+- All critical fixes from architecture review implemented
+- Design alignment improved:
+  - MCP tools now have proper risk classification
+  - AgentRuntime properly propagates workspace context to tools
+  - Tool execution context is now complete

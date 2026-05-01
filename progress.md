@@ -228,3 +228,39 @@
 
 ---
 *Last updated: 2026-05-01 - Phase 13 complete*
+
+## Session: 2026-05-01 - Architecture Review Fixes
+
+### Issues Identified from Design Review
+1. **Build Error:** `crates/mcp/src/tool_bridge.rs:68` - missing `risk_level` field in `ToolDefinition`
+2. **Worktree/Directory Leak:** `AgentRuntime::run_loop_streaming()` sets `worktree: None, directory: None` in `ToolContext`
+3. **Async Test Issue:** `tool_router.rs` test used non-existent `block_on` method
+4. **Clippy Error:** `context/mod.rs` had `absurd_extreme_comparisons` comparing `usize >= 0`
+
+### Actions Taken
+
+#### Fix 1: MCP tool_bridge risk_level
+- **File:** `crates/mcp/src/tool_bridge.rs`
+- Added `use opencode_core::tool::RiskLevel;`
+- Added `risk_level: RiskLevel::Medium` to `McpToolAdapter::definition()`
+- Build: ✅ Passes
+
+#### Fix 2: AgentRuntime worktree propagation
+- **File:** `crates/agent/src/runtime.rs`
+- Added `use opencode_core::instance::Instance;`
+- Changed `worktree: None` → `Instance::worktree().map(|p| p.to_string_lossy().to_string())`
+- Changed `directory: None` → `Instance::directory().map(|p| p.to_string_lossy().to_string())`
+- Fixed in both `run_loop()` (line ~415) and `run_loop_streaming()` (line ~658)
+- Build: ✅ Passes
+
+#### Fix 3: ToolRouter async test
+- **File:** `crates/runtime/src/tool_router.rs`
+- Changed `#[test]` to `#[tokio::test]` for `test_deny_first_unknown_tool`
+- Removed `router.block_on()` wrapper since async fn already runs in tokio context
+- Build: ✅ Passes
+
+#### Fix 4: Context truncation clippy
+- **File:** `crates/core/src/context/mod.rs`
+- Changed `assert!(context.truncation_report.middle_messages_dropped >= 0)` to `assert_eq!(..., 0)`
+- Changed `assert!(context.truncation_report.tokens_saved >= 0)` to `assert_eq!(..., 0)`
+- Build: ✅ Passes with clippy
