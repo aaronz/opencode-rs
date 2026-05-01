@@ -28,7 +28,7 @@ use crossterm::{
         LeaveAlternateScreen,
     },
 };
-use opencode_agent::{AgentRuntime, AgentType};
+use opencode_agent::AgentType;
 use opencode_auth::CredentialStore;
 use opencode_core::{
     AgentExecutor, CostCalculator, Message, PermissionManager, Session, SessionSharing,
@@ -44,8 +44,8 @@ use opencode_lsp::client::LspClient;
 use opencode_lsp::types::{Diagnostic, Location};
 use opencode_mcp::McpManager;
 use opencode_runtime::{
-    ExecuteShellCommand, RunAgentCommand, RuntimeFacade as OpenCodeRuntime, RuntimeFacadeCommand,
-    RuntimeFacadeServices, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter,
+    DynRuntimeHandle, ExecuteShellCommand, RunAgentCommand, RuntimeFacade as OpenCodeRuntime,
+    RuntimeFacadeCommand, RuntimeFacadeServices, RuntimeFacadeTaskStore, RuntimeFacadeToolRouter,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -489,6 +489,7 @@ pub struct App {
     pub scroll_offset: usize,
     pub scroll_state: ScrollState,
     pub selection: SelectionState,
+    pub messages_area: Option<Rect>,
     pub timeline_state: ListState,
     pub fork_name_input: String,
     pub show_metadata: bool,
@@ -566,7 +567,7 @@ pub struct App {
     #[allow(dead_code)]
     tool_registry: Arc<ToolsToolRegistry>,
     #[allow(dead_code)]
-    runtime: Arc<OpenCodeRuntime>,
+    runtime: DynRuntimeHandle,
     session: Option<Session>,
     #[allow(dead_code)]
     agent_executor: AgentExecutor,
@@ -1320,6 +1321,7 @@ impl App {
             scroll_offset: 0,
             scroll_state: ScrollState::new(),
             selection: SelectionState::default(),
+            messages_area: None,
             timeline_state,
             fork_name_input: String::new(),
             show_metadata: false,
@@ -2834,7 +2836,11 @@ impl App {
             if let Err(e) = io::stdout().flush() {
                 tracing::warn!("Pre-draw flush failed: {}", e);
             }
-            terminal.draw(|f| self.draw(f))?;
+            let mut messages_area = None;
+            terminal.draw(|f| {
+                messages_area = self.draw(f);
+            })?;
+            self.messages_area = messages_area;
 
             self.check_leader_key_timeout();
             self.check_reconnect_timeout();
@@ -2846,7 +2852,7 @@ impl App {
                 if let Event::Mouse(mouse_event) = event::read()? {
                     // Only handle selection in Chat mode with messages
                     if self.mode == AppMode::Chat && !self.messages.is_empty() {
-                        self.handle_mouse_selection(mouse_event);
+                        self.handle_mouse_event(mouse_event);
                     }
                 }
             }
@@ -2912,22 +2918,37 @@ impl App {
 
     #[allow(dead_code)]
     fn handle_mouse_event(&mut self, event: MouseEvent) {
+        // Helper to check if a position is within the messages area
+        let is_in_messages_area = |pos: (u16, u16), area: Option<Rect>| -> bool {
+            if let Some(rect) = area {
+                pos.0 >= rect.x && pos.0 < rect.x + rect.width &&
+                pos.1 >= rect.y && pos.1 < rect.y + rect.height
+            } else {
+                false
+            }
+        };
+
+        let pos = (event.column, event.row);
+
         match event.kind {
             MouseEventKind::Down(_button) => {
-                self.selection.is_selecting = true;
-                self.selection.start_pos = Some((event.column, event.row));
-                self.selection.end_pos = Some((event.column, event.row));
-                self.selection.selected_text = None;
+                // Only start selection if mouse is inside messages area
+                if is_in_messages_area(pos, self.messages_area) {
+                    self.selection.is_selecting = true;
+                    self.selection.start_pos = Some(pos);
+                    self.selection.end_pos = Some(pos);
+                    self.selection.selected_text = None;
+                }
             }
             MouseEventKind::Drag(_button) => {
-                if self.selection.is_selecting {
-                    self.selection.end_pos = Some((event.column, event.row));
+                // Only update selection if we started selecting in the messages area
+                if self.selection.is_selecting && self.selection.start_pos.is_some() {
+                    self.selection.end_pos = Some(pos);
                 }
             }
             MouseEventKind::Up(_button) => {
                 if self.selection.is_selecting {
                     self.selection.is_selecting = false;
-                    // Extract selected text based on start/end positions
                     self.extract_selection_text();
                 }
             }
@@ -5107,26 +5128,33 @@ OpenCode Agent Configuration
         Ok(())
     }
 
-    fn draw(&mut self, f: &mut Frame) {
+    fn draw(&mut self, f: &mut Frame) -> Option<Rect> {
         match self.mode.clone() {
             AppMode::Home => {
                 self.draw_home_view(f);
+                None
             }
-            AppMode::Timeline => self.draw_timeline(f),
+            AppMode::Timeline => {
+                self.draw_timeline(f);
+                None
+            }
             AppMode::ForkDialog => {
                 self.draw_timeline(f);
                 self.draw_fork_dialog(f);
+                None
             }
             AppMode::CommandPalette => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.draw_command_palette(f);
+                Some(area)
             }
             AppMode::SlashCommand => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.slash_command_dialog.draw(f, f.area());
+                Some(area)
             }
             AppMode::DiffReview => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 let patch = self
                     .tool_calls
                     .last()
@@ -5144,64 +5172,74 @@ OpenCode Agent Configuration
                 if let Some(ref dialog) = self.diff_review_dialog {
                     dialog.draw(f, f.area());
                 }
+                Some(area)
             }
             AppMode::Sessions => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.draw_sessions_dialog(f);
+                Some(area)
             }
-            AppMode::Chat => self.draw_chat(f),
+            AppMode::Chat => Some(self.draw_chat(f)),
             AppMode::Settings => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.settings_dialog.draw(f, f.area());
+                Some(area)
             }
             AppMode::ModelSelection => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.model_selection_dialog.draw(f, f.area());
+                Some(area)
             }
             AppMode::ProviderManagement => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.provider_management_dialog.draw(f, f.area());
+                Some(area)
             }
             AppMode::ConnectProvider => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.connect_provider_dialog.draw(f, f.area());
+                Some(area)
             }
             AppMode::ConnectMethod => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 if let Some(dialog) = self.connect_method_dialog.as_ref() {
                     dialog.draw(f, f.area());
                 }
+                Some(area)
             }
             AppMode::ConnectApiKey => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 if let Some(dialog) = self.api_key_input_dialog.as_ref() {
                     dialog.draw(f, f.area());
                 }
+                Some(area)
             }
             AppMode::ConnectProgress => {
-                self.draw_chat(f);
-                let area = Rect::new(
+                let messages_area = self.draw_chat(f);
+                let dialog_area = Rect::new(
                     f.area().x + (f.area().width.saturating_sub(60)) / 2,
                     f.area().y + (f.area().height.saturating_sub(6)) / 2,
                     60.min(f.area().width.saturating_sub(2)),
                     6.min(f.area().height.saturating_sub(2)),
                 );
-                f.render_widget(Clear, area);
+                f.render_widget(Clear, dialog_area);
                 let message = self.connect_progress_message();
                 f.render_widget(
                     Paragraph::new(vec![Line::from(message)])
                         .block(Block::default().title("Connect").borders(Borders::ALL)),
-                    area,
+                    dialog_area,
                 );
+                Some(messages_area)
             }
             AppMode::ConnectApiKeyError => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 if let Some(dialog) = self.validation_error_dialog.as_ref() {
                     dialog.draw(f, f.area());
                 }
+                Some(area)
             }
             AppMode::ConnectModel => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 tracing::info!(
                     event = "tui.connect.draw_connect_model",
                     mode = ?self.mode,
@@ -5220,22 +5258,27 @@ OpenCode Agent Configuration
                         "ConnectModelDialog is None but mode is ConnectModel"
                     );
                 }
+                Some(area)
             }
             AppMode::FileSelection => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.file_selection_dialog.draw(f, f.area());
+                Some(area)
             }
             AppMode::DirectorySelection => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.directory_selection_dialog.draw(f, f.area());
+                Some(area)
             }
             AppMode::ReleaseNotes => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.release_notes_dialog.draw(f, f.area());
+                Some(area)
             }
             AppMode::Search => {
-                self.draw_chat(f);
+                let area = self.draw_chat(f);
                 self.draw_search_dialog(f);
+                Some(area)
             }
         }
     }
@@ -5778,7 +5821,7 @@ OpenCode Agent Configuration
         result
     }
 
-    fn draw_chat(&mut self, f: &mut Frame) {
+    fn draw_chat(&mut self, f: &mut Frame) -> Rect {
         self.sync_status_bar_state();
         let area = f.area();
 
@@ -6108,6 +6151,8 @@ OpenCode Agent Configuration
             f.render_widget(Clear, panel_area);
             self.skills_panel.draw(f, panel_area);
         }
+
+        messages_area
     }
 
     fn draw_timeline(&mut self, f: &mut Frame) {
@@ -6841,7 +6886,7 @@ OpenCode Agent Configuration
 fn build_placeholder_runtime(
     provider: Option<Arc<dyn Provider + Send + Sync>>,
     tools: Option<Arc<ToolsToolRegistry>>,
-) -> Arc<OpenCodeRuntime> {
+) -> DynRuntimeHandle {
     let event_bus = Arc::new(opencode_core::bus::EventBus::new());
     let permission_manager = Arc::new(tokio::sync::RwLock::new(PermissionManager::default()));
     let session_repo = Arc::new(InMemorySessionRepository::default());
@@ -6852,11 +6897,13 @@ fn build_placeholder_runtime(
     ));
     let pool = StoragePool::new(&db_path).expect("placeholder storage pool");
     let storage = Arc::new(StorageService::new(session_repo, project_repo, pool));
-    let agent_runtime = Arc::new(tokio::sync::RwLock::new(
-        AgentRuntime::new(Session::default(), AgentType::Build).with_event_bus(event_bus.clone()),
-    ));
+    let agent_runtime = RuntimeFacadeServices::create_agent_runtime(
+        Session::default(),
+        AgentType::Build,
+        event_bus.clone(),
+    );
 
-    Arc::new(OpenCodeRuntime::new(RuntimeFacadeServices::new(
+    let runtime = OpenCodeRuntime::new(RuntimeFacadeServices::new(
         event_bus,
         permission_manager,
         storage,
@@ -6866,7 +6913,8 @@ fn build_placeholder_runtime(
         AgentType::Build,
         provider,
         tools,
-    )))
+    ));
+    Arc::new(runtime.handle()) as DynRuntimeHandle
 }
 
 impl Default for App {
