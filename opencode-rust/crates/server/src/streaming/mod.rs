@@ -163,7 +163,8 @@ impl StreamMessage {
             | RuntimeFacadeEvent::TaskCancelled { .. }
             | RuntimeFacadeEvent::LlmRequestStarted { .. }
             | RuntimeFacadeEvent::LlmTokenStreamed { .. }
-            | RuntimeFacadeEvent::LlmResponseCompleted { .. } => None,
+            | RuntimeFacadeEvent::LlmResponseCompleted { .. }
+            | RuntimeFacadeEvent::StructuredLog { .. } => None,
         }
     }
 }

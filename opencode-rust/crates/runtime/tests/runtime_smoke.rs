@@ -14,8 +14,8 @@ use opencode_core::{
 use opencode_runtime::{
     RuntimeFacade, RuntimeFacadeCommand, RuntimeFacadeContextSummary, RuntimeFacadeError,
     RuntimeFacadeEvent, RuntimeFacadePermissionAdapter, RuntimeFacadePermissionDecision,
-    RuntimeFacadeServices, RuntimeFacadeSessionStore, RuntimeFacadeStatus, RuntimeFacadeTaskStore,
-    RuntimeFacadeToolRouter, SubmitUserInput, TaskControlCommand,
+    RuntimeFacadeServices, RuntimeFacadeSessionStore, RuntimeFacadeTaskStore,
+    RuntimeFacadeToolRouter, RuntimeStatus, SubmitUserInput, TaskControlCommand,
 };
 use opencode_storage::{
     InMemoryProjectRepository, InMemorySessionRepository, StoragePool, StorageService,
@@ -57,7 +57,7 @@ fn build_runtime() -> (RuntimeFacade, Arc<StorageService>) {
 #[tokio::test]
 async fn runtime_constructs_and_reports_idle_status() {
     let (runtime, _) = build_runtime();
-    assert_eq!(runtime.status().await, RuntimeFacadeStatus::Idle);
+    assert_eq!(runtime.status().await, RuntimeStatus::Idle);
 }
 
 #[tokio::test]

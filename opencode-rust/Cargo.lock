@@ -5291,7 +5291,10 @@ dependencies = [
 name = "opencode-runtime"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
+ "dirs 6.0.0",
+ "futures-util",
  "opencode-agent",
  "opencode-core",
  "opencode-llm",
