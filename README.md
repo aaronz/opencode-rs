@@ -64,11 +64,10 @@ opencode-rust/
 │   ├── tui/        # Terminal UI
 │   ├── agent/      # Agent implementations
 │   └── ...         # Other modules
-└── tests/          # Integration tests
-
-ratatui-testing/
-├── src/            # Framework source
-└── tests/          # Integration tests
+├── integration_tests/  # Integration tests
+└── ratatui-testing/    # TUI testing framework
+    ├── src/            # Framework source
+    └── tests/          # Framework tests
 ```
 
 ## Scripts

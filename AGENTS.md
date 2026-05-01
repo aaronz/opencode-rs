@@ -211,7 +211,7 @@ async fn test_feature() {
 }
 ```
 
-Use test helpers from `tests/src/common/`:
+Use test helpers from `integration_tests/src/common/`:
 - `TempProject`: Create temporary projects for testing
 - `MockServer`: Mock HTTP server for testing
 - `MockLLMProvider`: Mock LLM provider for testing
@@ -338,7 +338,7 @@ pub use config::Config;
 opencode-rust/
 ├── Cargo.toml              # Workspace root
 ├── crates/
-│   ├── core/               # Core functionality (error, session, tool, etc.)
+│   ├── core/               # Core functionality (error, session, tool, hook, etc.)
 │   ├── cli/                # CLI commands
 │   ├── llm/                # LLM provider integrations
 │   ├── tools/              # Tool implementations (read, write, grep, etc.)
@@ -352,26 +352,32 @@ opencode-rust/
 │   ├── control-plane/      # Control plane client
 │   ├── plugin/             # Plugin system
 │   ├── git/                # Git operations
-│   └── mcp/                # MCP protocol
-├── tests/                  # Integration tests
+│   ├── mcp/                # MCP protocol
+│   ├── acp/                # ACP protocol client
+│   ├── file/               # File operations
+│   ├── format/             # Code formatting
+│   ├── logging/            # Logging infrastructure
+│   ├── sdk/                # SDK components
+│   ├── util/               # Utilities
+│   └── runtime/            # Runtime facade
+├── integration_tests/      # Integration tests
 │   └── src/
 │       ├── agent_tool_tests.rs
 │       ├── agent_llm_tests.rs
 │       ├── mcp_protocol_tests.rs
 │       ├── session_storage_tests.rs
 │       └── common/         # Test helpers
-└── opencode-benches/       # Benchmarks
-
-ratatui-testing/            # TUI testing framework library
-├── src/
-│   ├── lib.rs
-│   ├── state.rs           # State testing
-│   ├── pty.rs             # PTY simulation
-│   ├── cli.rs             # CLI testing
-│   ├── diff.rs            # Buffer diffing
-│   ├── dsl.rs             # Test DSL
-│   └── dialog_tester.rs    # Dialog rendering test helpers
-└── tests/
+├── opencode-benches/       # Benchmarks
+└── ratatui-testing/        # TUI testing framework library
+    ├── src/
+    │   ├── lib.rs
+    │   ├── state.rs       # State testing
+    │   ├── pty.rs         # PTY simulation
+    │   ├── cli.rs         # CLI testing
+    │   ├── diff.rs        # Buffer diffing
+    │   ├── dsl.rs         # Test DSL
+    │   └── dialog_tester.rs # Dialog rendering test helpers
+    └── tests/
 ```
 
 ## Key Dependencies
