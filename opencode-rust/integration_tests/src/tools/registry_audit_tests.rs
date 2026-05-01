@@ -1,6 +1,6 @@
 use opencode_agent::{Agent, BuildAgent, GeneralAgent};
 use opencode_core::tool::{
-    build_default_registry, ToolDefinition, ToolExecutor, ToolParameter,
+    build_default_registry, RiskLevel, ToolDefinition, ToolExecutor, ToolParameter,
     ToolRegistry as CoreToolRegistry,
 };
 use opencode_core::{Message, Session};
@@ -337,6 +337,7 @@ mod core_tool_registry_tests {
                 description: "Tool requiring approval".to_string(),
                 parameters: vec![],
                 requires_approval: true,
+                risk_level: RiskLevel::High,
             },
             executor,
         );
