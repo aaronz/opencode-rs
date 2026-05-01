@@ -23,6 +23,16 @@ impl HookId {
             HookId::Plugin(_) => 3,
         }
     }
+
+    /// Estimated token cost for loading this hook type at context build time.
+    pub fn estimated_context_tokens(&self) -> usize {
+        match self {
+            HookId::Builtin(_) => 0,      // Baked into binary
+            HookId::Project(_) => 50,      // Small project hook
+            HookId::User(_) => 150,        // User-defined may be larger
+            HookId::Plugin(_) => 500,      // External plugin manifest
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
