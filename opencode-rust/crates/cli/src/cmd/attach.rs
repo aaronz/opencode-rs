@@ -269,6 +269,7 @@ mod tests {
     fn create_test_session() -> opencode_core::Session {
         opencode_core::Session {
             id: Uuid::new_v4(),
+            workspace_id: None,
             messages: vec![],
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
