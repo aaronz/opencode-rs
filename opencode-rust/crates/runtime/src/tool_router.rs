@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use opencode_core::OpenCodeError;
-use opencode_tools::{Tool, ToolContext, ToolRegistry};
+use opencode_tools::{Tool, ToolContext, ToolRegistry, ToolResult};
 use tokio::sync::RwLock;
 
 pub struct RuntimeFacadeToolRouter {
@@ -20,8 +20,29 @@ impl RuntimeFacadeToolRouter {
         name: &str,
         args: serde_json::Value,
         ctx: Option<ToolContext>,
-    ) -> Result<opencode_tools::ToolResult, OpenCodeError> {
+    ) -> Result<ToolResult, OpenCodeError> {
         self.registry.read().await.execute(name, args, ctx).await
+    }
+
+    pub async fn execute_with_validation(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        ctx: Option<ToolContext>,
+    ) -> Result<ToolResult, OpenCodeError> {
+        let tool = self.registry.read().await.get(name).await;
+        if let Some(tool) = tool {
+            if let Some(schema) = tool.input_schema() {
+                if let Some(errors) = validate_json_schema(&args, &schema) {
+                    return Ok(ToolResult::err(format!(
+                        "Invalid arguments for tool '{}': {}",
+                        name,
+                        errors.join("; ")
+                    )));
+                }
+            }
+        }
+        self.execute(name, args, ctx).await
     }
 
     pub async fn get(&self, name: &str) -> Option<Box<dyn Tool>> {
@@ -49,6 +70,57 @@ impl RuntimeFacadeToolRouter {
     }
 }
 
+fn validate_json_schema(args: &serde_json::Value, schema: &serde_json::Value) -> Option<Vec<String>> {
+    let mut errors = Vec::new();
+
+    if let Some(obj) = schema.as_object() {
+        if let Some(required_fields) = obj.get("required").and_then(|r| r.as_array()) {
+            for field in required_fields {
+                if let Some(field_name) = field.as_str() {
+                    if args.get(field_name).is_none_or(|v| v.is_null()) {
+                        errors.push(format!("Missing required field: '{}'", field_name));
+                    }
+                }
+            }
+        }
+
+        if let Some(properties) = obj.get("properties").and_then(|p| p.as_object()) {
+            for (field, field_schema) in properties {
+                if let Some(args_val) = args.get(field) {
+                    if !args_val.is_null() {
+                        if let Some(expected_type) = field_schema.as_object().and_then(|fo| fo.get("type")).and_then(|t| t.as_str()) {
+                            let actual_type = json_type_name(args_val);
+                            if actual_type != expected_type {
+                                errors.push(format!(
+                                    "Field '{}' expected type '{}', got '{}'",
+                                    field, expected_type, actual_type
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        None
+    } else {
+        Some(errors)
+    }
+}
+
+fn json_type_name(val: &serde_json::Value) -> &'static str {
+    match val {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "boolean",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "object",
+    }
+}
+
 impl Clone for RuntimeFacadeToolRouter {
     fn clone(&self) -> Self {
         Self {
@@ -60,5 +132,56 @@ impl Clone for RuntimeFacadeToolRouter {
 impl Default for RuntimeFacadeToolRouter {
     fn default() -> Self {
         Self::new(ToolRegistry::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_validate_json_schema_valid() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "content": {"type": "string"}
+            },
+            "required": ["path", "content"]
+        });
+        let args = json!({"path": "/foo", "content": "bar"});
+        assert!(validate_json_schema(&args, &schema).is_none());
+    }
+
+    #[test]
+    fn test_validate_json_schema_missing_required() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "content": {"type": "string"}
+            },
+            "required": ["path", "content"]
+        });
+        let args = json!({"path": "/foo"});
+        let errors = validate_json_schema(&args, &schema);
+        assert!(errors.is_some());
+        assert!(errors.unwrap().iter().any(|e| e.contains("content")));
+    }
+
+    #[test]
+    fn test_validate_json_schema_type_mismatch() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "count": {"type": "number"}
+            },
+            "required": ["count"]
+        });
+        let args = json!({"count": "not a number"});
+        let errors = validate_json_schema(&args, &schema);
+        assert!(errors.is_some());
+        assert!(errors.unwrap().iter().any(|e| e.contains("number")));
     }
 }
