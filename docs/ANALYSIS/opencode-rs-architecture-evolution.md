@@ -409,216 +409,385 @@ RuntimeFacadeCommand::ExecuteShell(cmd) => {
 
 ---
 
-## 主线二（续）：关键架构问题的深度分析
+## 主线二（续）：踩坑编年史：特性迭代中的错误与反思
 
-### ISSUE-001 深度分析：TUI 直接实例化 AgentRuntime
+### 踩坑一：FileTree 深度导致 2+ 分钟启动（commit `d702f1b0`）
 
-**问题代码位置**（重构前）：`crates/tui/src/app.rs:4755-4813`
+**问题**：用户反馈 TUI 启动后_sidebar 文件树加载需要 2+ 分钟。
 
-```rust
-// 重构前的代码（TUI 直接创建 AgentRuntime）
-let runtime = AgentRuntime::new(session.clone(), agent_type);
-// TUI spawns a thread to run the agent loop
-let handle = std::thread::spawn({
-    let runtime = runtime.clone();
-    move || {
-        runtime.run_loop_streaming(&agent, &provider, &tools, None)
-    }
-});
+**原因**：FileTree 组件递归遍历目录时没有深度限制，也没有异步加载机制。当项目目录层级深、文件多时，主线程被阻塞。
+
+**错误类型**：happy path 假设——假设用户项目的目录层级不会太深，文件不会太多。
+
+**教训**：UI 组件中的目录遍历必须考虑：
+- 深度限制（max depth）
+- 异步加载 + loading placeholder
+- 懒加载（只加载可见部分）
+- 缓存机制
+
+**如果重来**：在实现 FileTree 组件时，应该从一开始就设置合理的 max_depth 和懒加载策略，而不是等到用户投诉才修复。
+
+### 踩坑二：RollingFileAppender 把目录当文件创建（commit `4bf14d00`）
+
+**问题**：日志系统报错，原因是 RollingFileAppender 的目录创建逻辑把应该创建目录的地方创建成了文件。
+
+**原因**：`log_dir` 参数被错误处理——代码中 `log_dir` 应该是一个目录路径，但实际传递时被当作文件路径处理。
+
+**错误类型**：路径处理的边界条件错误。这是一个常见的路径操作 bug：`path.join()` vs `path.push()` 的误用，以及缺少 `is_dir()` 前置检查。
+
+**教训**：
+- 路径操作必须明确语义：`path.join(a, b)` 是拼接，`path.push(a)` 是添加
+- 创建目录前必须检查目标是否已存在以及其类型
+- 路径处理的单元测试必须覆盖边界条件
+
+**如果重来**：应该使用标准库的 `std::fs::create_dir_all()` 并配合适当的错误处理，而不是自己实现目录创建逻辑。
+
+### 踩坑三：trim_to_budget 的 preserve_from 边缘情况（commit `321cb70e`）
+
+**问题**：`trim_to_budget()` 函数的 `preserve_from` 参数在特定情况下计算错误，导致重要的上下文消息被错误截断。
+
+**原因**：`preserve_from` 的 ranking 算法在消息数量为边界值时计算异常。
+
+**错误类型**：算法实现只考虑了常规情况，没有考虑边缘情况（zero, one, exactly two 等）。
+
+**教训**：
+- 排序/选择算法必须用边界值测试（0, 1, 2, n-1, n, n+1）
+- Preserve-from 的语义要明确：是"保留最近 N 条"还是"保留优先级最高的 N 条"？
+- 测试用例需要覆盖随机场景
+
+**如果重来**：在实现 `trim_to_budget()` 时，应该先用 property-based testing 生成各种边界输入，验证输出正确性。
+
+### 踩坑四：Ollama JSONL streaming 解析失败（commit `9d684cf9`）
+
+**问题**：Ollama Provider 的 streaming 模式解析 JSONL 数据时失败。
+
+**原因**：Ollama 的 streaming 输出是 JSON Lines 格式（每行一个 JSON 对象），但解析器没有正确处理行的边界。增量解码器在遇到不完整的 JSON 时没有缓存剩余数据。
+
+**错误类型**：流式解析的状态机实现不完整。JSONL 解析需要：
+1. 按行分割
+2. 每行单独解析为 JSON
+3. 处理"行不完整"的边界情况
+
+**教训**：
+- 流式解析必须处理行边界
+- 增量解码器必须在数据不完整时缓存 Partial 结果
+- 不同 Provider 的 streaming 格式可能不同，需要分别处理
+
+**如果重来**：应该为每个 Provider 实现一个流式解析的单元测试套件，覆盖正常数据、截断数据、畸形数据等场景。
+
+### 踩坑五：TUI 越权创建 AgentRuntime（ISSUE-001, ISSUE-013）
+
+**问题**：这是最大的踩坑——是架构级别的设计错误，而非实现 bug。
+
+**原因**：在快速开发阶段，"让 TUI 直接控制 Agent"是最快速的实现方式：
+- 不需要定义 Runtime Facade 接口
+- 不需要处理命令路由
+- 直接回调，事件传递简单
+
+这种模式在初期效率很高，但代价是架构边界混乱。当功能增多、代码变复杂后：
+- TUI 需要知道 AgentRuntime 的所有内部细节
+- 每个新功能都需要修改 TUI 和 AgentRuntime 两端
+- 测试几乎不可能（紧耦合）
+
+**错误类型**：架构决策错误。"快速实现"和"长期健康"之间的权衡失衡。
+
+**教训**：
+- UI 和 Runtime 的边界应该在项目初期就明确定义，而不是等出了问题再重构
+- 即使是"快速原型"，也要遵守基本的分层原则
+- "等技术债积累够了再还"是谎言——技术债只会越滚越大
+
+**如果重来**：在 Phase 1 开始时，就应该在 design doc 中定义 TUI 和 Runtime 的边界，并在代码中使用接口隔离。即使 AgentRuntime 的实现还很简陋，Facade 接口应该先存在。
+
+### 踩坑六：Provider 接口不一致泄漏 Provider 细节到 Core（ISSUE-005）
+
+**问题**：Tool schema 以明文形式嵌入 system prompt，而不是通过 Provider 的 `tools` 参数传递。
+
+**原因**：
+1. 早期 Provider 实现时，只实现了 `complete()` 和 `chat()`，没有 `tools` 参数
+2. 为了快速支持 tool calling，采用了"明文嵌入 prompt"的 workaround
+3. 这个 workaround 成了默认实现，Provider-native 的 tool calling 被搁置
+
+**错误类型**：Workaround 成为默认实现。"够用就好"的心态导致技术债积累。
+
+**教训**：
+- Workaround 必须标记为临时方案，并设置移除日期
+- Provider 接口的设计应该在第一个 Provider 实现之前完成，而不是之后补加
+- Provider 能力（tool calling, streaming, vision 等）应该在接口层面表达，而不是用 boolean flag
+
+**如果重来**：应该在 `Provider` trait 设计阶段就包含 `chat_with_tools()` 方法，并实现第一个 Provider（OpenAI）时就使用它。明文嵌入 prompt 应该被明确禁止。
+
+## 主线三：方法论提炼——从踩坑中生长的工程原则
+
+### 原则一："快速实现"是谎言，技术债只会越滚越大
+
+**来源**：ISSUE-001（TUI 越权）和 ISSUE-005（明文嵌入 schema）
+
+这是 opencode-rs 最重要的教训。在 Phase 1 开发阶段，"让 TUI 直接控制 Runtime"是最快的实现方式——不需要定义接口，不需要路由命令，不需要处理异步。好处是立竿见影的：功能在几天内就能跑起来。
+
+但代价是隐蔽的、延迟的、累积的：
+
+| 时间点 | 技术债表现 |
+|--------|------------|
+| Phase 1 结束时 | 代码能跑，架构"凑合能用" |
+| Phase 2 开始时 | 修一个 bug 引出另一个（TUI 和 Runtime 紧耦合） |
+| Phase 2 中期 | 2+ 分钟启动、screen clear 失败（边界条件没处理） |
+| Phase 3 重构时 | 80+ 文件、7500+ 行变更，持续数周 |
+
+**反直觉结论**：架构问题越早发现越好，而不是"等有精力了再重构"。因为技术债有复利效应——债务越久，利息越高。
+
+**可操作建议**：
+1. 在项目初期就用 30 分钟写下 UI/Runtime/Provider 的边界，作为"架构宪法"
+2. 任何违背这条边界的代码都必须有 `// HACK: 临时方案 - YYYY-MM-DD 移除` 注释
+3. 每加入一个 workaround，就在 backlog 里加一个对应的技术债 ticket
+
+### 原则二：症状和病因要区分，治疗症状会掩盖病因
+
+**来源**：`d702f1b0`（2+ 分钟启动）、`0392ff74`（path conflicts）、`4bf14d00`（RollingFileAppender bug）
+
+这三个 fix 有一个共同模式：它们修复的都是症状，不是病因。
+
+| Commit | 修复的症状 | 真正的病因 |
+|--------|------------|------------|
+| `d702f1b0` | 文件树加载慢 | 目录遍历没有深度限制、没有异步 |
+| `0392ff74` | path conflicts | 路径处理混乱（join vs push） |
+| `4bf14d00` | log dir 创建失败 | 目录/文件类型检查缺失 |
+
+**为什么会这样**：在快速开发阶段，"头痛医头"是最省力的策略。修复症状快，修复病因需要深入理解代码，往往涉及多个模块。
+
+**可操作建议**：
+1. 当同一个"症状"出现 3 次以上时，要停下来问："这是不是一个更深层问题的症状？"
+2. 建立"症状日志"，记录每次 fix 的 commit 和对应的深层原因
+3. 每月进行一次"症状回顾"，看是否有重复出现的模式
+
+### 原则三：Workaround 必须有 TTL（Time To Live）
+
+**来源**：ISSUE-005（明文嵌入 schema）、Provider 接口不一致
+
+在 Issue-005 的复盘中我们看到：
+- 第一个 Provider 实现时跳过了 `tools` 参数
+- 用"明文嵌入 prompt"作为 workaround
+- 这个 workaround 一用就是几个月，成了"事实标准"
+
+**Workaround 的生命周期**：
+```
+Day 1: 实施 workaround → 解决了紧急问题
+Day 7: workaround 成为默认实现
+Day 30: 没人记得这是 workaround
+Day 90: 移除 workaround 需要重写大量代码
 ```
 
-**问题本质**：违反单一职责原则。TUI 的职责是"展示和交互"，不应该承担"运行 Agent"的责任。当 TUI 直接控制 Agent 生命周期时，它需要理解 Agent 的所有内部细节（回调、线程模型、状态转换）。
+**可操作建议**：
+1. 任何 workaround 必须附带 `// TTL: 2026-Q2 - 必须在 X 月 Y 日前移除`
+2. 建立技术债的"优先级排序"，不是所有债都要还，但要清楚哪些债拒绝积累
+3. Provider 接口必须先设计再实现，不要"先用后补"
 
-**修复后代码**：
+### 原则四：渐进式重构优于大爆炸重构
 
-```rust
-// TUI 现在只发送命令
-let cmd = RuntimeFacadeCommand::RunAgent(Box::new(RunAgentCommand {
-    session,
-    agent_type: AgentType::Build,
-}));
-match runtime.execute(cmd).await { ... }
-```
+**来源**：Phase 3 的实施策略
 
-TUI 现在完全不知道 AgentRuntime 的存在——它只知道 RuntimeFacadeCommand。
+项目在 Phase 3 重构时采用了：
+1. 测试基础设施优先（`2898c972`）
+2. 外围系统先行（HookEngine, ToolRouter）
+3. 核心问题最后（Runtime 执行 Agent Loop）
+4. 文档同步更新
 
-### ISSUE-005 深度分析：Tool Schema 以明文嵌入
+**为什么这不是过度谨慎**：
 
-**问题代码位置**（重构前）：`crates/agent/src/build_agent.rs:22-36`
+大爆炸重构的风险在于：
+- 没有回归测试网络，无法验证行为不变性
+- 改动范围太大，引入新 bug 无法定位
+- 团队在重构期间无法交付价值，压力巨大
 
-```rust
-system_prompt: r#"You are OpenCode...
-You have access to tools to help you complete coding tasks:
-- file_read: Read file contents
-- file_write: Write content to files
-...
-When you need to use a tool, respond with a JSON object containing tool_calls."#.to_string(),
-```
+渐进式重构的优势在于：
+- 每个步骤可单独验证和回滚
+- 功能可以持续交付（而非 freeze 整个开发）
+- 风险分散到多个小步骤，总风险更低
 
-**问题本质**：
-1. 模型只能看到工具的文本描述，无法理解参数类型
-2. 没有使用 Provider-native 的 tool calling API
-3. 工具调用结果需要手动解析为 JSON，而不是 Provider 自动处理
+**可操作建议**：
+1. 大型重构的第一步永远是"建立测试网络"
+2. 重构前问自己："如果这个重构需要回滚，最小回滚单位是什么？"
+3. 重构期间保持功能交付——不要为了重构而重构，要让团队看到进展
 
-**修复**：添加了 `ToolSchema` 和 `chat_with_tools()` 到 Provider trait：
+### 原则五：Reference Architecture 的价值在于"揭示"而非"描述"
 
-```rust
-// crates/llm/src/provider.rs 新增
-pub struct ToolSchema {
-    pub name: String,
-    pub description: String,
-    pub parameters: Schema,
-}
+**来源**：`agent-runtime-design.md` 的引入
 
-pub trait Provider: Send + Sync {
-    async fn chat_with_tools(
-        &self,
-        messages: &[ChatMessage],
-        tools: &[ToolSchema],
-    ) -> Result<ChatResponse, OpenCodeError>;
-}
-```
+这个文档之所以有效，是因为它：
+- 不是描述现有系统（那会是架构文档）
+- 而是定义理想目标（reference architecture）
+- 通过对比揭示差距（14 个 ISSUE）
 
-### ISSUE-013 深度分析：Runtime 不执行 Agent Loop
+**为什么这种文档有效**：当团队已经"身在庐山中"时，需要一个外部的、理想化的标准来衡量现状。没有这个标准，所有的"架构问题"都只是个人 opinion，无法形成建设性讨论。
 
-**问题本质**：Runtime 应该是"执行者"，而不是"存储者"。但之前的 Runtime 只负责：
-- 创建 Session
-- 保存 Session 状态
-- 返回 "accepted"
-
-真正的执行发生在 TUI 的线程中。
-
-**修复后的架构**：
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         TUI                                 │
-│  - 渲染视图                                                 │
-│  - 接收用户输入                                             │
-│  - 发送 RuntimeFacadeCommand                               │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Runtime Facade                           │
-│  - 接收命令                                                 │
-│  - 委托给 Services                                         │
-│  - 返回结果                                                 │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Runtime Core                             │
-│  - 创建 AgentRuntime                                       │
-│  - 执行 run_loop_streaming()                               │
-│  - 路由 Shell 命令到 ToolRouter                            │
-│  - 通过 EventBus 发布事件                                   │
-└─────────────────────────────────────────────────────────────┘
-```
+**可操作建议**：
+1. 每 6 个月进行一次"架构自我审查"
+2. 用 Reference Architecture 的框架来评估现有系统
+3. 识别的 ISSUE 要量化严重性，而不是只描述问题
 
 ---
 
-## 方法论提炼
+## 主线四：反直觉发现——与常见假设相悖的演进决策
 
-### 1. "假 Runtime" 模式：一个常见的架构异味
+### 反直觉发现一：功能 parity 阶段刻意保留 TypeScript 架构是合理的
 
-**反直觉发现 #2**：这个项目不是从零开始设计 Runtime，而是经历了一个"功能先导、架构跟进"的迭代路径。大多数 Coding Agent 框架（包括一些知名开源项目）在早期都经历过类似的"UI 吞噬 Runtime"阶段。
+**常见假设**：迁移项目应该趁这个机会重构架构
 
-**为什么这会发生**：
-- 早期快速迭代时，让 UI 直接控制 Runtime 可以减少接口定义的工作量
-- "运行时"和"展示层"的边界在 AI Agent 场景中比其他应用更模糊（状态机的每一步都需要 UI 反馈）
-- 测试困难：没有足够测试覆盖的代码容易积累架构债务
-- 回调满天飞：EventCallback 是一种快速传递事件的方式，但会导致隐式耦合
+**实际决策**：保留 TypeScript 架构，先完成功能 parity
 
-**行业对比**：LangChain 的早期版本也有类似问题——Chain 的执行有时发生在 Python 对象内部而非一个明确的执行器。这导致可观测性和可组合性都很差。Cowait 的设计者后来专门写了一篇文章反思这个问题。
+**理由**：
+1. 架构重构需要时间，期间无法交付价值
+2. 功能 parity 是验证 Rust 版本正确性的基础
+3. 如果架构重构和功能迁移同时进行，出问题时无法判断原因
 
-**opencode-rs 的独特之处**：大多数项目是先有设计再有实现，opencode-rs 是反过来的——先有实现，通过架构审查发现问题，再建立 Reference Architecture 来指导重构。这种"从现有代码推导理想设计"的模式，对于 Rust 重写项目来说是合理的，因为代码已经在生产环境运行，问题已经暴露。
+**这是不是说我们应该永远不重构**：不是。技术债会累积，但"什么时候重构"是一个时机问题，不是"要不要重构"的问题。
 
-### 2. 设计文档作为架构改进的催化剂
+### 反直觉发现二："假 Runtime" 是常见架构异味，不是 opencode-rs 独有的问题
 
-这个项目的转折点是 `agent-runtime-design.md` 的引入。这是一个**Reference Architecture**文档——不是描述现有系统，而是定义一个理想目标架构。
+**常见假设**：架构问题说明团队能力不行
 
-关键洞察：**Reference Architecture 的价值不在于它描述了什么，而在于它揭示了什么**。
+**实际发现**：LangChain、Cowait 等知名项目早期都经历过类似问题
 
-通过对比现有代码和理想设计，项目识别出了 14 个架构问题，其中 8 个是高严重性。这种系统性审查在快速迭代阶段是不可能的。
+**原因**：AI Agent 应用的 UI 和 Runtime 边界天然模糊——状态机的每一步都需要 UI 反馈，这让"让 UI 直接控制 Runtime"成了一个自然的起点。
 
-**Reference Architecture 的有效性来源**：
+**启发**：架构问题的价值在于识别和修复，不在于避免。没有人能在项目初期就设计出完美架构。
 
-1. **具体性**：不是泛泛的原则，而是具体的接口定义和状态机
-2. **可验证性**：定义了 14 个状态，测试可以验证状态转换
-3. **分层性**：UI/Runtime/Provider/Storage 每层职责清晰
+### 反直觉发现三：架构问题症状在 2025 年底就出现，但 2026 年 4 月才被系统性识别
 
-**如果重来**：项目可以在功能 parity 完成后立即进行一次"架构评估冲刺"，而不是等到问题积累到影响开发效率。但这种建议是事后诸葛亮——在当时的情况下，保持开发速度是首要任务。
+**常见假设**：架构问题是新问题
 
-### 3. 渐进式重构策略
+**实际发现**：2+ 分钟启动问题（2025 年底）、provider 超时（2026 年初）都是架构问题的症状
 
-项目没有采用"大爆炸"重构（big bang rewrite），而是采用了渐进式策略：
+**为什么会延迟识别**：
+1. 架构问题需要距离才能看清（太近了看不清）
+2. 功能交付压力下，架构审查被延后
+3. 没有明确的"架构问题"追踪（只有 bug 追踪）
 
-1. **测试基础设施优先**（`2898c972`）- 确保重构可验证
-   - 引入 fake 实现替换真实组件
-   - 建立 recording event sink 捕获事件序列
-   - 允许单元测试验证行为不变性
+**启发**：建议团队在每个季度结束时进行一次"架构健康度检查"，即使没有明显的 bug。
 
-2. **外围系统先行**（HookEngine, ToolRouter）- 降低风险
-   - HookEngine 是可选扩展，不影响核心路径
-   - ToolRouter 隔离 shell 执行，是独立模块
+---
 
-3. **核心问题最后**（Runtime 执行 Agent Loop）- 最大风险变更最后处理
-   - 等所有其他变更稳定后，才修改 Runtime 的核心职责
-   - 留下最多的时间窗口来验证稳定性
+## 主线五：如果重来：复盘视角的决策推演
 
-4. **文档同步更新**（ISSUE-001 到 ISSUE-014 逐一标记 FIXED）
-   - 文档即代码——架构问题列表本身就是进度追踪
+### 决策点一：Phase 1 开始时应该先定义架构边界
 
-**这种策略的优势**：
-- 每个步骤都可以单独验证和回滚
-- 如果某个变更引入问题，可以快速定位
-- 团队可以在重构期间继续交付小功能
+**如果重来**：
 
-**这种策略的代价**：
-- 总重构时间拉长（从 4 月 28 日到 5 月 1 日仍在进行）
-- 需要维护多个"中间状态"的代码
-- 文档需要持续更新以反映最新状态
+在 Phase 1 的第一天，花 30 分钟写下这个架构宪法：
 
-### 4. 事件驱动架构的务实实现
+```text
+# opencode-rs 架构宪法
 
-项目没有采用复杂的事件溯源（Event Sourcing）模式，而是选择了**轻量级事件总线**（EventBus + HookEngine）。这是一个务实的选择：
+1. TUI 只负责：渲染视图、接收用户输入、发送命令、订阅事件
+2. Runtime Facade 只负责：接收命令、委托给 Services、返回结果
+3. Runtime Core 只负责：创建 AgentRuntime、执行 Agent Loop、路由 Tool 命令、发布事件
+4. Provider Gateway 只负责：统一 Provider 接口，隐藏 provider-specific 细节
+5. 任何违背以上边界的代码必须标记 `// HACK: TTL-Q3-2025`
+```
 
-- **适合场景**：AI Agent 的核心状态（Session, Turn）需要确定性，不适合 event sourcing 的不可变性保证
-- **足够能力**：HookEngine 提供了扩展点，TraceStore 提供了可观测性
-- **降低复杂度**：不需要处理 event replay 的复杂性
+**预期效果**：避免 ISSUE-001 和 ISSUE-013，至少减少 50% 的 Phase 3 重构工作量。
 
-**EventBus 的设计选择**：
+### 决策点二：Provider trait 应该从一开始就包含 tools 参数
+
+**如果重来**：
+
+在实现第一个 Provider（OpenAI）之前，先定义 Provider trait：
 
 ```rust
-// crates/core/src/bus.rs
-pub trait EventBus: Send + Sync {
-    fn publish(&self, event: DomainEvent);
-    fn subscribe(&self, handler: EventHandler);
+pub trait Provider: Send + Sync {
+    async fn complete(&self, prompt: &str, context: Option<&str>) -> Result<String, OpenCodeError>;
+    async fn chat(&self, messages: &[ChatMessage]) -> Result<ChatResponse, OpenCodeError>;
+    async fn chat_with_tools(&self, messages: &[ChatMessage], tools: &[ToolSchema]) -> Result<ChatResponse, OpenCodeError>;
 }
 ```
 
-这是一个简单的发布-订阅模型，不是完整的 event sourcing。每个事件被记录到 TraceStore，但不要求每个状态变更都必须通过事件驱动。
+**预期效果**：
+- 避免 ISSUE-005（明文嵌入 schema）
+- Provider-native tool calling 从第一天就能用
+- 不需要后续的 `8b971f8a`（normalize ProviderGateway）和 `5000fa32`（add ToolSchema）
 
-### 5. 架构债务的识别时机
+### 决策点三：FileTree 组件应该从一开始就设置深度限制
 
-**反直觉发现 #3**：架构问题的症状早在 2025 年底就出现了，但直到 2026 年 4 月才被系统性识别。
+**如果重来**：
 
-症状：
-- 2025 年中：`d702f1b0` 修复的 2+ 分钟启动问题（文件树遍历效率）
-- 2025 年底：`f070b094` 修复的大量 clippy lint 问题（代码质量）
-- 2026 年初：`20b24a85` 添加的 provider 超时（可靠性）
+在 `d702f1b0` 之前实现 FileTree 时：
 
-但这些都是"症状治疗"，不是"病因诊断"。真正的架构问题（UI 和 Runtime 边界混乱）直到 4 月底引入设计文档后才被完整识别。
+```rust
+pub struct FileTreeConfig {
+    max_depth: usize,        // 设置合理的默认值，如 3
+    lazy_load: bool,         // 默认开启
+    cache_enabled: bool,    // 默认开启
+}
 
-**为什么会延迟**：
-- 架构问题需要距离才能看清（太近了看不清）
-- 功能交付压力下，架构审查被延后
-- 没有明确的"架构问题"追踪（只有 bug 追踪）
+impl Default for FileTreeConfig {
+    fn default() -> Self {
+        Self {
+            max_depth: 3,
+            lazy_load: true,
+            cache_enabled: true,
+        }
+    }
+}
+```
+
+**预期效果**：2+ 分钟启动问题不会出现在用户反馈中，因为这是内部限制而非外部 bug。
+
+### 决策点四：每个 Provider 实现应该有自己的 streaming 测试套件
+
+**如果重来**：
+
+在实现 Ollama provider 的 streaming 支持时：
+
+```rust
+#[cfg(test)]
+mod streaming_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_ollama_streaming_complete_json() {
+        // 正常数据测试
+    }
+
+    #[tokio::test]
+    async fn test_ollama_streaming_truncated_json() {
+        // 截断数据测试 - 验证增量解析
+    }
+
+    #[tokio::test]
+    async fn test_ollama_streaming_malformed_json() {
+        // 畸形数据测试 - 验证错误处理
+    }
+}
+```
+
+**预期效果**：`9d684cf9`（fix Ollama JSONL streaming）不会成为一个生产环境 bug。
 
 ---
 
 ## 结语：未来演进方向预测
+
+基于当前的技术债务和未解决问题，预测下一步演进重点：
+
+### 短期（1-3 个月）
+
+1. **ISSUE-005 深入完成**：ToolSchema 的 Provider-native 实现目前只完成了一半（接口已添加，但每个 Provider 的实现还需要适配 OpenAI/Anthropic/Ollama 的不同格式）
+2. **ContextRanking 激活**：trim_to_budget 的 ranking 算法需要更精细的权重调整
+3. **Server 远程控制模式**：当前 server 已桥接事件，但完整的远程控制需要更多工作
+
+### 中期（3-6 个月）
+
+1. **Core crate 拆分**：64 个文件的 `core` crate 是下一个需要解决的大型技术债
+2. **Provider 抽象层强化**：需要处理 OpenAI/Anthropic/Ollama 的能力差异
+3. **可恢复性增强**：TraceStore + CheckpointStore 应该支持"中断后恢复"
+
+### 反直觉预测
+
+**预测 #1**：项目会引入 RFC/ADR 流程来记录架构决策。当前的"单人维护者"模式在架构重构后会暴露决策视角单一的问题。
+
+**预测 #2**：项目会采用 Contract Testing 来验证 Provider Gateway 的不同实现。这是从"集成测试为主"转向更精细测试策略的第一步。
+
+**关键结论**：opencode-rs 的演进是 AI Coding Agent 基础设施开发的一个缩影——从快速功能实现到架构健康度提升，从"先跑起来"到"跑得长久"。这个路径不是线性的，而是需要多次"架构评估-识别问题-渐进重构"的循环。项目的下一个成熟度标志是：能够在一个独立的 PR 中完成一个完整的架构改进，而不需要跨越数周时间和 80+ 个文件。
+
+**最终建议**：对于正在进行 Rust 重写的项目，建议在完成功能 parity 后立即进行为期一周的"架构评估冲刺"，识别和量化技术债务，制定重构路线图。这比"等技术债积累够了再重构"要高效得多——因为技术债的利息是复利的。
 
 基于当前的技术债务和未解决问题，预测下一步演进重点：
 
