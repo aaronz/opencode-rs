@@ -12,6 +12,19 @@ pub enum HookId {
     Plugin(u32),
 }
 
+impl HookId {
+    /// Returns the context cost tier for this hook source.
+    /// Tier 0 = zero-context (Builtin), 1 = low (Project), 2 = medium (User), 3 = high (Plugin)
+    pub fn cost_tier(&self) -> u8 {
+        match self {
+            HookId::Builtin(_) => 0,
+            HookId::Project(_) => 1,
+            HookId::User(_) => 2,
+            HookId::Plugin(_) => 3,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HookTrigger {
