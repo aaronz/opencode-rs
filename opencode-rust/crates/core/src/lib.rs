@@ -96,7 +96,7 @@ pub use session::{Session, SessionInfo, SessionSummaryMetadata, ToolInvocationRe
 pub use session_state::{is_valid_transition, SessionState};
 pub use summary::SummaryGenerator;
 pub use token_counter::{CostCalculator, TokenCounter};
-pub use turn::{Turn, TurnId, TurnStatus};
+pub use turn::{Turn, TurnId, TurnStatus, TaskId};
 
 pub use session_sharing::SessionSharing;
 /// Skill management for extending OpenCode with custom capabilities.

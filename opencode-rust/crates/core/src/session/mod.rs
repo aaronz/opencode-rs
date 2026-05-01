@@ -16,7 +16,7 @@ use crate::config::{CompactionConfig as RuntimeCompactionConfig, ShareMode};
 use crate::context::{Context, ContextBuilder};
 use crate::message::{Message, Role};
 use crate::session_state::{is_valid_transition, SessionState, StateTransitionError};
-use crate::turn::{Turn, TurnId, TurnStatus};
+use crate::turn::{Turn, TurnId, TurnStatus, TaskId};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -151,6 +151,10 @@ impl Session {
     }
 
     pub fn start_turn(&mut self, user_message_id: Option<String>) -> TurnId {
+        self.start_turn_with_tasks(user_message_id, Vec::new())
+    }
+
+    pub fn start_turn_with_tasks(&mut self, user_message_id: Option<String>, task_ids: Vec<TaskId>) -> TurnId {
         let turn = Turn {
             id: TurnId::new(),
             session_id: self.id,
@@ -158,6 +162,7 @@ impl Session {
             status: TurnStatus::Running,
             started_at: Utc::now(),
             completed_at: None,
+            task_ids,
         };
         let turn_id = turn.id;
         self.active_turn_id = Some(turn_id);
