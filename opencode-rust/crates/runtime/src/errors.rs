@@ -10,4 +10,7 @@ pub enum RuntimeFacadeError {
 
     #[error("serialization error: {0}")]
     Serialization(String),
+
+    #[error("invalid configuration: {0}")]
+    InvalidConfiguration(String),
 }

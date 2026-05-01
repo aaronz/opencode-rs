@@ -182,6 +182,15 @@ pub enum DomainEvent {
     },
 
     // -------------------------------------------------------------------------
+    // Runtime lifecycle
+    // -------------------------------------------------------------------------
+    RuntimeStatusChanged {
+        session_id: Option<String>,
+        from_status: String,
+        to_status: String,
+    },
+
+    // -------------------------------------------------------------------------
     // Compaction (context truncation)
     // -------------------------------------------------------------------------
     CompactionTriggered {
@@ -468,6 +477,7 @@ impl DomainEvent {
             Self::LlmTokenStreamed { session_id, .. } => Some(session_id),
             Self::LlmResponseCompleted { session_id, .. } => Some(session_id),
             Self::LlmError { session_id, .. } => Some(session_id),
+            Self::RuntimeStatusChanged { session_id, .. } => session_id.as_deref(),
             _ => None,
         }
     }
