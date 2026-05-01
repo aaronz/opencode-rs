@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use opencode_agent::{Agent, AgentRuntime};
 use opencode_core::events::DomainEvent;
 use opencode_llm::Provider;
@@ -9,22 +10,23 @@ use uuid::Uuid;
 use crate::commands::{ContextCommand, RuntimeFacadeCommand, TaskControlCommand};
 use crate::context_view::RuntimeFacadeContextSummary;
 use crate::errors::RuntimeFacadeError;
+use crate::handle::RuntimeHandle;
 use crate::services::RuntimeFacadeServices;
 use crate::task_store::RuntimeFacadeTaskStore;
 use crate::types::{
-    RuntimeFacadeResponse, RuntimeFacadeStatus, RuntimeFacadeTask, RuntimeFacadeTaskId, TaskKind,
+    RuntimeFacadeResponse, RuntimeFacadeTask, RuntimeFacadeTaskId, RuntimeStatus, TaskKind,
 };
 
 pub struct RuntimeFacade {
     services: RuntimeFacadeServices,
-    status: Arc<RwLock<RuntimeFacadeStatus>>,
+    status: Arc<RwLock<RuntimeStatus>>,
 }
 
 impl RuntimeFacade {
     pub fn new(services: RuntimeFacadeServices) -> Self {
         Self {
             services,
-            status: Arc::new(RwLock::new(RuntimeFacadeStatus::Idle)),
+            status: Arc::new(RwLock::new(RuntimeStatus::Idle)),
         }
     }
 
@@ -39,8 +41,8 @@ impl RuntimeFacade {
         self.services.set_provider(provider).await;
     }
 
-    pub async fn status(&self) -> RuntimeFacadeStatus {
-        self.status.read().await.clone()
+    pub async fn status(&self) -> RuntimeStatus {
+        *self.status.read().await
     }
 
     pub fn task_store(&self) -> Arc<RuntimeFacadeTaskStore> {
@@ -58,12 +60,12 @@ impl RuntimeFacade {
 #[derive(Clone)]
 pub struct RuntimeFacadeHandle {
     services: RuntimeFacadeServices,
-    status: Arc<RwLock<RuntimeFacadeStatus>>,
+    status: Arc<RwLock<RuntimeStatus>>,
 }
 
 impl RuntimeFacadeHandle {
-    pub async fn status(&self) -> RuntimeFacadeStatus {
-        self.status.read().await.clone()
+    pub async fn status(&self) -> RuntimeStatus {
+        *self.status.read().await
     }
 
     pub fn task_store(&self) -> Arc<RuntimeFacadeTaskStore> {
@@ -85,13 +87,49 @@ impl RuntimeFacadeHandle {
         }
     }
 
-    pub async fn execute(
+    pub async fn execute_with_status_tracking(
         &self,
         command: RuntimeFacadeCommand,
     ) -> Result<RuntimeFacadeResponse, RuntimeFacadeError> {
-        // Delegate directly to this handle's Runtime by borrowing shared state
-        // RuntimeFacade::execute just needs &self to access services and status
+        let from_status = *self.status.read().await;
+        let from_status_str = format!("{:?}", from_status);
+
+        let result = RuntimeFacade::execute_standalone(&self.services, Arc::clone(&self.status), command).await;
+
+        let to_status = *self.status.read().await;
+        let to_status_str = format!("{:?}", to_status);
+
+        if from_status != to_status {
+            self.services.event_bus.publish(DomainEvent::RuntimeStatusChanged {
+                session_id: None,
+                from_status: from_status_str,
+                to_status: to_status_str,
+            });
+        }
+
+        result
+    }
+}
+
+#[async_trait]
+impl RuntimeHandle for RuntimeFacadeHandle {
+    async fn execute(
+        &self,
+        command: RuntimeFacadeCommand,
+    ) -> Result<RuntimeFacadeResponse, RuntimeFacadeError> {
         RuntimeFacade::execute_standalone(&self.services, Arc::clone(&self.status), command).await
+    }
+
+    async fn status(&self) -> RuntimeStatus {
+        *self.status.read().await
+    }
+
+    async fn set_provider(&self, provider: Arc<dyn Provider + Send + Sync>) {
+        self.services.set_provider(provider).await;
+    }
+
+    fn subscribe(&self) -> tokio::sync::broadcast::Receiver<DomainEvent> {
+        self.services.event_bus.subscribe()
     }
 }
 
@@ -99,7 +137,7 @@ impl RuntimeFacade {
     /// Execute a command using shared services without needing a full Runtime instance.
     async fn execute_standalone(
         services: &RuntimeFacadeServices,
-        _status: Arc<RwLock<RuntimeFacadeStatus>>,
+        _status: Arc<RwLock<RuntimeStatus>>,
         command: RuntimeFacadeCommand,
     ) -> Result<RuntimeFacadeResponse, RuntimeFacadeError> {
         match command {
@@ -295,7 +333,7 @@ impl RuntimeFacade {
                     "workdir": cmd.workdir,
                 });
 
-                match services.tool_router.execute("bash", args, None).await {
+                match services.tool_router.execute_with_validation("bash", args, None).await {
                     Ok(result) => Ok(RuntimeFacadeResponse {
                         session_id: None,
                         turn_id: None,

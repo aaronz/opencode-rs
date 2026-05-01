@@ -3,11 +3,16 @@ pub mod commands;
 pub mod context_view;
 pub mod errors;
 pub mod events;
+pub mod handle;
+pub mod llm_gateway;
+pub mod path_resolver;
 pub mod permission;
 pub mod persistence;
+pub mod provider_gateway;
 pub mod runtime;
 pub mod services;
 pub mod task_store;
+pub mod testing;
 pub mod tool_router;
 pub mod trace_store;
 pub mod types;
@@ -19,17 +24,25 @@ pub use commands::{
 };
 pub use context_view::RuntimeFacadeContextSummary;
 pub use errors::RuntimeFacadeError;
-pub use events::RuntimeFacadeEvent;
+pub use events::{LogLevel, RuntimeFacadeEvent};
 pub use permission::{RuntimeFacadePermissionAdapter, RuntimeFacadePermissionDecision};
 pub use persistence::RuntimeFacadeSessionStore;
+pub use llm_gateway::LlmProviderGateway;
+pub use provider_gateway::{
+    ModelCapabilities, ModelInfo, NormalizedToolCall, ProviderError, ProviderErrorKind,
+    ProviderMessage, ProviderRequest, ProviderRequestMetadata, ProviderStreamEvent, ProviderStatus,
+    ToolChoice, ToolDescriptor, TokenUsage,
+};
 pub use runtime::{RuntimeFacade, RuntimeFacadeHandle};
+pub use handle::{RuntimeHandle, StreamingRuntimeHandle, DynRuntimeHandle};
 pub use services::RuntimeFacadeServices;
 pub use task_store::RuntimeFacadeTaskStore;
 pub use tool_router::RuntimeFacadeToolRouter;
 pub use trace_store::{
-    RuntimeFacadeTrace, RuntimeFacadeTraceStore, RuntimeFacadeTraceSummary, TokenUsageSummary,
+    RuntimeFacadeTrace, RuntimeFacadeTraceSummary, RuntimeFacadeTraceStore, TokenUsageSummary,
+    TraceEvent,
 };
 pub use types::{
-    RuntimeFacadeResponse, RuntimeFacadeStatus, RuntimeFacadeTask, RuntimeFacadeTaskId,
-    RuntimeFacadeTaskStatus, TaskKind, TraceId,
+    RuntimeFacadeResponse, RuntimeFacadeTask, RuntimeFacadeTaskId, RuntimeFacadeTaskStatus,
+    RuntimeStatus, TaskKind, TraceId,
 };

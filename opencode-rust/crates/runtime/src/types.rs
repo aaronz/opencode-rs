@@ -4,11 +4,145 @@ use uuid::Uuid;
 
 use opencode_llm::CancellationToken;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum RuntimeFacadeStatus {
+/// Runtime lifecycle status - explicit state machine per design §3.3.
+/// These are the high-level runtime states, not individual task states.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeStatus {
+    /// Runtime is idle and ready for input.
+    #[default]
     Idle,
-    Busy,
+    /// Runtime is preparing for a task (loading context, rules, skills).
+    Preparing,
+    /// Building context bundle for LLM request.
+    BuildingContext,
+    /// Calling LLM model.
+    CallingModel,
+    /// Waiting for user permission (tool approval, etc.).
+    WaitingForPermission,
+    /// Executing a tool.
+    ExecutingTool,
+    /// Applying a file patch.
+    ApplyingPatch,
+    /// Running a shell command.
+    RunningCommand,
+    /// Running validation.
+    Validating,
+    /// Summarizing results.
+    Summarizing,
+    /// Persisting state.
+    Persisting,
+    /// Task completed successfully.
+    Completed,
+    /// Task failed.
+    Failed,
+    /// Task was cancelled.
+    Cancelled,
+    /// Task was interrupted.
+    Interrupted,
+    /// Runtime is degraded (partial failure).
     Degraded,
+}
+
+/// Backward compatibility alias - RuntimeFacadeStatus is the old name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[deprecated(since = "0.2.0", note = "Use RuntimeStatus instead")]
+pub enum RuntimeFacadeStatus {
+    #[deprecated(since = "0.2.0", note = "Use RuntimeStatus::Idle instead")]
+    Idle,
+    #[deprecated(since = "0.2.0", note = "Use RuntimeStatus::BuildingContext or other active state")]
+    Busy,
+    #[deprecated(since = "0.2.0", note = "Use RuntimeStatus::Degraded instead")]
+    Degraded,
+}
+
+#[allow(deprecated)]
+impl RuntimeFacadeStatus {
+    #[deprecated(since = "0.2.0", note = "Use RuntimeStatus::can_accept_input instead")]
+    pub fn can_accept_input(&self) -> bool {
+        matches!(self, Self::Idle)
+    }
+
+    #[deprecated(since = "0.2.0", note = "Use RuntimeStatus::is_terminal instead")]
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Degraded)
+    }
+}
+
+#[allow(deprecated)]
+impl From<RuntimeStatus> for RuntimeFacadeStatus {
+    fn from(status: RuntimeStatus) -> Self {
+        match status {
+            RuntimeStatus::Idle => Self::Idle,
+            RuntimeStatus::Degraded => Self::Degraded,
+            _ => Self::Busy,
+        }
+    }
+}
+
+#[allow(deprecated)]
+impl From<RuntimeFacadeStatus> for RuntimeStatus {
+    fn from(status: RuntimeFacadeStatus) -> Self {
+        match status {
+            RuntimeFacadeStatus::Idle => Self::Idle,
+            RuntimeFacadeStatus::Degraded => Self::Degraded,
+            RuntimeFacadeStatus::Busy => Self::BuildingContext,
+        }
+    }
+}
+
+impl RuntimeStatus {
+    /// Check if this status represents a terminal state.
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            Self::Completed | Self::Failed | Self::Cancelled | Self::Interrupted
+        )
+    }
+
+    /// Check if the runtime can accept new input in this state.
+    pub fn can_accept_input(&self) -> bool {
+        matches!(self, Self::Idle)
+    }
+
+    /// Check if this status represents active work.
+    pub fn is_active(&self) -> bool {
+        matches!(
+            self,
+            Self::Preparing
+                | Self::BuildingContext
+                | Self::CallingModel
+                | Self::ExecutingTool
+                | Self::ApplyingPatch
+                | Self::RunningCommand
+                | Self::Validating
+                | Self::Summarizing
+                | Self::Persisting
+        )
+    }
+
+    /// Human-readable label for UI display.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Preparing => "preparing",
+            Self::BuildingContext => "building context",
+            Self::CallingModel => "calling model",
+            Self::WaitingForPermission => "awaiting permission",
+            Self::ExecutingTool => "executing tool",
+            Self::ApplyingPatch => "applying patch",
+            Self::RunningCommand => "running command",
+            Self::Validating => "validating",
+            Self::Summarizing => "summarizing",
+            Self::Persisting => "persisting",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+            Self::Interrupted => "interrupted",
+            Self::Degraded => "degraded",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
